@@ -1,0 +1,3 @@
+[submodule "RoboVLMs"]
+	path = RoboVLMs
+	url = https://github.com/minuum/RoboVLMs.git
