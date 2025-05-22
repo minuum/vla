@@ -1,0 +1,29 @@
+[0.000000] (-) TimerEvent: {}
+[0.000528] (-) JobUnselected: {'identifier': 'action_executor_node'}
+[0.000789] (-) JobUnselected: {'identifier': 'camera_pub'}
+[0.001030] (-) JobUnselected: {'identifier': 'camera_sub'}
+[0.001837] (-) JobUnselected: {'identifier': 'vla_node'}
+[0.002084] (omni_controller) JobQueued: {'identifier': 'omni_controller', 'dependencies': OrderedDict()}
+[0.002335] (omni_controller) JobStarted: {'identifier': 'omni_controller'}
+[0.094311] (-) TimerEvent: {}
+[0.194787] (-) TimerEvent: {}
+[0.295282] (-) TimerEvent: {}
+[0.395778] (-) TimerEvent: {}
+[0.496254] (-) TimerEvent: {}
+[0.596740] (-) TimerEvent: {}
+[0.697233] (-) TimerEvent: {}
+[0.797720] (-) TimerEvent: {}
+[0.898227] (-) TimerEvent: {}
+[0.998805] (-) TimerEvent: {}
+[1.099303] (-) TimerEvent: {}
+[1.199812] (-) TimerEvent: {}
+[1.300334] (-) TimerEvent: {}
+[1.400848] (-) TimerEvent: {}
+[1.501480] (-) TimerEvent: {}
+[1.601999] (-) TimerEvent: {}
+[1.702487] (-) TimerEvent: {}
+[1.803002] (-) TimerEvent: {}
+[1.903513] (-) TimerEvent: {}
+[2.004001] (-) TimerEvent: {}
+[2.104518] (-) TimerEvent: {}
+[2.205017] (-) TimerEvent: {}

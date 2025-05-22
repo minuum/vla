@@ -1,0 +1,87 @@
+[0.000000] (-) TimerEvent: {}
+[0.008037] (-) JobUnselected: {'identifier': 'action_executor_node'}
+[0.008810] (-) JobUnselected: {'identifier': 'camera_pub'}
+[0.009002] (-) JobUnselected: {'identifier': 'camera_sub'}
+[0.009476] (-) JobUnselected: {'identifier': 'vla_node'}
+[0.009678] (omni_controller) JobQueued: {'identifier': 'omni_controller', 'dependencies': OrderedDict()}
+[0.010126] (omni_controller) JobStarted: {'identifier': 'omni_controller'}
+[0.099098] (-) TimerEvent: {}
+[0.199576] (-) TimerEvent: {}
+[0.300225] (-) TimerEvent: {}
+[0.400882] (-) TimerEvent: {}
+[0.501384] (-) TimerEvent: {}
+[0.601902] (-) TimerEvent: {}
+[0.702390] (-) TimerEvent: {}
+[0.802898] (-) TimerEvent: {}
+[0.903389] (-) TimerEvent: {}
+[1.003881] (-) TimerEvent: {}
+[1.104378] (-) TimerEvent: {}
+[1.204887] (-) TimerEvent: {}
+[1.305425] (-) TimerEvent: {}
+[1.405975] (-) TimerEvent: {}
+[1.506489] (-) TimerEvent: {}
+[1.607007] (-) TimerEvent: {}
+[1.707845] (-) TimerEvent: {}
+[1.808345] (-) TimerEvent: {}
+[1.908857] (-) TimerEvent: {}
+[2.009671] (-) TimerEvent: {}
+[2.110198] (-) TimerEvent: {}
+[2.210766] (-) TimerEvent: {}
+[2.311349] (-) TimerEvent: {}
+[2.411854] (-) TimerEvent: {}
+[2.512365] (-) TimerEvent: {}
+[2.612904] (-) TimerEvent: {}
+[2.713939] (-) TimerEvent: {}
+[2.815154] (-) TimerEvent: {}
+[2.916367] (-) TimerEvent: {}
+[3.017479] (-) TimerEvent: {}
+[3.118663] (-) TimerEvent: {}
+[3.219931] (-) TimerEvent: {}
+[3.321102] (-) TimerEvent: {}
+[3.422347] (-) TimerEvent: {}
+[3.523646] (-) TimerEvent: {}
+[3.556705] (omni_controller) Command: {'cmd': ['/usr/bin/python3', '-W', 'ignore:setup.py install is deprecated', '-W', 'ignore:easy_install command is deprecated', 'setup.py', 'egg_info', '--egg-base', '../../build/omni_controller', 'build', '--build-base', '/home/soda/vla/ROS_action/build/omni_controller/build', 'install', '--record', '/home/soda/vla/ROS_action/build/omni_controller/install.log', '--single-version-externally-managed', 'install_data'], 'cwd': '/home/soda/vla/ROS_action/src/omni_controller', 'env': {'CONDA_PROMPT_MODIFIER': '(robovlms)', 'USER': 'soda', 'LC_TIME': 'ko_KR.UTF-8', 'SSH_CLIENT': '10.109.3.2 51284 22', 'XDG_SESSION_TYPE': 'tty', 'GIT_ASKPASS': '/home/soda/.vscode-server/cli/servers/Stable-848b80aeb52026648a8ff9f7c45a9b0a80641e2e/server/extensions/git/dist/askpass.sh', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib', 'BROWSER': '/home/soda/.vscode-server/cli/servers/Stable-848b80aeb52026648a8ff9f7c45a9b0a80641e2e/server/bin/helpers/browser.sh', 'HOME': '/home/soda', 'MOTD_SHOWN': 'pam', 'OLDPWD': '/home/soda/vla', 'LESS': '-R', 'TERMINFO': '/home/soda/.terminfo', 'CONDA_SHLVL': '1', 'TERM_PROGRAM_VERSION': '1.100.2', 'VSCODE_IPC_HOOK_CLI': '/run/user/1000/vscode-ipc-1727013d-0265-4cc3-82f1-1f7a727a761c.sock', 'ZSH': '/home/soda/.oh-my-zsh', 'LSCOLORS': 'Gxfxcxdxbxegedabagacad', 'PAGER': 'less', 'ROS_PYTHON_VERSION': '3', 'VSCODE_GIT_ASKPASS_MAIN': '/home/soda/.vscode-server/cli/servers/Stable-848b80aeb52026648a8ff9f7c45a9b0a80641e2e/server/extensions/git/dist/askpass-main.js', 'PS1': '(robovlms) %m%#', 'LC_MONETARY': 'ko_KR.UTF-8', 'SSL_CERT_FILE': '/usr/lib/ssl/certs/ca-certificates.crt', 'VSCODE_GIT_ASKPASS_NODE': '/home/soda/.vscode-server/cli/servers/Stable-848b80aeb52026648a8ff9f7c45a9b0a80641e2e/server/node', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'PYDEVD_DISABLE_FILE_VALIDATION': '1', 'BUNDLED_DEBUGPY_PATH': '/home/soda/.vscode-server/extensions/ms-python.debugpy-2025.8.0/bundled/libs/debugpy', 'P9K_TTY': 'old', 'COLORTERM': 'truecolor', 'ROS_DISTRO': 'humble', 'COLCON_PREFIX_PATH': '/home/soda/vla/ROS_action/install:/home/soda/ros2_ws/install:/home/soda/vla/ROS_action/install:/home/soda/ros2_ws/install:/home/soda/vla/ROS_action/install:/home/soda/ros2_ws/install:/home/soda/vla/ROS_action/install:/home/soda/ros2_ws/install:/home/soda/vla/ROS_action/install:/home/soda/ros2_ws/install:/home/soda/vla/ROS_action/install:/home/soda/ros2_ws/install', 'LOGNAME': 'soda', '_': '/usr/bin/colcon', '_P9K_SSH_TTY': '/dev/pts/5', 'XDG_SESSION_CLASS': 'user', 'ROS_VERSION': '2', 'USER_ZDOTDIR': '/home/soda', 'XDG_SESSION_ID': '24', 'TERM': 'xterm-256color', 'ROS_LOCALHOST_ONLY': '0', 'PATH': '/home/soda/.ssh/yes/envs/robovlms/bin:/home/soda/.ssh/yes/condabin:/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/cuda/bin', 'XDG_RUNTIME_DIR': '/run/user/1000', 'LC_ADDRESS': 'ko_KR.UTF-8', 'SSL_CERT_DIR': '/usr/lib/ssl/certs', 'LANG': 'en_US.UTF-8', 'LC_TELEPHONE': 'ko_KR.UTF-8', 'VSCODE_DEBUGPY_ADAPTER_ENDPOINTS': '/home/soda/.vscode-server/extensions/ms-python.debugpy-2025.8.0/.noConfigDebugAdapterEndpoints/endpoint-8a5edab282632443.txt', 'VSCODE_INJECTION': '1', 'LS_COLORS': 'no=00;38;5;244:rs=0:di=00;38;5;33:ln=01;38;5;37:mh=00:pi=48;5;230;38;5;136;01:so=48;5;230;38;5;136;01:do=48;5;230;38;5;136;01:bd=48;5;230;38;5;244;01:cd=48;5;230;38;5;244;01:or=48;5;235;38;5;160:su=48;5;160;38;5;230:sg=48;5;136;38;5;230:ca=30;41:tw=48;5;64;38;5;230:ow=48;5;235;38;5;33:st=48;5;33;38;5;230:ex=01;38;5;64:*.tar=00;38;5;61:*.tgz=01;38;5;61:*.arj=01;38;5;61:*.taz=01;38;5;61:*.lzh=01;38;5;61:*.lzma=01;38;5;61:*.tlz=01;38;5;61:*.txz=01;38;5;61:*.zip=01;38;5;61:*.zst=01;38;5;61:*.z=01;38;5;61:*.Z=01;38;5;61:*.dz=01;38;5;61:*.gz=01;38;5;61:*.lz=01;38;5;61:*.xz=01;38;5;61:*.bz2=01;38;5;61:*.bz=01;38;5;61:*.tbz=01;38;5;61:*.tbz2=01;38;5;61:*.tz=01;38;5;61:*.deb=01;38;5;61:*.rpm=01;38;5;61:*.jar=01;38;5;61:*.rar=01;38;5;61:*.ace=01;38;5;61:*.zoo=01;38;5;61:*.cpio=01;38;5;61:*.7z=01;38;5;61:*.rz=01;38;5;61:*.apk=01;38;5;61:*.gem=01;38;5;61:*.jpg=00;38;5;136:*.JPG=00;38;5;136:*.jpeg=00;38;5;136:*.gif=00;38;5;136:*.bmp=00;38;5;136:*.pbm=00;38;5;136:*.pgm=00;38;5;136:*.ppm=00;38;5;136:*.tga=00;38;5;136:*.xbm=00;38;5;136:*.xpm=00;38;5;136:*.tif=00;38;5;136:*.tiff=00;38;5;136:*.png=00;38;5;136:*.PNG=00;38;5;136:*.svg=00;38;5;136:*.svgz=00;38;5;136:*.mng=00;38;5;136:*.pcx=00;38;5;136:*.dl=00;38;5;136:*.xcf=00;38;5;136:*.xwd=00;38;5;136:*.yuv=00;38;5;136:*.cgm=00;38;5;136:*.emf=00;38;5;136:*.eps=00;38;5;136:*.CR2=00;38;5;136:*.ico=00;38;5;136:*.nef=00;38;5;136:*.NEF=00;38;5;136:*.webp=00;38;5;136:*.heic=00;38;5;136:*.HEIC=00;38;5;136:*.avif=00;38;5;136:*.tex=01;38;5;245:*.rdf=01;38;5;245:*.owl=01;38;5;245:*.n3=01;38;5;245:*.ttl=01;38;5;245:*.nt=01;38;5;245:*.torrent=01;38;5;245:*.xml=01;38;5;245:*Makefile=01;38;5;245:*Rakefile=01;38;5;245:*Dockerfile=01;38;5;245:*build.xml=01;38;5;245:*rc=01;38;5;245:*1=01;38;5;245:*.nfo=01;38;5;245:*README=01;38;5;245:*README.txt=01;38;5;245:*readme.txt=01;38;5;245:*.md=01;38;5;245:*README.markdown=01;38;5;245:*.ini=01;38;5;245:*.yml=01;38;5;245:*.cfg=01;38;5;245:*.conf=01;38;5;245:*.h=01;38;5;245:*.hpp=01;38;5;245:*.c=01;38;5;245:*.cpp=01;38;5;245:*.cxx=01;38;5;245:*.cc=01;38;5;245:*.objc=01;38;5;245:*.sqlite=01;38;5;245:*.go=01;38;5;245:*.lua=01;38;5;245:*.sql=01;38;5;245:*.csv=01;38;5;245:*.log=00;38;5;240:*.bak=00;38;5;240:*.aux=00;38;5;240:*.lof=00;38;5;240:*.lol=00;38;5;240:*.lot=00;38;5;240:*.out=00;38;5;240:*.toc=00;38;5;240:*.bbl=00;38;5;240:*.blg=00;38;5;240:*~=00;38;5;240:*#=00;38;5;240:*.part=00;38;5;240:*.incomplete=00;38;5;240:*.swp=00;38;5;240:*.tmp=00;38;5;240:*.temp=00;38;5;240:*.o=00;38;5;240:*.pyc=00;38;5;240:*.class=00;38;5;240:*.cache=00;38;5;240:*.aac=00;38;5;166:*.au=00;38;5;166:*.flac=00;38;5;166:*.mid=00;38;5;166:*.midi=00;38;5;166:*.mka=00;38;5;166:*.mp3=00;38;5;166:*.mpc=00;38;5;166:*.ogg=00;38;5;166:*.opus=00;38;5;166:*.ra=00;38;5;166:*.wav=00;38;5;166:*.m4a=00;38;5;166:*.axa=00;38;5;166:*.oga=00;38;5;166:*.spx=00;38;5;166:*.xspf=00;38;5;166:*.mov=01;38;5;166:*.MOV=01;38;5;166:*.mpg=01;38;5;166:*.mpeg=01;38;5;166:*.m2v=01;38;5;166:*.mkv=01;38;5;166:*.ogm=01;38;5;166:*.mp4=01;38;5;166:*.m4v=01;38;5;166:*.mp4v=01;38;5;166:*.vob=01;38;5;166:*.qt=01;38;5;166:*.nuv=01;38;5;166:*.wmv=01;38;5;166:*.asf=01;38;5;166:*.rm=01;38;5;166:*.rmvb=01;38;5;166:*.flc=01;38;5;166:*.avi=01;38;5;166:*.fli=01;38;5;166:*.flv=01;38;5;166:*.gl=01;38;5;166:*.m2ts=01;38;5;166:*.divx=01;38;5;166:*.webm=01;38;5;166:*.axv=01;38;5;166:*.anx=01;38;5;166:*.ogv=01;38;5;166:*.ogx=01;38;5;166:', 'TERM_PROGRAM': 'vscode', 'VSCODE_GIT_IPC_HANDLE': '/run/user/1000/vscode-git-9290a4bd91.sock', 'AMENT_PREFIX_PATH': '/home/soda/vla/ROS_action/install/vla_node:/home/soda/vla/ROS_action/install/omni_controller:/home/soda/vla/ROS_action/install/camera_sub:/home/soda/vla/ROS_action/install/camera_pub:/home/soda/vla/ROS_action/install/action_executor_node:/home/soda/ros2_ws/install/vla_proto:/home/soda/ros2_ws/install/vla_pipeline:/home/soda/ros2_ws/install/siglip_ros:/opt/ros/humble', 'CONDA_PYTHON_EXE': '/home/soda/.ssh/yes/bin/python', 'SHELL': '/bin/zsh', 'LC_NAME': 'ko_KR.UTF-8', 'CONDA_DEFAULT_ENV': 'robovlms', 'LC_MEASUREMENT': 'ko_KR.UTF-8', 'LC_IDENTIFICATION': 'ko_KR.UTF-8', 'P9K_SSH': '1', 'VSCODE_GIT_ASKPASS_EXTRA_ARGS': '', 'VSCODE_NONCE': 'e3215d96-bfee-4344-ba86-6a2cb7d8b207', 'PWD': '/home/soda/vla/ROS_action/build/omni_controller', 'SSH_CONNECTION': '10.109.3.2 51284 10.109.0.104 22', 'CONDA_EXE': '/home/soda/.ssh/yes/bin/conda', 'ZDOTDIR': '/home/soda', '_P9K_TTY': '/dev/pts/5', 'LC_NUMERIC': 'ko_KR.UTF-8', 'PYTHONPATH': '/home/soda/vla/ROS_action/build/omni_controller/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages:/workspace/ROS_action/build/vla_node:/home/soda/vla/ROS_action/install/vla_node/lib/python3.10/site-packages:/home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages:/home/soda/vla/ROS_action/install/camera_sub/lib/python3.10/site-packages:/home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages:/home/soda/vla/ROS_action/install/action_executor_node/lib/python3.10/site-packages:/workspace/ros2_ws/build/vla_proto:/home/soda/ros2_ws/install/vla_proto/lib/python3.10/site-packages:/workspace/ros2_ws/build/vla_pipeline:/home/soda/ros2_ws/install/vla_pipeline/lib/python3.10/site-packages:/workspace/ros2_ws/build/siglip_ros:/home/soda/ros2_ws/install/siglip_ros/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'LC_PAPER': 'ko_KR.UTF-8', 'CONDA_PREFIX': '/home/soda/.ssh/yes/envs/robovlms', 'COLCON': '1', 'NGC_API_KEY': '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'}, 'shell': False}
+[3.623763] (-) TimerEvent: {}
+[3.724239] (-) TimerEvent: {}
+[3.824731] (-) TimerEvent: {}
+[3.925206] (-) TimerEvent: {}
+[4.025682] (-) TimerEvent: {}
+[4.126150] (-) TimerEvent: {}
+[4.226666] (-) TimerEvent: {}
+[4.327134] (-) TimerEvent: {}
+[4.427602] (-) TimerEvent: {}
+[4.528078] (-) TimerEvent: {}
+[4.628585] (-) TimerEvent: {}
+[4.729093] (-) TimerEvent: {}
+[4.829569] (-) TimerEvent: {}
+[4.846911] (omni_controller) StdoutLine: {'line': b'running egg_info\n'}
+[4.894562] (omni_controller) StdoutLine: {'line': b'writing ../../build/omni_controller/omni_controller.egg-info/PKG-INFO\n'}
+[4.895332] (omni_controller) StdoutLine: {'line': b'writing dependency_links to ../../build/omni_controller/omni_controller.egg-info/dependency_links.txt\n'}
+[4.895699] (omni_controller) StdoutLine: {'line': b'writing entry points to ../../build/omni_controller/omni_controller.egg-info/entry_points.txt\n'}
+[4.895932] (omni_controller) StdoutLine: {'line': b'writing requirements to ../../build/omni_controller/omni_controller.egg-info/requires.txt\n'}
+[4.896122] (omni_controller) StdoutLine: {'line': b'writing top-level names to ../../build/omni_controller/omni_controller.egg-info/top_level.txt\n'}
+[4.929708] (-) TimerEvent: {}
+[4.982491] (omni_controller) StdoutLine: {'line': b"reading manifest file '../../build/omni_controller/omni_controller.egg-info/SOURCES.txt'\n"}
+[4.983923] (omni_controller) StdoutLine: {'line': b"writing manifest file '../../build/omni_controller/omni_controller.egg-info/SOURCES.txt'\n"}
+[4.984711] (omni_controller) StdoutLine: {'line': b'running build\n'}
+[4.984914] (omni_controller) StdoutLine: {'line': b'running build_py\n'}
+[4.985670] (omni_controller) StdoutLine: {'line': b'copying omni_controller/omni_drive_node.py -> /home/soda/vla/ROS_action/build/omni_controller/build/lib/omni_controller\n'}
+[4.987031] (omni_controller) StdoutLine: {'line': b'running install\n'}
+[4.996278] (omni_controller) StdoutLine: {'line': b'running install_lib\n'}
+[5.029843] (-) TimerEvent: {}
+[5.039137] (omni_controller) StdoutLine: {'line': b'copying /home/soda/vla/ROS_action/build/omni_controller/build/lib/omni_controller/omni_drive_node.py -> /home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller\n'}
+[5.041768] (omni_controller) StdoutLine: {'line': b'byte-compiling /home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller/omni_drive_node.py to omni_drive_node.cpython-310.pyc\n'}
+[5.044514] (omni_controller) StdoutLine: {'line': b'running install_data\n'}
+[5.045139] (omni_controller) StdoutLine: {'line': b'running install_egg_info\n'}
+[5.090088] (omni_controller) StdoutLine: {'line': b"removing '/home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller-0.0.0-py3.10.egg-info' (and everything under it)\n"}
+[5.095726] (omni_controller) StdoutLine: {'line': b'Copying ../../build/omni_controller/omni_controller.egg-info to /home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller-0.0.0-py3.10.egg-info\n'}
+[5.129972] (-) TimerEvent: {}
+[5.133965] (omni_controller) StdoutLine: {'line': b'running install_scripts\n'}
+[5.230123] (-) TimerEvent: {}
+[5.292277] (omni_controller) StdoutLine: {'line': b'Installing omni_drive_node script to /home/soda/vla/ROS_action/install/omni_controller/lib/omni_controller\n'}
+[5.293758] (omni_controller) StdoutLine: {'line': b"writing list of installed files to '/home/soda/vla/ROS_action/build/omni_controller/install.log'\n"}
+[5.330280] (-) TimerEvent: {}
+[5.397194] (omni_controller) CommandEnded: {'returncode': 0}
+[5.430161] (omni_controller) JobEnded: {'identifier': 'omni_controller', 'rc': 0}
+[5.431728] (-) TimerEvent: {}
+[5.431887] (-) EventReactorShutdown: {}

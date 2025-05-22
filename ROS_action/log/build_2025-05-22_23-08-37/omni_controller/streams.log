@@ -1,0 +1,24 @@
+[2.208s] Invoking command in '/home/soda/vla/ROS_action/src/omni_controller': PYTHONPATH=/home/soda/vla/ROS_action/build/omni_controller/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/omni_controller build --build-base /home/soda/vla/ROS_action/build/omni_controller/build install --record /home/soda/vla/ROS_action/build/omni_controller/install.log --single-version-externally-managed install_data
+[3.039s] running egg_info
+[3.079s] writing ../../build/omni_controller/omni_controller.egg-info/PKG-INFO
+[3.079s] writing dependency_links to ../../build/omni_controller/omni_controller.egg-info/dependency_links.txt
+[3.080s] writing entry points to ../../build/omni_controller/omni_controller.egg-info/entry_points.txt
+[3.080s] writing requirements to ../../build/omni_controller/omni_controller.egg-info/requires.txt
+[3.080s] writing top-level names to ../../build/omni_controller/omni_controller.egg-info/top_level.txt
+[3.157s] reading manifest file '../../build/omni_controller/omni_controller.egg-info/SOURCES.txt'
+[3.158s] writing manifest file '../../build/omni_controller/omni_controller.egg-info/SOURCES.txt'
+[3.158s] running build
+[3.158s] running build_py
+[3.159s] copying omni_controller/omni_drive_node.py -> /home/soda/vla/ROS_action/build/omni_controller/build/lib/omni_controller
+[3.159s] running install
+[3.168s] running install_lib
+[3.206s] copying /home/soda/vla/ROS_action/build/omni_controller/build/lib/omni_controller/omni_drive_node.py -> /home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller
+[3.207s] byte-compiling /home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller/omni_drive_node.py to omni_drive_node.cpython-310.pyc
+[3.208s] running install_data
+[3.208s] running install_egg_info
+[3.248s] removing '/home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller-0.0.0-py3.10.egg-info' (and everything under it)
+[3.249s] Copying ../../build/omni_controller/omni_controller.egg-info to /home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages/omni_controller-0.0.0-py3.10.egg-info
+[3.250s] running install_scripts
+[3.397s] Installing omni_drive_node script to /home/soda/vla/ROS_action/install/omni_controller/lib/omni_controller
+[3.398s] writing list of installed files to '/home/soda/vla/ROS_action/build/omni_controller/install.log'
+[3.489s] Invoked command in '/home/soda/vla/ROS_action/src/omni_controller' returned '0': PYTHONPATH=/home/soda/vla/ROS_action/build/omni_controller/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/omni_controller/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/omni_controller build --build-base /home/soda/vla/ROS_action/build/omni_controller/build install --record /home/soda/vla/ROS_action/build/omni_controller/install.log --single-version-externally-managed install_data
