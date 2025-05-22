@@ -1,79 +1,76 @@
-# omni_drive_node.py
-import math
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
+import math
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from pop.driving import Driving
+from pop.Psd import Psd
+from pop.Ultrasonic import Ultrasonic
 
+# linear x 0.5, y 0.5시에 좌측 앞 이동
+# linear x 0.5, y -0.5시에 우측 앞 이동
+# linear x 0.5, y 0.0시에 정면 이동
+# linear x 0.0, y 0.5시에 좌측 이동
+# linear x 0.0, y -0.5시에 우측 이동
 class OmniDriveNode(Node):
     def __init__(self):
         super().__init__('omni_drive_node')
-        self.get_logger().info('OmniDriveNode 초기화 완료, cmd_vel 구독 대기 중…')
+        self.get_logger().info('OmniDriveNode 초기화 완료')
 
+        # Driving 모듈
         try:
             self.car = Driving()
             self.get_logger().info('Driving 모듈 연결 성공')
         except Exception as e:
-            self.get_logger().error(f'Driving 모듈 초기화 실패: {e}')
+            self.get_logger().error(f'Driving 초기화 실패: {e}')
 
-        self.subscription = self.create_subscription(
-            Twist,
-            'cmd_vel',
-            self.cmd_vel_callback,
-            10
-        )
+        # 센서
+        self.psd = Psd(dev="can0", bitrate=500000)
+        self.us  = Ultrasonic(dev="can0", bitrate=500000)
 
-        # m/s 또는 rad/s → 0~100 스로틀 매핑
-        MAX_LINEAR_VEL  = 1.0  # m/s
-        MAX_ANGULAR_VEL = 1.0  # rad/s
-        self.LINEAR_SCALE  = 100.0 / MAX_LINEAR_VEL
-        self.ANGULAR_SCALE = 100.0 / MAX_ANGULAR_VEL
+        # 최근 cmd_vel 저장
+        self.lx = 0.0
+        self.ly = 0.0
+
+        # 구독
+        self.create_subscription(Twist, 'cmd_vel',
+                                 self.cmd_vel_callback, 10)
+
+        # 제어 루프 타이머 (10Hz)
+        self.create_timer(0.1, self.control_loop)
+
+        # 스로틀 스케일
+        MAX_LINEAR_VEL = 1.0
+        self.LINEAR_SCALE = 100.0 / MAX_LINEAR_VEL
 
     def cmd_vel_callback(self, msg: Twist):
-        lx, ly, az = msg.linear.x, msg.linear.y, msg.angular.z
-        self.get_logger().info(f'[cmd_vel] lin=({lx:.2f},{ly:.2f}), ang={az:.2f}')
+        self.lx = msg.linear.x
+        self.ly = msg.linear.y
+        self.get_logger().debug(f'cmd_vel 수신: x={self.lx:.2f}, y={self.ly:.2f}')
 
-        eps = 1e-3
-        linear_valid  = abs(lx) > eps or abs(ly) > eps
-        angular_valid = abs(az) > eps
+    def control_loop(self):
+        # 센서 읽기 (연속)
+        psd_min = min(self.psd.read())
+        us_min  = min(self.us.read())
 
-        # 1) 곡선 주행 (translation + rotation)
-        if linear_valid and angular_valid:
-            angle_rad     = math.atan2(ly, lx)
-            throttle_lin  = max(1, round(math.hypot(lx, ly) * self.LINEAR_SCALE))
-            throttle_ang  = round(az * self.ANGULAR_SCALE)
-            self.get_logger().info(f'→ 곡선 주행: lin_thr={throttle_lin}, ang_thr={throttle_ang}')
-
-            # 각 바퀴별 속도 계산 (3-Omniwheel: 0°, 120°, 240°)
-            wheel_angles = [0, 2 * math.pi / 3, 4 * math.pi / 3]
-            for i, theta in enumerate(wheel_angles):
-                # 로컬 x,y 성분과 회전 성분 합산
-                speed = throttle_lin * math.cos(angle_rad - theta) + throttle_ang
-                self.car.wheel_vec[i] = self.car.WHEEL_CENTER + round(speed)
-
-            # 한번에 전송
-            self.car.transfer()
+        if psd_min <= 20 or us_min <= 20:
+            # 장애물 가까이 → 정지
+            self.get_logger().info(f'장애물 감지(PSD={psd_min}, US={us_min}) → 정지')
+            self.car.stop()
             return
 
-        # 2) 순수 평면 이동
-        if linear_valid:
-            angle_deg    = math.degrees(math.atan2(ly, lx))
-            throttle_lin = max(1, round(math.hypot(lx, ly) * self.LINEAR_SCALE))
-            self.get_logger().info(f'→ 이동: angle={angle_deg:.1f}°, throttle={throttle_lin}')
-            self.car.move(angle_deg, throttle_lin)
+        # 선형 유효성 검사(0이면 stop)
+        if abs(self.lx) < 1e-3 and abs(self.ly) < 1e-3:
+            self.car.stop()
             return
 
-        # 3) 순수 회전
-        if angular_valid:
-            throttle_ang = round(az * self.ANGULAR_SCALE)
-            self.get_logger().info(f'→ 회전: throttle={throttle_ang}')
-            self.car.spin(throttle_ang)
-            return
-
-        # 4) 정지
-        self.get_logger().info('→ 정지: stop()')
-        self.car.stop()
+        # 이동
+        angle_deg    = math.degrees(math.atan2(self.ly, self.lx))
+        throttle_lin = max(1, round(math.hypot(self.lx, self.ly) * self.LINEAR_SCALE))
+        self.get_logger().info(f'이동: angle={angle_deg:.1f}°, throttle={throttle_lin}')
+        self.car.move(angle_deg, throttle_lin)
 
 def main(args=None):
     rclpy.init(args=args)
