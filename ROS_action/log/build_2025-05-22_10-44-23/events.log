@@ -1,0 +1,52 @@
+[0.000000] (-) TimerEvent: {}
+[0.000959] (-) JobUnselected: {'identifier': 'action_executor_node'}
+[0.001199] (-) JobUnselected: {'identifier': 'camera_pub'}
+[0.001284] (-) JobUnselected: {'identifier': 'camera_sub'}
+[0.001345] (-) JobUnselected: {'identifier': 'omni_controller'}
+[0.001415] (vla_node) JobQueued: {'identifier': 'vla_node', 'dependencies': OrderedDict()}
+[0.001484] (vla_node) JobStarted: {'identifier': 'vla_node'}
+[0.099526] (-) TimerEvent: {}
+[0.200011] (-) TimerEvent: {}
+[0.300472] (-) TimerEvent: {}
+[0.400938] (-) TimerEvent: {}
+[0.501351] (-) TimerEvent: {}
+[0.601758] (-) TimerEvent: {}
+[0.702213] (-) TimerEvent: {}
+[0.802695] (-) TimerEvent: {}
+[0.903185] (-) TimerEvent: {}
+[1.003661] (-) TimerEvent: {}
+[1.104129] (-) TimerEvent: {}
+[1.204602] (-) TimerEvent: {}
+[1.305098] (-) TimerEvent: {}
+[1.407348] (-) TimerEvent: {}
+[1.408750] (vla_node) Command: {'cmd': ['/usr/bin/python3', '-W', 'ignore:setup.py install is deprecated', '-W', 'ignore:easy_install command is deprecated', 'setup.py', 'develop', '--editable', '--build-directory', '/workspace/ROS_action/build/vla_node/build', '--no-deps', 'symlink_data', '--force'], 'cwd': '/workspace/ROS_action/build/vla_node', 'env': {'TWINE_PASSWORD': 'NvidiaJetson24', 'OPENBLAS_CORETYPE': 'ARMV8', 'PYTHONFAULTHANDLER': '1', 'CUDACXX': '/usr/local/cuda/bin/nvcc', 'PYTHONIOENCODING': 'utf-8', 'PIP_ROOT_USER_ACTION': 'ignore', 'LANGUAGE': 'en_US:en', 'PIP_TRUSTED_HOST': 'jetson.webredirect.org', 'PIP_DEFAULT_TIMEOUT': '100', 'PYTHONHASHSEED': 'random', 'HOSTNAME': 'fusions', 'TWINE_REPOSITORY_URL': 'http://jao-51/jp6/cu122', 'TAR_INDEX_URL': 'http://jetson.webredirect.org:8000/jp6/cu122', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/usr/local/cuda/compat:/usr/local/cuda/lib64:', 'HOME': '/root', 'HUGGINGFACE_HUB_CACHE': '/data/models/huggingface', 'OLDPWD': '/', 'CMAKE_CUDA_COMPILER': '/usr/local/cuda/bin/nvcc', 'TORCH_NVCC_FLAGS': '-Xfatbin -compress-all', 'PYTHONUNBUFFERED': '1', 'CUDA_TOOLKIT_ROOT_DIR': '/usr/local/cuda', 'HF_HOME': '/data/models/huggingface', 'CUDA_NVCC_EXECUTABLE': '/usr/local/cuda/bin/nvcc', 'CUDNN_LIB_PATH': '/usr/lib/aarch64-linux-gnu', 'CUDAARCHS': '87', 'TENSORBOARD_LOG_DIR': '/data/logs/tensorboard', 'PIP_CACHE_PURGE': 'true', 'TORCH_CUDA_ARCH_LIST': '8.7', 'TORCH_HOME': '/data/models/torch', 'SCP_UPLOAD_PASS': 'nvidia', 'PIP_DISABLE_PIP_VERSION_CHECK': 'on', 'CUDA_ARCHITECTURES': '87', '_': '/usr/bin/colcon', 'NVIDIA_DRIVER_CAPABILITIES': 'all', 'TERM': 'xterm', 'TWINE_USERNAME': 'jp6', 'PATH': '/root/.local/bin:/root/.cargo/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'PIP_INDEX_URL': 'http://jetson.webredirect.org/jp6/cu122', 'TRANSFORMERS_CACHE': '/data/models/huggingface', 'PIP_NO_CACHE_DIR': 'off', 'SCP_UPLOAD_USER': 'nvidia', 'LANG': 'en_US.UTF-8', 'SCP_UPLOAD_URL': 'jao-51:/dist/jp6/cu122', 'TWINE_NON_INTERACTIVE': '1', 'DEBIAN_FRONTEND': 'noninteractive', 'PYTHON_VERSION': '3.10', 'TENSORBOARD_SERVER_LOGS': '/data/logs/tensorboard/server.log', 'NVCC_PATH': '/usr/local/cuda/bin/nvcc', 'PWD': '/workspace/ROS_action/build/vla_node', 'LC_ALL': 'en_US.UTF-8', 'CUDA_HOME': '/usr/local/cuda', 'CUDNN_LIB_INCLUDE_PATH': '/usr/include', 'NVIDIA_VISIBLE_DEVICES': 'all', 'COLCON': '1', 'CUDA_BIN_PATH': '/usr/local/cuda/bin', 'PYTHONPATH': '/workspace/ROS_action/build/vla_node/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/workspace/ROS_action/install/vla_node/lib/python3.10/site-packages:'}, 'shell': False}
+[1.507482] (-) TimerEvent: {}
+[1.607906] (-) TimerEvent: {}
+[1.708346] (-) TimerEvent: {}
+[1.808819] (-) TimerEvent: {}
+[1.909309] (-) TimerEvent: {}
+[1.973406] (vla_node) StdoutLine: {'line': b'running develop\n'}
+[2.009437] (-) TimerEvent: {}
+[2.109934] (-) TimerEvent: {}
+[2.210433] (-) TimerEvent: {}
+[2.219101] (vla_node) StdoutLine: {'line': b'running egg_info\n'}
+[2.238101] (vla_node) StdoutLine: {'line': b'writing vla_node.egg-info/PKG-INFO\n'}
+[2.239352] (vla_node) StdoutLine: {'line': b'writing dependency_links to vla_node.egg-info/dependency_links.txt\n'}
+[2.239823] (vla_node) StdoutLine: {'line': b'writing entry points to vla_node.egg-info/entry_points.txt\n'}
+[2.240245] (vla_node) StdoutLine: {'line': b'writing requirements to vla_node.egg-info/requires.txt\n'}
+[2.240525] (vla_node) StdoutLine: {'line': b'writing top-level names to vla_node.egg-info/top_level.txt\n'}
+[2.282442] (vla_node) StdoutLine: {'line': b"reading manifest file 'vla_node.egg-info/SOURCES.txt'\n"}
+[2.283696] (vla_node) StdoutLine: {'line': b"writing manifest file 'vla_node.egg-info/SOURCES.txt'\n"}
+[2.302837] (vla_node) StdoutLine: {'line': b'running build_ext\n'}
+[2.303214] (vla_node) StdoutLine: {'line': b'Creating /workspace/ROS_action/install/vla_node/lib/python3.10/site-packages/vla-node.egg-link (link to .)\n'}
+[2.304676] (vla_node) StdoutLine: {'line': b'Installing vla_node script to /workspace/ROS_action/install/vla_node/lib/vla_node\n'}
+[2.305266] (vla_node) StdoutLine: {'line': b'\n'}
+[2.305394] (vla_node) StdoutLine: {'line': b'Installed /workspace/ROS_action/build/vla_node\n'}
+[2.305526] (vla_node) StdoutLine: {'line': b'running symlink_data\n'}
+[2.305776] (vla_node) StdoutLine: {'line': b'symbolically linking /workspace/ROS_action/build/vla_node/resource/vla_node -> /workspace/ROS_action/install/vla_node/share/ament_index/resource_index/packages\n'}
+[2.306052] (vla_node) StdoutLine: {'line': b'symbolically linking /workspace/ROS_action/build/vla_node/package.xml -> /workspace/ROS_action/install/vla_node/share/vla_node\n'}
+[2.310517] (-) TimerEvent: {}
+[2.392038] (vla_node) CommandEnded: {'returncode': 0}
+[2.410798] (-) TimerEvent: {}
+[2.412948] (vla_node) JobEnded: {'identifier': 'vla_node', 'rc': 0}
+[2.414159] (-) EventReactorShutdown: {}

@@ -1,0 +1,19 @@
+[1.409s] Invoking command in '/workspace/ROS_action/build/vla_node': PYTHONPATH=/workspace/ROS_action/build/vla_node/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/workspace/ROS_action/install/vla_node/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /workspace/ROS_action/build/vla_node/build --no-deps symlink_data --force
+[1.972s] running develop
+[2.218s] running egg_info
+[2.237s] writing vla_node.egg-info/PKG-INFO
+[2.238s] writing dependency_links to vla_node.egg-info/dependency_links.txt
+[2.238s] writing entry points to vla_node.egg-info/entry_points.txt
+[2.239s] writing requirements to vla_node.egg-info/requires.txt
+[2.239s] writing top-level names to vla_node.egg-info/top_level.txt
+[2.281s] reading manifest file 'vla_node.egg-info/SOURCES.txt'
+[2.282s] writing manifest file 'vla_node.egg-info/SOURCES.txt'
+[2.302s] running build_ext
+[2.302s] Creating /workspace/ROS_action/install/vla_node/lib/python3.10/site-packages/vla-node.egg-link (link to .)
+[2.303s] Installing vla_node script to /workspace/ROS_action/install/vla_node/lib/vla_node
+[2.304s] 
+[2.304s] Installed /workspace/ROS_action/build/vla_node
+[2.304s] running symlink_data
+[2.304s] symbolically linking /workspace/ROS_action/build/vla_node/resource/vla_node -> /workspace/ROS_action/install/vla_node/share/ament_index/resource_index/packages
+[2.305s] symbolically linking /workspace/ROS_action/build/vla_node/package.xml -> /workspace/ROS_action/install/vla_node/share/vla_node
+[2.391s] Invoked command in '/workspace/ROS_action/build/vla_node' returned '0': PYTHONPATH=/workspace/ROS_action/build/vla_node/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/workspace/ROS_action/install/vla_node/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /workspace/ROS_action/build/vla_node/build --no-deps symlink_data --force

@@ -1,0 +1,17 @@
+running develop
+running egg_info
+writing vla_node.egg-info/PKG-INFO
+writing dependency_links to vla_node.egg-info/dependency_links.txt
+writing entry points to vla_node.egg-info/entry_points.txt
+writing requirements to vla_node.egg-info/requires.txt
+writing top-level names to vla_node.egg-info/top_level.txt
+reading manifest file 'vla_node.egg-info/SOURCES.txt'
+writing manifest file 'vla_node.egg-info/SOURCES.txt'
+running build_ext
+Creating /workspace/ROS_action/install/vla_node/lib/python3.10/site-packages/vla-node.egg-link (link to .)
+Installing vla_node script to /workspace/ROS_action/install/vla_node/lib/vla_node
+
+Installed /workspace/ROS_action/build/vla_node
+running symlink_data
+symbolically linking /workspace/ROS_action/build/vla_node/resource/vla_node -> /workspace/ROS_action/install/vla_node/share/ament_index/resource_index/packages
+symbolically linking /workspace/ROS_action/build/vla_node/package.xml -> /workspace/ROS_action/install/vla_node/share/vla_node

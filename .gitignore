@@ -1,0 +1,78 @@
+      # Python
+      __pycache__/
+      *.py[cod]
+      *$py.class
+      *.so
+      .Python
+      build/
+      develop_eggs/
+      dist/
+      downloads/
+      eggs/
+      .eggs/
+      lib/
+      lib64/
+      parts/
+      sdist/
+      var/
+      wheels/
+      pip-wheel-metadata/
+      share/python-wheels/
+      *.egg-info/
+      .installed.cfg
+      *.egg
+      MANIFEST
+
+      # Virtualenv
+      .env
+      .venv
+      env/
+      venv/
+      ENV/
+      env.bak/
+      venv.bak/
+
+      # ROS Catkin/Colcon Build Artifacts
+      build/
+      devel/
+      install/
+      logs/
+      devel_isolated/
+      build_isolated/
+      install_isolated/
+
+      # IDE - VSCode
+      .vscode/*
+      !.vscode/settings.json
+      !.vscode/tasks.json
+      !.vscode/launch.json
+      !.vscode/extensions.json
+
+      # OS generated files
+      .DS_Store
+      .DS_Store?
+      ._*
+      .Spotlight-V100
+      .Trashes
+      ehthumbs.db
+      Thumbs.db
+
+      # Docker - poetry.lock might be version controlled, but Dockerfiles referencing specific versions could be an issue if not managed.
+      # If Docker images are built and stored elsewhere, you might not need to ignore Dockerfile.
+      # Consider your Docker strategy.
+
+      # Poetry
+      # .poetry.lock # Usually version controlled, but if generating from pyproject.toml in CI/CD, can be ignored.
+      # .pdm.lock
+      # pdm.lock
+      # poetry.lock
+
+      # Jupyter Notebook Checkpoints
+      .ipynb_checkpoints
+
+      # Log files
+      *.log
+
+      # Temporary files
+      *.tmp
+      *~

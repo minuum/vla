@@ -1,0 +1,23 @@
+[5.596s] Invoking command in '/home/soda/vla/ROS_action/src/camera_pub': PS1=(vla_env_py310) %m%# PYTHONPATH=/home/soda/vla/ROS_action/build/camera_pub/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/camera_pub build --build-base /home/soda/vla/ROS_action/build/camera_pub/build install --record /home/soda/vla/ROS_action/build/camera_pub/install.log --single-version-externally-managed install_data
+[6.451s] running egg_info
+[6.495s] writing ../../build/camera_pub/camera_pub.egg-info/PKG-INFO
+[6.496s] writing dependency_links to ../../build/camera_pub/camera_pub.egg-info/dependency_links.txt
+[6.496s] writing entry points to ../../build/camera_pub/camera_pub.egg-info/entry_points.txt
+[6.497s] writing requirements to ../../build/camera_pub/camera_pub.egg-info/requires.txt
+[6.497s] writing top-level names to ../../build/camera_pub/camera_pub.egg-info/top_level.txt
+[6.575s] reading manifest file '../../build/camera_pub/camera_pub.egg-info/SOURCES.txt'
+[6.577s] writing manifest file '../../build/camera_pub/camera_pub.egg-info/SOURCES.txt'
+[6.577s] running build
+[6.577s] running build_py
+[6.578s] copying camera_pub/camera_publisher_node.py -> /home/soda/vla/ROS_action/build/camera_pub/build/lib/camera_pub
+[6.578s] running install
+[6.587s] running install_lib
+[6.627s] copying /home/soda/vla/ROS_action/build/camera_pub/build/lib/camera_pub/camera_publisher_node.py -> /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub
+[6.628s] byte-compiling /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub/camera_publisher_node.py to camera_publisher_node.cpython-310.pyc
+[6.629s] running install_data
+[6.629s] running install_egg_info
+[6.669s] removing '/home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub-0.0.0-py3.10.egg-info' (and everything under it)
+[6.670s] Copying ../../build/camera_pub/camera_pub.egg-info to /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub-0.0.0-py3.10.egg-info
+[6.672s] running install_scripts
+[6.816s] Installing camera_publisher_node script to /home/soda/vla/ROS_action/install/camera_pub/lib/camera_pub
+[6.820s] writing list of installed files to '/home/soda/vla/ROS_action/build/camera_pub/install.log'
