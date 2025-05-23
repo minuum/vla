@@ -31,6 +31,11 @@
       ENV/
       env.bak/
       venv.bak/
+      
+      # ROS2 workspace build artifacts (specific to ROS_action folder)
+      ROS_action/build/
+      ROS_action/install/
+      ROS_action/log/
 
       # ROS Catkin/Colcon Build Artifacts
       build/
