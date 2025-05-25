@@ -33,9 +33,9 @@
       venv.bak/
 
       # ROS Catkin/Colcon Build Artifacts
-      ROS_action/build
-      ROS_action/install
-      ROS_action/log
+      ROS_action/build/
+      ROS_action/install/
+      ROS_action/log/
       devel/
       devel_isolated/
       build_isolated/
