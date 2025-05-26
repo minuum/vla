@@ -38,10 +38,10 @@
       ROS_action/log/
 
       # ROS Catkin/Colcon Build Artifacts
-      build/
+      ROS_action/build/
+      ROS_action/install/
+      ROS_action/log/
       devel/
-      install/
-      logs/
       devel_isolated/
       build_isolated/
       install_isolated/
