@@ -1,3 +1,5 @@
+  #docker build -t ros-whisper .
+  #docker run --rm --net=host -it ros-whisper
   # Dockerfile
 
   ################################################################################
