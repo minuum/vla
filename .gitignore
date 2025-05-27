@@ -80,4 +80,23 @@
 
       # Temporary files
       *.tmp
-      *~
+      *~# ROS 빌드 파일
+ROS_action/build/
+ROS_action/install/
+ROS_action/log/
+
+# 캐시 파일
+ROS_action/.paligemma_ros_cache/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# 모델 파일
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# 로그 파일
+*.log
+logs/

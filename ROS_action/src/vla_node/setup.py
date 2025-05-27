@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'vla_node = vla_node.vla_node:main'
+	    'paligemma_node = vla_node.simple_inference:main',
         ],
     },
 )
