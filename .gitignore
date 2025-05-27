@@ -32,11 +32,6 @@
       env.bak/
       venv.bak/
       
-      # ROS2 workspace build artifacts (specific to ROS_action folder)
-      ROS_action/build/
-      ROS_action/install/
-      ROS_action/log/
-
       # ROS Catkin/Colcon Build Artifacts
       ROS_action/build/
       ROS_action/install/
@@ -80,6 +75,7 @@
 
       # Temporary files
       *.tmp
+<<<<<<< HEAD
       *~# ROS 빌드 파일
 ROS_action/build/
 ROS_action/install/
@@ -100,3 +96,8 @@ ROS_action/.paligemma_ros_cache/
 # 로그 파일
 *.log
 logs/
+=======
+      *~
+*.whl
+ROS_action/src/*.whl
+>>>>>>> 5557427635b54ed51a1a93898d784f688911f130

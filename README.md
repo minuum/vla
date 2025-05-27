@@ -345,7 +345,7 @@ sudo ufw disable  # 방화벽 임시 비활성화
 | 🎤 Audio & STT | @jiwoo | [@jiwoo](https://github.com/jiwoo) |
 | 📷 Camera & Hardware | @최용석 | [@choiyongseok](https://github.com/choiyongseok) |
 | 🧠 VLA & AI | @이민우, @YUBEEN | [@minwoo](https://github.com/minwoo), [@yubeen](https://github.com/yubeen) |
-| 🚗 Robot Control | @양동건 | [@yangdonggun](https://github.com/yangdonggun) |
+| 🚗 Robot Control | @양동건 | [@yangdonggun](https://github.com/KNDG01001) |
 
 ---
 

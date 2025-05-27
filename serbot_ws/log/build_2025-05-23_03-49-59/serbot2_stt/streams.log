@@ -1,0 +1,40 @@
+[2.172s] Invoking command in '/home/soda/serbot_ws/build/serbot2_stt': PYTHONPATH=/home/soda/serbot_ws/build/serbot2_stt/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --uninstall --editable --build-directory /home/soda/serbot_ws/build/serbot2_stt/build
+[2.905s] running develop
+[3.435s] Removing /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2-stt.egg-link (link to .)
+[3.540s] Invoked command in '/home/soda/serbot_ws/build/serbot2_stt' returned '0': PYTHONPATH=/home/soda/serbot_ws/build/serbot2_stt/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --uninstall --editable --build-directory /home/soda/serbot_ws/build/serbot2_stt/build
+[3.546s] Invoking command in '/home/soda/serbot_ws/src/serbot2_stt': PYTHONPATH=/home/soda/serbot_ws/build/serbot2_stt/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/serbot2_stt build --build-base /home/soda/serbot_ws/build/serbot2_stt/build install --record /home/soda/serbot_ws/build/serbot2_stt/install.log --single-version-externally-managed install_data --force
+[4.358s] running egg_info
+[4.397s] writing ../../build/serbot2_stt/serbot2_stt.egg-info/PKG-INFO
+[4.397s] writing dependency_links to ../../build/serbot2_stt/serbot2_stt.egg-info/dependency_links.txt
+[4.397s] writing entry points to ../../build/serbot2_stt/serbot2_stt.egg-info/entry_points.txt
+[4.398s] writing requirements to ../../build/serbot2_stt/serbot2_stt.egg-info/requires.txt
+[4.398s] writing top-level names to ../../build/serbot2_stt/serbot2_stt.egg-info/top_level.txt
+[4.476s] reading manifest file '../../build/serbot2_stt/serbot2_stt.egg-info/SOURCES.txt'
+[4.478s] writing manifest file '../../build/serbot2_stt/serbot2_stt.egg-info/SOURCES.txt'
+[4.479s] running build
+[4.479s] running build_py
+[4.479s] creating /home/soda/serbot_ws/build/serbot2_stt/build
+[4.480s] creating /home/soda/serbot_ws/build/serbot2_stt/build/lib
+[4.480s] creating /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+[4.480s] copying serbot2_stt/mic_publisher_node.py -> /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+[4.480s] copying serbot2_stt/__init__.py -> /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+[4.480s] copying serbot2_stt/stt_subscriber_node.py -> /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+[4.481s] running install
+[4.488s] running install_lib
+[4.526s] creating /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+[4.526s] copying /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt/mic_publisher_node.py -> /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+[4.527s] copying /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt/__init__.py -> /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+[4.527s] copying /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt/stt_subscriber_node.py -> /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+[4.527s] byte-compiling /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt/mic_publisher_node.py to mic_publisher_node.cpython-310.pyc
+[4.528s] byte-compiling /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt/__init__.py to __init__.cpython-310.pyc
+[4.529s] byte-compiling /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt/stt_subscriber_node.py to stt_subscriber_node.cpython-310.pyc
+[4.529s] running install_data
+[4.529s] copying resource/serbot2_stt -> /home/soda/serbot_ws/install/serbot2_stt/share/ament_index/resource_index/packages
+[4.530s] copying package.xml -> /home/soda/serbot_ws/install/serbot2_stt/share/serbot2_stt
+[4.530s] running install_egg_info
+[4.571s] Copying ../../build/serbot2_stt/serbot2_stt.egg-info to /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt-0.0.0-py3.10.egg-info
+[4.572s] running install_scripts
+[4.712s] Installing mic_publisher_node script to /home/soda/serbot_ws/install/serbot2_stt/lib/serbot2_stt
+[4.714s] Installing stt_subscriber_node script to /home/soda/serbot_ws/install/serbot2_stt/lib/serbot2_stt
+[4.714s] writing list of installed files to '/home/soda/serbot_ws/build/serbot2_stt/install.log'
+[4.804s] Invoked command in '/home/soda/serbot_ws/src/serbot2_stt' returned '0': PYTHONPATH=/home/soda/serbot_ws/build/serbot2_stt/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/serbot2_stt build --build-base /home/soda/serbot_ws/build/serbot2_stt/build install --record /home/soda/serbot_ws/build/serbot2_stt/install.log --single-version-externally-managed install_data --force
