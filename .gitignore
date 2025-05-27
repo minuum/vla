@@ -76,3 +76,5 @@
       # Temporary files
       *.tmp
       *~
+*.whl
+ROS_action/src/*.whl
