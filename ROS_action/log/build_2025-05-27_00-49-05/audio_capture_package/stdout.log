@@ -1,0 +1,33 @@
+running egg_info
+creating ../../build/audio_capture_package/audio_capture_package.egg-info
+writing ../../build/audio_capture_package/audio_capture_package.egg-info/PKG-INFO
+writing dependency_links to ../../build/audio_capture_package/audio_capture_package.egg-info/dependency_links.txt
+writing entry points to ../../build/audio_capture_package/audio_capture_package.egg-info/entry_points.txt
+writing requirements to ../../build/audio_capture_package/audio_capture_package.egg-info/requires.txt
+writing top-level names to ../../build/audio_capture_package/audio_capture_package.egg-info/top_level.txt
+writing manifest file '../../build/audio_capture_package/audio_capture_package.egg-info/SOURCES.txt'
+reading manifest file '../../build/audio_capture_package/audio_capture_package.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file '../../build/audio_capture_package/audio_capture_package.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/soda/vla/ROS_action/build/audio_capture_package/build/lib/audio_capture_package
+copying audio_capture_package/mic_publisher_node.py -> /home/soda/vla/ROS_action/build/audio_capture_package/build/lib/audio_capture_package
+copying audio_capture_package/__init__.py -> /home/soda/vla/ROS_action/build/audio_capture_package/build/lib/audio_capture_package
+running install
+running install_lib
+creating /home/soda/vla/ROS_action/install/audio_capture_package/lib/python3.10/site-packages/audio_capture_package
+copying /home/soda/vla/ROS_action/build/audio_capture_package/build/lib/audio_capture_package/mic_publisher_node.py -> /home/soda/vla/ROS_action/install/audio_capture_package/lib/python3.10/site-packages/audio_capture_package
+copying /home/soda/vla/ROS_action/build/audio_capture_package/build/lib/audio_capture_package/__init__.py -> /home/soda/vla/ROS_action/install/audio_capture_package/lib/python3.10/site-packages/audio_capture_package
+byte-compiling /home/soda/vla/ROS_action/install/audio_capture_package/lib/python3.10/site-packages/audio_capture_package/mic_publisher_node.py to mic_publisher_node.cpython-310.pyc
+byte-compiling /home/soda/vla/ROS_action/install/audio_capture_package/lib/python3.10/site-packages/audio_capture_package/__init__.py to __init__.cpython-310.pyc
+running install_data
+creating /home/soda/vla/ROS_action/install/audio_capture_package/share/ament_index/resource_index/packages
+copying resource/audio_capture_package -> /home/soda/vla/ROS_action/install/audio_capture_package/share/ament_index/resource_index/packages
+creating /home/soda/vla/ROS_action/install/audio_capture_package/share/audio_capture_package
+copying package.xml -> /home/soda/vla/ROS_action/install/audio_capture_package/share/audio_capture_package
+running install_egg_info
+Copying ../../build/audio_capture_package/audio_capture_package.egg-info to /home/soda/vla/ROS_action/install/audio_capture_package/lib/python3.10/site-packages/audio_capture_package-0.0.0-py3.10.egg-info
+running install_scripts
+Installing audio_capture_node script to /home/soda/vla/ROS_action/install/audio_capture_package/lib/audio_capture_package
+writing list of installed files to '/home/soda/vla/ROS_action/build/audio_capture_package/install.log'

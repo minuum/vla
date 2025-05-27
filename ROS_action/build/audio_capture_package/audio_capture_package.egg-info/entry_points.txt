@@ -1,0 +1,2 @@
+[console_scripts]
+audio_capture_node = audio_capture_package.mic_publisher_node:main
