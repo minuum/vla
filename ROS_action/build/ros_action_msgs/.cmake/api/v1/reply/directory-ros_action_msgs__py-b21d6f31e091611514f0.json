@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "ros_action_msgs__py",
+		"source" : "/home/soda/vla/ROS_action/build/ros_action_msgs/ros_action_msgs__py"
+	}
+}

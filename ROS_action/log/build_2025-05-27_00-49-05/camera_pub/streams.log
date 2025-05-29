@@ -1,0 +1,35 @@
+[4.324s] Invoking command in '/home/soda/vla/ROS_action/src/camera_pub': PYTHONPATH=/home/soda/vla/ROS_action/build/camera_pub/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/camera_pub build --build-base /home/soda/vla/ROS_action/build/camera_pub/build install --record /home/soda/vla/ROS_action/build/camera_pub/install.log --single-version-externally-managed install_data
+[4.668s] /home/soda/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+[4.668s]   warnings.warn(msg)
+[4.943s] running egg_info
+[4.988s] creating ../../build/camera_pub/camera_pub.egg-info
+[4.989s] writing ../../build/camera_pub/camera_pub.egg-info/PKG-INFO
+[4.990s] writing dependency_links to ../../build/camera_pub/camera_pub.egg-info/dependency_links.txt
+[4.990s] writing entry points to ../../build/camera_pub/camera_pub.egg-info/entry_points.txt
+[4.990s] writing requirements to ../../build/camera_pub/camera_pub.egg-info/requires.txt
+[4.991s] writing top-level names to ../../build/camera_pub/camera_pub.egg-info/top_level.txt
+[5.211s] writing manifest file '../../build/camera_pub/camera_pub.egg-info/SOURCES.txt'
+[5.308s] reading manifest file '../../build/camera_pub/camera_pub.egg-info/SOURCES.txt'
+[5.309s] writing manifest file '../../build/camera_pub/camera_pub.egg-info/SOURCES.txt'
+[5.310s] running build
+[5.310s] running build_py
+[5.310s] creating /home/soda/vla/ROS_action/build/camera_pub/build/lib/camera_pub
+[5.311s] copying camera_pub/camera_publisher_node.py -> /home/soda/vla/ROS_action/build/camera_pub/build/lib/camera_pub
+[5.311s] copying camera_pub/__init__.py -> /home/soda/vla/ROS_action/build/camera_pub/build/lib/camera_pub
+[5.312s] running install
+[5.319s] running install_lib
+[5.365s] creating /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub
+[5.365s] copying /home/soda/vla/ROS_action/build/camera_pub/build/lib/camera_pub/camera_publisher_node.py -> /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub
+[5.366s] copying /home/soda/vla/ROS_action/build/camera_pub/build/lib/camera_pub/__init__.py -> /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub
+[5.367s] byte-compiling /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub/camera_publisher_node.py to camera_publisher_node.cpython-310.pyc
+[5.369s] byte-compiling /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub/__init__.py to __init__.cpython-310.pyc
+[5.369s] running install_data
+[5.369s] creating /home/soda/vla/ROS_action/install/camera_pub/share/ament_index/resource_index/packages
+[5.370s] copying resource/camera_pub -> /home/soda/vla/ROS_action/install/camera_pub/share/ament_index/resource_index/packages
+[5.370s] copying package.xml -> /home/soda/vla/ROS_action/install/camera_pub/share/camera_pub
+[5.371s] running install_egg_info
+[5.420s] Copying ../../build/camera_pub/camera_pub.egg-info to /home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages/camera_pub-0.0.0-py3.10.egg-info
+[5.424s] running install_scripts
+[5.519s] Installing camera_publisher_node script to /home/soda/vla/ROS_action/install/camera_pub/lib/camera_pub
+[5.520s] writing list of installed files to '/home/soda/vla/ROS_action/build/camera_pub/install.log'
+[5.595s] Invoked command in '/home/soda/vla/ROS_action/src/camera_pub' returned '0': PYTHONPATH=/home/soda/vla/ROS_action/build/camera_pub/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/camera_pub/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/camera_pub build --build-base /home/soda/vla/ROS_action/build/camera_pub/build install --record /home/soda/vla/ROS_action/build/camera_pub/install.log --single-version-externally-managed install_data

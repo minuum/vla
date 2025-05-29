@@ -1,0 +1,16 @@
+package.xml
+setup.cfg
+setup.py
+../../build/camera_sub/camera_sub.egg-info/PKG-INFO
+../../build/camera_sub/camera_sub.egg-info/SOURCES.txt
+../../build/camera_sub/camera_sub.egg-info/dependency_links.txt
+../../build/camera_sub/camera_sub.egg-info/entry_points.txt
+../../build/camera_sub/camera_sub.egg-info/requires.txt
+../../build/camera_sub/camera_sub.egg-info/top_level.txt
+../../build/camera_sub/camera_sub.egg-info/zip-safe
+camera_sub/__init__.py
+camera_sub/camera_subscriber_node.py
+resource/camera_sub
+test/test_copyright.py
+test/test_flake8.py
+test/test_pep257.py
