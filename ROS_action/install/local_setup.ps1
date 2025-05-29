@@ -12,7 +12,7 @@ if ($env:COLCON_PYTHON_EXECUTABLE) {
   $_colcon_python_executable="$env:COLCON_PYTHON_EXECUTABLE"
 } else {
   # use the Python executable known at configure time
-  $_colcon_python_executable="/usr/bin/python3"
+  $_colcon_python_executable="/Users/minu/Library/Caches/pypoetry/virtualenvs/minumm-llm-Rm-Uohrr-py3.12/bin/python"
   # if it doesn't exist try a fall back
   if (!(Test-Path "$_colcon_python_executable" -PathType Leaf)) {
     if (!(Get-Command "python3" -ErrorAction SilentlyContinue)) {

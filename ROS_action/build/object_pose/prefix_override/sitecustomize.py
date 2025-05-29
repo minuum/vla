@@ -1,4 +1,4 @@
 import sys
-if sys.prefix == '/usr':
+if sys.prefix == '/Users/minu/Library/Caches/pypoetry/virtualenvs/minumm-llm-Rm-Uohrr-py3.12':
     sys.real_prefix = sys.prefix
-    sys.prefix = sys.exec_prefix = '/home/soda/vla/ROS_action/install/object_pose'
+    sys.prefix = sys.exec_prefix = '/Users/minu/dev/vla/ROS_action/install/object_pose'
