@@ -206,7 +206,7 @@ class PaliGemmaROSNode(Node):
             image_qos_profile
         )
 
-        self.text_subscription = self.create_subscription(RosString, '/stt/text', self.text_callback, 10)
+        self.text_subscription = self.create_subscription(RosString, '/audio/transcript', self.text_callback, 10)
         self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
         self.vqa_answer_publisher = self.create_publisher(RosString, '/paligemma/vqa_answer', 10)
         

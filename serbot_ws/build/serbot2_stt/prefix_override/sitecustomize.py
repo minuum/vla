@@ -1,4 +1,4 @@
 import sys
 if sys.prefix == '/usr':
     sys.real_prefix = sys.prefix
-    sys.prefix = sys.exec_prefix = '/home/soda/serbot_ws/install/serbot2_stt'
+    sys.prefix = sys.exec_prefix = '/home/soda/vla/serbot_ws/install/serbot2_stt'

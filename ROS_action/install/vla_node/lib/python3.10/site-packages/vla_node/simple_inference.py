@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import rclpy
-from rclpy.qos import qos_profile_sensor_data # QoS 프로파일 import
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy, qos_profile_sensor_data
 from rclpy.node import Node
 from sensor_msgs.msg import Image as RosImage
 from std_msgs.msg import String as RosString
@@ -21,7 +21,7 @@ from pathlib import Path
 big_vision_available = False
 reconstruct_masks_fn = None
 
-def setup_big_vision(custom_big_vision_path, logger): # 로거 추가
+def setup_big_vision(custom_big_vision_path, logger):
     global big_vision_available, reconstruct_masks_fn
     if not custom_big_vision_path or not os.path.isdir(custom_big_vision_path):
         if custom_big_vision_path:
@@ -84,14 +84,14 @@ def parse_segmentation_output(text_output, img_width, img_height, current_prompt
                     reconstructed_mask_array = reconstruct_masks_fn(seg_token_values[np.newaxis,:])
                     current_detection["segmentation_mask_tokens"] = seg_token_values.tolist()
                     current_detection["reconstructed_mask"] = reconstructed_mask_array[0].tolist()
-                except Exception as e_mask: # 로거 사용 고려
-                    print(f"마스크 재구성 중 오류(Label:{label}):{e_mask}") # 임시 print
+                except Exception as e_mask: 
+                    print(f"마스크 재구성 중 오류(Label:{label}):{e_mask}") 
                     current_detection["segmentation_mask_tokens"] = [int(st) for st in seg_tokens_match]
             elif len(seg_tokens_match)>0: current_detection["segmentation_mask_tokens"] = [int(st) for st in seg_tokens_match]
             detections.append(current_detection)
     return detections
 
-def calculate_move_command_for_twist(bbox_pixels, image_width, image_height, logger): # 로거 추가
+def calculate_move_command_for_twist(bbox_pixels, image_width, image_height, logger): 
     if bbox_pixels is None or len(bbox_pixels) != 4:
         logger.warn("유효한 바운딩 박스 정보가 없어 이동 명령을 계산할 수 없습니다.")
         return 0.0, 0.0, 0.0
@@ -101,7 +101,7 @@ def calculate_move_command_for_twist(bbox_pixels, image_width, image_height, log
     ALIGNMENT_TOLERANCE_RATIO = 0.05
     FORWARD_SPEED_WHEN_ALIGNED = 0.1
     MAX_ANGULAR_Z_SPEED = 0.5
-    OBJECT_REACHED_HEIGHT_RATIO = 0.6 # 이 값은 매우 중요하며 튜닝 필요! (예: 0.4 ~ 0.7)
+    OBJECT_REACHED_HEIGHT_RATIO = 0.6 
     
     target_cx = (x_min + x_max) / 2
     image_center_x = image_width / 2
@@ -130,11 +130,11 @@ class PaliGemmaROSNode(Node):
 
         # --- 설정값 (ROS 파라미터로 변경 권장) ---
         self.declare_parameter('model_id', "google/paligemma-3b-mix-224")
-        self.declare_parameter('tokenizer_path', self.get_parameter('model_id').get_parameter_value().string_value) # model_id와 동일하게 기본값
-        self.declare_parameter('model_cache_dir', ".paligemma_ros_cache") # 현재 실행 경로에 캐시
+        self.declare_parameter('tokenizer_path', self.get_parameter('model_id').get_parameter_value().string_value)
+        self.declare_parameter('model_cache_dir', ".paligemma_ros_cache")
         self.declare_parameter('max_new_tokens', 256)
-        self.declare_parameter('big_vision_path', "") # 기본값 없음, 사용자가 지정해야 함
-        self.declare_parameter('device_preference', "cuda") # "cuda" 또는 "cpu"
+        self.declare_parameter('big_vision_path', "")
+        self.declare_parameter('device_preference', "cuda")
 
         self.model_id = self.get_parameter('model_id').get_parameter_value().string_value
         self.tokenizer_path = self.get_parameter('tokenizer_path').get_parameter_value().string_value
@@ -143,24 +143,22 @@ class PaliGemmaROSNode(Node):
         self.big_vision_path_param = self.get_parameter('big_vision_path').get_parameter_value().string_value
         self.device_preference = self.get_parameter('device_preference').get_parameter_value().string_value
         
-        if self.big_vision_path_param: # 파라미터로 경로가 주어졌을 때만 big_vision 설정 시도
+        if self.big_vision_path_param:
             setup_big_vision(self.big_vision_path_param, self.get_logger())
         else:
             self.get_logger().warn("ROS 파라미터 'big_vision_path'가 제공되지 않아 고급 마스크 재구성이 불가능합니다.")
-            global big_vision_available # 전역 변수 사용
+            global big_vision_available
             big_vision_available = False
         
         if self.device_preference == "cuda" and torch.cuda.is_available():
             self.device = torch.device("cuda")
-        # TODO: MPS 지원이 필요하면 여기에 추가 (rclpy 환경에서 MPS 안정성 확인 필요)
-        # elif self.device_preference == "mps" and torch.backends.mps.is_available() and torch.backends.mps.is_built():
-        #     self.device = torch.device("mps")
         else:
             self.device = torch.device("cpu")
         self.get_logger().info(f"Using device: {self.device}")
 
+        # 모델 및 프로세서 초기화
         self.model = None
-        self.processor = None
+        self.processor = None 
         try:
             self.get_logger().info(f"Loading model '{self.model_id}' and processor...")
             model_save_path = Path(self.model_cache_dir) / self.model_id.split('/')[-1]
@@ -172,30 +170,42 @@ class PaliGemmaROSNode(Node):
             if self.device.type == "cuda":
                 model_kwargs["torch_dtype"] = torch.bfloat16
                 model_kwargs["device_map"] = "auto" 
-            else: # CPU 또는 기타 (MPS는 위에서 처리)
+            else:
                 model_kwargs["torch_dtype"] = torch.float32
             
             self.model = PaliGemmaForConditionalGeneration.from_pretrained(self.model_id, **model_kwargs)
-            if self.device.type != "cuda": # device_map="auto"가 아니면 수동으로 .to(device)
+            if self.device.type != "cuda": 
                  self.model.to(self.device)
             self.model.eval()
             self.get_logger().info("Model and processor loaded successfully.")
         except Exception as e:
-            self.get_logger().error(f"모델 또는 프로세서 로드 중 오류: {e}")
-            rclpy.shutdown() 
-            return
+            self.get_logger().error(f"모델 또는 프로세서 로드 중 심각한 오류 발생: {e}")
+            self.get_logger().warn("모델 및 프로세서가 로드되지 않았습니다. 노드는 계속 실행되지만 추론은 불가능합니다.")
+            # self.model과 self.processor는 이미 위에서 None으로 초기화되었거나, 
+            # 로드 중 실패하면 None 상태를 유지하게 됩니다. 여기서 추가로 None을 할당해도 괜찮습니다.
+            self.model = None 
+            self.processor = None
+            # rclpy.shutdown() 호출 제거
+            # return도 제거하여 나머지 subscriber/publisher가 생성되도록 함
 
         self.bridge = CvBridge()
         self.current_image_cv = None
         self.current_text_prompt = None
         self.inference_in_progress = False 
 
-        self.image_subscription = self.create_subscription(
-            RosImage, 
-            '/camera/image_raw', 
-            self.image_callback, 
-            qos_profile=qos_profile_sensor_data # QoS 프로파일 사용
+        image_qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE, # 또는 BEST_EFFORT
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10,
+            durability=DurabilityPolicy.VOLATILE
         )
+        self.image_subscription = self.create_subscription(
+            RosImage,
+            '/camera/image_raw',
+            self.image_callback,
+            image_qos_profile
+        )
+
         self.text_subscription = self.create_subscription(RosString, '/stt/text', self.text_callback, 10)
         self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
         self.vqa_answer_publisher = self.create_publisher(RosString, '/paligemma/vqa_answer', 10)
@@ -203,35 +213,46 @@ class PaliGemmaROSNode(Node):
         self.get_logger().info("PaliGemma ROS Node initialized and ready.")
 
     def image_callback(self, msg):
-        if self.inference_in_progress: return 
+        if self.inference_in_progress: 
+            return 
         try:
             self.current_image_cv = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            self.get_logger().info('Image received.') # 이미지 수신 로그
+            self.get_logger().info('Image received.') 
             self.try_inference()
         except Exception as e:
             self.get_logger().error(f"이미지 콜백 처리 중 오류: {e}")
 
     def text_callback(self, msg):
-        if self.inference_in_progress: return
+        if self.inference_in_progress: 
+            self.get_logger().warn("Inference already in progress, new text prompt ignored.")
+            return
         self.current_text_prompt = msg.data
         self.get_logger().info(f"텍스트 프롬프트 수신: '{self.current_text_prompt}'")
         self.try_inference()
 
     def try_inference(self):
         if self.current_image_cv is not None and self.current_text_prompt is not None:
-            if self.model is None or self.processor is None:
-                self.get_logger().error("모델 또는 프로세서가 로드되지 않았습니다. 추론을 수행할 수 없습니다.")
+            if self.model is None or self.processor is None: 
+                self.get_logger().error("모델 또는 프로세서가 로드되지 않아 추론을 수행할 수 없습니다.")
+                self.current_image_cv = None # 다음 처리를 위해 초기화
+                self.current_text_prompt = None # 다음 처리를 위해 초기화
                 return
 
             self.inference_in_progress = True 
             self.get_logger().info(f"프롬프트로 추론 수행 중: '{self.current_text_prompt}'")
             
-            rgb_frame_cv = cv2.cvtColor(self.current_image_cv, cv2.COLOR_BGR2RGB)
+            image_to_process = self.current_image_cv
+            prompt_to_process = self.current_text_prompt
+
+            self.current_image_cv = None
+            self.current_text_prompt = None
+            
+            rgb_frame_cv = cv2.cvtColor(image_to_process, cv2.COLOR_BGR2RGB)
             pil_image = PilImage.fromarray(rgb_frame_cv)
             img_width, img_height = pil_image.size
 
             try:
-                inputs_data = self.processor(text=self.current_text_prompt, images=pil_image, return_tensors="pt").to(self.device)
+                inputs_data = self.processor(text=prompt_to_process, images=pil_image, return_tensors="pt").to(self.device)
                 if self.device.type != "cuda" and 'pixel_values' in inputs_data and inputs_data['pixel_values'].dtype != self.model.dtype:
                     inputs_data['pixel_values'] = inputs_data['pixel_values'].to(self.model.dtype)
                 elif 'pixel_values' in inputs_data and self.device.type == "mps": 
@@ -242,7 +263,7 @@ class PaliGemmaROSNode(Node):
                     generated_text_output = self.processor.decode(output_ids[0], skip_special_tokens=True)
                 
                 self.get_logger().info(f"모델 원본 결과: {generated_text_output.strip()}")
-                parsed_detections = parse_segmentation_output(generated_text_output, img_width, img_height, self.current_text_prompt)
+                parsed_detections = parse_segmentation_output(generated_text_output, img_width, img_height, prompt_to_process)
                 
                 twist_msg = Twist()
 
@@ -260,7 +281,7 @@ class PaliGemmaROSNode(Node):
                 else: 
                     self.get_logger().info("위치 토큰을 포함한 객체가 파싱되지 않았습니다.")
                     if not "<loc" in generated_text_output: 
-                        vqa_answer = generated_text_output.replace(self.current_text_prompt.strip(), '').strip()
+                        vqa_answer = generated_text_output.replace(prompt_to_process.strip(), '').strip()
                         if vqa_answer: 
                             self.get_logger().info(f"VQA 답변: {vqa_answer}")
                             self.vqa_answer_publisher.publish(RosString(data=vqa_answer))
@@ -270,22 +291,32 @@ class PaliGemmaROSNode(Node):
             except Exception as e_gen:
                 self.get_logger().error(f"추론 또는 결과 처리 중 오류: {e_gen}")
             finally:
-                self.current_image_cv = None
-                self.current_text_prompt = None
                 self.inference_in_progress = False 
-        # else: 
-            # self.get_logger().debug("Waiting for both image and text prompt to perform inference...")
 
 def main(args=None):
     rclpy.init(args=args)
     paligemma_ros_node = PaliGemmaROSNode()
+    
+    # 모델 로드 성공 여부와 관계없이 spin을 시도하여 ROS 콜백 처리
+    # (만약 __init__에서 모델 로드 실패 시 노드 자체를 종료하고 싶다면 다른 방식 필요)
+    if paligemma_ros_node.model is None or paligemma_ros_node.processor is None:
+        paligemma_ros_node.get_logger().error("모델 또는 프로세서가 성공적으로 로드되지 않아 스핀을 시작하지만, 추론은 불가능합니다.")
+        # 여기서 프로그램을 종료하거나, 혹은 계속 실행하여 다른 ROS 메시지라도 처리하게 둘 수 있습니다.
+        # 만약 여기서 종료하고 싶다면:
+        # paligemma_ros_node.destroy_node()
+        # rclpy.shutdown()
+        # return # 또는 sys.exit(1)
+
     try:
         rclpy.spin(paligemma_ros_node)
     except KeyboardInterrupt:
         paligemma_ros_node.get_logger().info('Keyboard interrupt, shutting down...')
     finally:
+        paligemma_ros_node.get_logger().info('Destroying node...') # 종료 로그 추가
         paligemma_ros_node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok(): # 이미 shutdown()이 호출되지 않았는지 확인
+            paligemma_ros_node.get_logger().info('Shutting down rclpy...') # 종료 로그 추가
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
