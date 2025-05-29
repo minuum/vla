@@ -54,6 +54,8 @@ class AudioTranscriber(Node):
         self.get_logger().info(f"Listening to /audio/raw, "
                                f"transcribing every {DURATION}s")
 
+        self.pub = self.create_publisher(String, '/audio/transcript', 10)
+
     def audio_callback(self, msg: Int16MultiArray):
         # msg.data가 bytes 배열이라면 int16로 해석
         chunk = np.array(msg.data, dtype=np.int16)
@@ -80,6 +82,9 @@ class AudioTranscriber(Node):
             transcription = self.processor.batch_decode(
                 output_ids, skip_special_tokens=True
             )[0]
+
+            self.pub.publish(String(data=transcription))
+            self.get_logger().info(f"[Whisper] {transcription}")
 
             # 로그 출력
             self.get_logger().info(f"[Whisper] {transcription}")

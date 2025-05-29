@@ -25,7 +25,7 @@ class CameraPublisherNode(Node):
             rclpy.shutdown()
             return
 
-        timer_period = 1.0 / 3.0  # 초당 3프레임, 모델이 받을 수 있는 정도로 조절
+        timer_period = 1.0 / 0.5  # 초당 3프레임, 모델이 받을 수 있는 정도로 조절
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
