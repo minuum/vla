@@ -1,0 +1,18 @@
+[2.907s] Invoking command in '/home/soda/serbot_ws/build/serbot2_stt': PYTHONPATH=/home/soda/serbot_ws/build/serbot2_stt/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/soda/serbot_ws/build/serbot2_stt/build --no-deps symlink_data
+[3.874s] running develop
+[4.474s] running egg_info
+[4.514s] writing serbot2_stt.egg-info/PKG-INFO
+[4.515s] writing dependency_links to serbot2_stt.egg-info/dependency_links.txt
+[4.515s] writing entry points to serbot2_stt.egg-info/entry_points.txt
+[4.516s] writing requirements to serbot2_stt.egg-info/requires.txt
+[4.517s] writing top-level names to serbot2_stt.egg-info/top_level.txt
+[4.603s] reading manifest file 'serbot2_stt.egg-info/SOURCES.txt'
+[4.605s] writing manifest file 'serbot2_stt.egg-info/SOURCES.txt'
+[4.714s] running build_ext
+[4.715s] Creating /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2-stt.egg-link (link to .)
+[4.716s] Installing mic_publisher_node script to /home/soda/serbot_ws/install/serbot2_stt/lib/serbot2_stt
+[4.718s] Installing stt_subscriber_node script to /home/soda/serbot_ws/install/serbot2_stt/lib/serbot2_stt
+[4.720s] 
+[4.720s] Installed /home/soda/serbot_ws/build/serbot2_stt
+[4.721s] running symlink_data
+[4.870s] Invoked command in '/home/soda/serbot_ws/build/serbot2_stt' returned '0': PYTHONPATH=/home/soda/serbot_ws/build/serbot2_stt/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/soda/serbot_ws/build/serbot2_stt/build --no-deps symlink_data

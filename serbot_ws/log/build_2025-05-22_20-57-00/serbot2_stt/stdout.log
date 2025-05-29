@@ -1,0 +1,20 @@
+running develop
+running egg_info
+creating serbot2_stt.egg-info
+writing serbot2_stt.egg-info/PKG-INFO
+writing dependency_links to serbot2_stt.egg-info/dependency_links.txt
+writing requirements to serbot2_stt.egg-info/requires.txt
+writing top-level names to serbot2_stt.egg-info/top_level.txt
+writing manifest file 'serbot2_stt.egg-info/SOURCES.txt'
+reading manifest file 'serbot2_stt.egg-info/SOURCES.txt'
+writing manifest file 'serbot2_stt.egg-info/SOURCES.txt'
+running build_ext
+Creating /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2-stt.egg-link (link to .)
+
+Installed /home/soda/serbot_ws/build/serbot2_stt
+running symlink_data
+creating /home/soda/serbot_ws/install/serbot2_stt/share/ament_index
+creating /home/soda/serbot_ws/install/serbot2_stt/share/ament_index/resource_index
+creating /home/soda/serbot_ws/install/serbot2_stt/share/ament_index/resource_index/packages
+symbolically linking /home/soda/serbot_ws/build/serbot2_stt/resource/serbot2_stt -> /home/soda/serbot_ws/install/serbot2_stt/share/ament_index/resource_index/packages
+symbolically linking /home/soda/serbot_ws/build/serbot2_stt/package.xml -> /home/soda/serbot_ws/install/serbot2_stt/share/serbot2_stt

@@ -1,0 +1,3 @@
+[console_scripts]
+mic_publisher_node = serbot2_stt.mic_publisher_node:main
+stt_subscriber_node = serbot2_stt.stt_subscriber_node:main

@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: audio_capture_package
+Version: 0.0.0
+Summary: A package to capture audio from microphone and publish it.
+Maintainer: soda
+Maintainer-email: soda@example.com
+License: Apache-2.0
+License-File: LICENSE
+Requires-Dist: setuptools
+Dynamic: license
+Dynamic: license-file
+Dynamic: maintainer
+Dynamic: maintainer-email
+Dynamic: requires-dist
+Dynamic: summary

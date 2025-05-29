@@ -1,0 +1,2 @@
+[console_scripts]
+vla_node = vla_node.vla_node:main

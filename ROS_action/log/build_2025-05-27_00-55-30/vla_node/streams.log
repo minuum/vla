@@ -1,0 +1,28 @@
+[4.419s] Invoking command in '/home/soda/vla/ROS_action/src/vla_node': PYTHONPATH=/home/soda/vla/ROS_action/build/vla_node/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/vla_node/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/vla_node build --build-base /home/soda/vla/ROS_action/build/vla_node/build install --record /home/soda/vla/ROS_action/build/vla_node/install.log --single-version-externally-managed install_data
+[4.743s] /home/soda/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+[4.743s]   warnings.warn(msg)
+[5.007s] running egg_info
+[5.052s] writing ../../build/vla_node/vla_node.egg-info/PKG-INFO
+[5.053s] writing dependency_links to ../../build/vla_node/vla_node.egg-info/dependency_links.txt
+[5.053s] writing entry points to ../../build/vla_node/vla_node.egg-info/entry_points.txt
+[5.054s] writing requirements to ../../build/vla_node/vla_node.egg-info/requires.txt
+[5.054s] writing top-level names to ../../build/vla_node/vla_node.egg-info/top_level.txt
+[5.362s] reading manifest file '../../build/vla_node/vla_node.egg-info/SOURCES.txt'
+[5.364s] writing manifest file '../../build/vla_node/vla_node.egg-info/SOURCES.txt'
+[5.365s] running build
+[5.365s] running build_py
+[5.365s] copying vla_node/simple_inference.py -> /home/soda/vla/ROS_action/build/vla_node/build/lib/vla_node
+[5.365s] copying vla_node/__init__.py -> /home/soda/vla/ROS_action/build/vla_node/build/lib/vla_node
+[5.366s] copying vla_node/vla_node.py -> /home/soda/vla/ROS_action/build/vla_node/build/lib/vla_node
+[5.366s] running install
+[5.374s] running install_lib
+[5.420s] running install_data
+[5.420s] copying resource/vla_node -> /home/soda/vla/ROS_action/install/vla_node/share/ament_index/resource_index/packages
+[5.420s] copying package.xml -> /home/soda/vla/ROS_action/install/vla_node/share/vla_node
+[5.421s] running install_egg_info
+[5.468s] removing '/home/soda/vla/ROS_action/install/vla_node/lib/python3.10/site-packages/vla_node-0.0.0-py3.10.egg-info' (and everything under it)
+[5.469s] Copying ../../build/vla_node/vla_node.egg-info to /home/soda/vla/ROS_action/install/vla_node/lib/python3.10/site-packages/vla_node-0.0.0-py3.10.egg-info
+[5.471s] running install_scripts
+[5.566s] Installing vla_node script to /home/soda/vla/ROS_action/install/vla_node/lib/vla_node
+[5.567s] writing list of installed files to '/home/soda/vla/ROS_action/build/vla_node/install.log'
+[5.665s] Invoked command in '/home/soda/vla/ROS_action/src/vla_node' returned '0': PYTHONPATH=/home/soda/vla/ROS_action/build/vla_node/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/soda/vla/ROS_action/install/vla_node/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/vla_node build --build-base /home/soda/vla/ROS_action/build/vla_node/build install --record /home/soda/vla/ROS_action/build/vla_node/install.log --single-version-externally-managed install_data

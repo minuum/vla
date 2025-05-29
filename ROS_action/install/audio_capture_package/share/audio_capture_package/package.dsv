@@ -1,0 +1,3 @@
+source;share/audio_capture_package/hook/pythonpath.ps1
+source;share/audio_capture_package/hook/pythonpath.dsv
+source;share/audio_capture_package/hook/pythonpath.sh

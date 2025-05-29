@@ -1,0 +1,155 @@
+[2.679s] Invoking command in '/home/soda/vla/ROS_action/build/ros_action_msgs': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/soda/vla/ROS_action/install/vla_node:/home/soda/vla/ROS_action/install/omni_controller:/home/soda/vla/ROS_action/install/camera_sub:/home/soda/vla/ROS_action/install/camera_pub:/home/soda/vla/ROS_action/install/action_executor_node:/opt/ros/humble /usr/bin/cmake --build /home/soda/vla/ROS_action/build/ros_action_msgs -- -j8 -l8
+[2.750s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_generator_c[0m
+[2.765s] [  3%] Built target ros_action_msgs__cpp
+[2.769s] [ 12%] Built target ros_action_msgs__rosidl_generator_c
+[2.780s] [ 12%] Built target ament_cmake_python_copy_ros_action_msgs
+[2.780s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_cpp[0m
+[2.781s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_fastrtps_cpp[0m
+[2.784s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_c[0m
+[2.784s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_fastrtps_c[0m
+[2.790s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_introspection_cpp[0m
+[2.796s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_introspection_c[0m
+[2.800s] [ 22%] Built target ros_action_msgs__rosidl_typesupport_c
+[2.801s] [ 32%] Built target ros_action_msgs__rosidl_typesupport_cpp
+[2.805s] [ 41%] Built target ros_action_msgs__rosidl_typesupport_fastrtps_c
+[2.809s] [ 51%] Built target ros_action_msgs__rosidl_typesupport_fastrtps_cpp
+[2.813s] [ 61%] Built target ros_action_msgs__rosidl_typesupport_introspection_cpp
+[2.814s] [ 70%] Built target ros_action_msgs__rosidl_typesupport_introspection_c
+[2.848s] [ 70%] Built target ros_action_msgs
+[2.878s] [ 74%] Built target ros_action_msgs__py
+[2.893s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_generator_py[0m
+[2.912s] [ 80%] Built target ros_action_msgs__rosidl_generator_py
+[2.927s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_fastrtps_c__pyext[0m
+[2.928s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_introspection_c__pyext[0m
+[2.928s] [35m[1mConsolidate compiler generated dependencies of target ros_action_msgs__rosidl_typesupport_c__pyext[0m
+[2.949s] [100%] Built target ros_action_msgs__rosidl_typesupport_introspection_c__pyext
+[2.949s] [100%] Built target ros_action_msgs__rosidl_typesupport_c__pyext
+[2.949s] [100%] Built target ros_action_msgs__rosidl_typesupport_fastrtps_c__pyext
+[3.241s] running egg_info
+[3.289s] writing ros_action_msgs.egg-info/PKG-INFO
+[3.290s] writing dependency_links to ros_action_msgs.egg-info/dependency_links.txt
+[3.290s] writing top-level names to ros_action_msgs.egg-info/top_level.txt
+[3.670s] reading manifest file 'ros_action_msgs.egg-info/SOURCES.txt'
+[3.671s] writing manifest file 'ros_action_msgs.egg-info/SOURCES.txt'
+[3.755s] [100%] Built target ament_cmake_python_build_ros_action_msgs_egg
+[3.775s] Invoked command in '/home/soda/vla/ROS_action/build/ros_action_msgs' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/soda/vla/ROS_action/install/vla_node:/home/soda/vla/ROS_action/install/omni_controller:/home/soda/vla/ROS_action/install/camera_sub:/home/soda/vla/ROS_action/install/camera_pub:/home/soda/vla/ROS_action/install/action_executor_node:/opt/ros/humble /usr/bin/cmake --build /home/soda/vla/ROS_action/build/ros_action_msgs -- -j8 -l8
+[3.792s] Invoking command in '/home/soda/vla/ROS_action/build/ros_action_msgs': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/soda/vla/ROS_action/install/vla_node:/home/soda/vla/ROS_action/install/omni_controller:/home/soda/vla/ROS_action/install/camera_sub:/home/soda/vla/ROS_action/install/camera_pub:/home/soda/vla/ROS_action/install/action_executor_node:/opt/ros/humble /usr/bin/cmake --install /home/soda/vla/ROS_action/build/ros_action_msgs
+[3.807s] -- Install configuration: ""
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ament_index/resource_index/rosidl_interfaces/ros_action_msgs
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__functions.h
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__type_support.h
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__struct.h
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__functions.c
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/rosidl_generator_c__visibility_control.h
+[3.808s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/object_info.h
+[3.809s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/library_path.sh
+[3.809s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/library_path.dsv
+[3.809s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_generator_c.so
+[3.809s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs
+[3.810s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg
+[3.810s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail
+[3.810s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__rosidl_typesupport_fastrtps_c.h
+[3.810s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/rosidl_typesupport_fastrtps_c__visibility_control.h
+[3.810s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_typesupport_fastrtps_c.so
+[3.810s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs
+[3.810s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__traits.hpp
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__builder.hpp
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__struct.hpp
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__type_support.hpp
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/object_info.hpp
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/rosidl_generator_cpp__visibility_control.hpp
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs
+[3.811s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/dds_fastrtps
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__rosidl_typesupport_fastrtps_cpp.hpp
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/rosidl_typesupport_fastrtps_cpp__visibility_control.h
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_typesupport_fastrtps_cpp.so
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail
+[3.812s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__rosidl_typesupport_introspection_c.h
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__type_support.c
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/rosidl_typesupport_introspection_c__visibility_control.h
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_typesupport_introspection_c.so
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_typesupport_c.so
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail
+[3.813s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__type_support.cpp
+[3.814s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/include/ros_action_msgs/ros_action_msgs/msg/detail/object_info__rosidl_typesupport_introspection_cpp.hpp
+[3.814s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_typesupport_introspection_cpp.so
+[3.814s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_typesupport_cpp.so
+[3.814s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/pythonpath.sh
+[3.814s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/pythonpath.dsv
+[3.814s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs-0.0.0-py3.10.egg-info
+[3.814s] -- Installing: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs-0.0.0-py3.10.egg-info/dependency_links.txt
+[3.815s] -- Installing: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs-0.0.0-py3.10.egg-info/SOURCES.txt
+[3.815s] -- Installing: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs-0.0.0-py3.10.egg-info/PKG-INFO
+[3.815s] -- Installing: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs-0.0.0-py3.10.egg-info/top_level.txt
+[3.815s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs
+[3.815s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/msg
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/msg/_object_info.py
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/msg/__init__.py
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/msg/_object_info_s.c
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/ros_action_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/ros_action_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/_ros_action_msgs_s.ep.rosidl_typesupport_fastrtps_c.c
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/__init__.py
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/_ros_action_msgs_s.ep.rosidl_typesupport_introspection_c.c
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/_ros_action_msgs_s.ep.rosidl_typesupport_c.c
+[3.816s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/libros_action_msgs__rosidl_generator_py.so
+[3.817s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/ros_action_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so
+[3.881s] Listing '/home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs'...
+[3.881s] Listing '/home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/msg'...
+[3.894s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/ros_action_msgs_s__rosidl_typesupport_fastrtps_c.cpython-310-aarch64-linux-gnu.so
+[3.894s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/ros_action_msgs_s__rosidl_typesupport_introspection_c.cpython-310-aarch64-linux-gnu.so
+[3.894s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/local/lib/python3.10/dist-packages/ros_action_msgs/ros_action_msgs_s__rosidl_typesupport_c.cpython-310-aarch64-linux-gnu.so
+[3.895s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/lib/libros_action_msgs__rosidl_generator_py.so
+[3.895s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/msg/ObjectInfo.idl
+[3.895s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/msg/ObjectInfo.msg
+[3.896s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ament_index/resource_index/package_run_dependencies/ros_action_msgs
+[3.896s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ament_index/resource_index/parent_prefix_path/ros_action_msgs
+[3.896s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/ament_prefix_path.sh
+[3.896s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/ament_prefix_path.dsv
+[3.896s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/path.sh
+[3.896s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/environment/path.dsv
+[3.897s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/local_setup.bash
+[3.897s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/local_setup.sh
+[3.897s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/local_setup.zsh
+[3.897s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/local_setup.dsv
+[3.898s] -- Installing: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/package.dsv
+[3.898s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ament_index/resource_index/packages/ros_action_msgs
+[3.898s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_generator_cExport.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_generator_cExport-noconfig.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_typesupport_fastrtps_cExport.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_typesupport_fastrtps_cExport-noconfig.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_generator_cppExport.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_typesupport_fastrtps_cppExport.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_typesupport_fastrtps_cppExport-noconfig.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_introspection_cExport.cmake
+[3.899s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_introspection_cExport-noconfig.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_cExport.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_cExport-noconfig.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_introspection_cppExport.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_introspection_cppExport-noconfig.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_cppExport.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgs__rosidl_typesupport_cppExport-noconfig.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_generator_pyExport.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/export_ros_action_msgs__rosidl_generator_pyExport-noconfig.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/rosidl_cmake-extras.cmake
+[3.900s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ament_cmake_export_dependencies-extras.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ament_cmake_export_include_directories-extras.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ament_cmake_export_libraries-extras.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ament_cmake_export_targets-extras.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/rosidl_cmake_export_typesupport_targets-extras.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgsConfig.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/cmake/ros_action_msgsConfig-version.cmake
+[3.901s] -- Up-to-date: /home/soda/vla/ROS_action/install/ros_action_msgs/share/ros_action_msgs/package.xml
+[3.919s] Invoked command in '/home/soda/vla/ROS_action/build/ros_action_msgs' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/soda/vla/ROS_action/install/vla_node:/home/soda/vla/ROS_action/install/omni_controller:/home/soda/vla/ROS_action/install/camera_sub:/home/soda/vla/ROS_action/install/camera_pub:/home/soda/vla/ROS_action/install/action_executor_node:/opt/ros/humble /usr/bin/cmake --install /home/soda/vla/ROS_action/build/ros_action_msgs

@@ -1,0 +1,36 @@
+running develop
+Removing /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2-stt.egg-link (link to .)
+running egg_info
+writing ../../build/serbot2_stt/serbot2_stt.egg-info/PKG-INFO
+writing dependency_links to ../../build/serbot2_stt/serbot2_stt.egg-info/dependency_links.txt
+writing entry points to ../../build/serbot2_stt/serbot2_stt.egg-info/entry_points.txt
+writing requirements to ../../build/serbot2_stt/serbot2_stt.egg-info/requires.txt
+writing top-level names to ../../build/serbot2_stt/serbot2_stt.egg-info/top_level.txt
+reading manifest file '../../build/serbot2_stt/serbot2_stt.egg-info/SOURCES.txt'
+writing manifest file '../../build/serbot2_stt/serbot2_stt.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/soda/serbot_ws/build/serbot2_stt/build
+creating /home/soda/serbot_ws/build/serbot2_stt/build/lib
+creating /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+copying serbot2_stt/mic_publisher_node.py -> /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+copying serbot2_stt/__init__.py -> /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+copying serbot2_stt/stt_subscriber_node.py -> /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt
+running install
+running install_lib
+creating /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+copying /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt/mic_publisher_node.py -> /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+copying /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt/__init__.py -> /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+copying /home/soda/serbot_ws/build/serbot2_stt/build/lib/serbot2_stt/stt_subscriber_node.py -> /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt
+byte-compiling /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt/mic_publisher_node.py to mic_publisher_node.cpython-310.pyc
+byte-compiling /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt/stt_subscriber_node.py to stt_subscriber_node.cpython-310.pyc
+running install_data
+copying resource/serbot2_stt -> /home/soda/serbot_ws/install/serbot2_stt/share/ament_index/resource_index/packages
+copying package.xml -> /home/soda/serbot_ws/install/serbot2_stt/share/serbot2_stt
+running install_egg_info
+Copying ../../build/serbot2_stt/serbot2_stt.egg-info to /home/soda/serbot_ws/install/serbot2_stt/lib/python3.10/site-packages/serbot2_stt-0.0.0-py3.10.egg-info
+running install_scripts
+Installing mic_publisher_node script to /home/soda/serbot_ws/install/serbot2_stt/lib/serbot2_stt
+Installing stt_subscriber_node script to /home/soda/serbot_ws/install/serbot2_stt/lib/serbot2_stt
+writing list of installed files to '/home/soda/serbot_ws/build/serbot2_stt/install.log'

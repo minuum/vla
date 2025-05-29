@@ -1,0 +1,2 @@
+[console_scripts]
+camera_publisher_node = camera_pub.camera_publisher_node:main
