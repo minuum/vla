@@ -19,7 +19,7 @@ class ObjectPosePublisher(Node):
         self.object = 'person'
         self.published = False  # 첫 추론 여부 플래그
 
-        # 디바이스스 설정
+        # 디바이스 설정
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
             self.get_logger().info(f'Using GPU: {torch.cuda.get_device_name(0)}')
