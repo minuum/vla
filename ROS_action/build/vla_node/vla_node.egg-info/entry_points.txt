@@ -1,2 +1,0 @@
-[console_scripts]
-paligemma_node = vla_node.simple_inference:main

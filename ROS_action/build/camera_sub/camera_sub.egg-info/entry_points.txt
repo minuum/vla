@@ -1,2 +1,0 @@
-[console_scripts]
-camera_subscriber_node = camera_sub.camera_subscriber_node:main
