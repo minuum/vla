@@ -20,7 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'whisper_stt_node = whisper_stt.whisper_stt_node:main'
+            'whisper_stt_node = whisper_stt.whisper_stt_node:main',
+            'whisperTest = whisper_stt.whisper_stt_node:main'
+
         ],
     },
 )
