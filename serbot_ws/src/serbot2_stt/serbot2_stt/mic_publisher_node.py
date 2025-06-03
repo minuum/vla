@@ -1,10 +1,13 @@
-#!/usr/bin/env python3
+#mic_publisher_node.py
 import rclpy
 from rclpy.node import Node
 import subprocess
 import numpy as np
 from std_msgs.msg import Int16MultiArray
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+# # 파일 저장 Test시에 사용
+# import wave
+# import datetime
 
 qos = QoSProfile(
     depth=10,
@@ -16,7 +19,6 @@ class MicPublisher(Node):
         super().__init__('mic_publisher')
         self.declare_parameter('duration', 5)
         self.pub = self.create_publisher(Int16MultiArray, '/audio/raw', qos_profile=qos)
-        # 타이머를 걸어서 노드를 종료하지 않고 계속 떠 있도록 함
         self.timer = self.create_timer(
             self.get_parameter('duration').value,
             self.record_and_publish
@@ -33,10 +35,23 @@ class MicPublisher(Node):
                 cmd, shell=True, capture_output=True, check=True
             )
             audio_bytes = result.stdout
-            self.get_logger().info("✅ 녹음 완료: raw PCM 데이터 수신")
+            self.get_logger().info("✅ 녹음 완료")
         except subprocess.CalledProcessError as e:
             self.get_logger().error(f"🔴 녹음 오류: {e}")
             return
+
+        # # 파일 저장 Test (WAV 형식) 
+        # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # filename = f"audio_{timestamp}.wav"
+        # try:
+        #     with wave.open(filename, 'wb') as wf:
+        #         wf.setnchannels(1)
+        #         wf.setsampwidth(2)  # int16 → 2 bytes
+        #         wf.setframerate(samplerate)
+        #         wf.writeframes(audio_bytes)
+        #     self.get_logger().info(f"💾 파일 저장 완료: {filename}")
+        # except Exception as e:
+        #     self.get_logger().error(f"🔴 파일 저장 오류: {e}")
 
         arr16 = np.frombuffer(audio_bytes, dtype=np.int16)
         msg = Int16MultiArray(data=arr16.tolist())
@@ -47,7 +62,10 @@ def main(args=None):
     rclpy.init(args=args)
     node = MicPublisher()
     try:
-        rclpy.spin(node)
+        while rclpy.ok():
+            # Enter를 누르면 record_and_publish() 호출
+            input("Enter 키를 누르고 5초 동안 얘기하세요!\n")
+            node.record_and_publish()
     except KeyboardInterrupt:
         pass
     finally:
