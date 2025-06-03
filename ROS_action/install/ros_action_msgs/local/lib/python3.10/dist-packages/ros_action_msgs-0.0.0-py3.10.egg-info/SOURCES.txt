@@ -1,8 +1,0 @@
-setup.py
-ros_action_msgs/__init__.py
-ros_action_msgs.egg-info/PKG-INFO
-ros_action_msgs.egg-info/SOURCES.txt
-ros_action_msgs.egg-info/dependency_links.txt
-ros_action_msgs.egg-info/top_level.txt
-ros_action_msgs/msg/__init__.py
-ros_action_msgs/msg/_object_info.py
