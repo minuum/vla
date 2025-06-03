@@ -1,3 +1,0 @@
-[console_scripts]
-cup_publisher = object_pose.cup_publisher:main
-object_pose_publisher = object_pose.object_pose_publisher:main
