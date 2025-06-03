@@ -21,7 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'whisper_stt_node = whisper_stt.whisper_stt_node:main',
-            'whisperTest = whisper_stt.whisper_stt_node:main'
+            'whisperTest = whisper_stt.whisperTest:main'
 
         ],
     },
