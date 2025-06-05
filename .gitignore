@@ -36,6 +36,9 @@ venv.bak/
 ROS_action/build/
 ROS_action/install/
 ROS_action/log/
+whisper2/build/
+whisper2/install/
+whisper2/log/
 whisper2/ros2_ws/build/
 whisper2/ros2_ws/install/
 whisper2/ros2_ws/log/
@@ -84,11 +87,16 @@ logs/
 
 # VLA 모델 관련
 ROS_action/.paligemma_ros_cache/
+Model_ws/.paligemma_ros_cache/
+Model_ws/build/
+Model_ws/install/
+Model_ws/log/
 *.pt
 *.pth
 *.bin
 *.safetensors
 .vla_models_cache/
+*.lock
 
 # 추가 Python 파일
 *.pyc
