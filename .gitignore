@@ -36,9 +36,9 @@ venv.bak/
 ROS_action/build/
 ROS_action/install/
 ROS_action/log/
-whisper2/build/
-whisper2/install/
-whisper2/log/
+whisper2/ros2_ws/build/
+whisper2/ros2_ws/install/
+whisper2/ros2_ws/log/
 devel/
 devel_isolated/
 build_isolated/
