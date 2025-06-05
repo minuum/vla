@@ -1,2 +1,0 @@
-[console_scripts]
-action_executor_node = action_executor_node.action_executor_node:main

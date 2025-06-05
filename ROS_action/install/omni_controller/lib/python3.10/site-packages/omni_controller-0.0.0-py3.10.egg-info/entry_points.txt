@@ -1,2 +1,0 @@
-[console_scripts]
-omni_drive_node = omni_controller.omni_drive_node:main
