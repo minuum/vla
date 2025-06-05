@@ -1,4 +1,4 @@
-#camera_publisher_node.py
+# camera_publisher_node.py
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -21,23 +21,55 @@ class CameraPublisherNode(Node):
 
         if not self.cap.isOpened():
             self.get_logger().error('❌ 카메라 열기 실패 (Jetson GStreamer)')
+            rclpy.shutdown()
             return
 
+        self.get_logger().info('✅ 카메라 연결 성공: Enter 키를 누르면 이미지 1회 퍼블리시합니다.')
+
+    def capture_and_publish(self):
+        if not self.cap.isOpened():
+            self.get_logger().error('🔴 카메라가 열려 있지 않습니다.')
+            return False
+
         ret, frame = self.cap.read()
-        if not ret:
+        if not ret or frame is None:
             self.get_logger().error('⚠️ 프레임 읽기 실패')
-        else:
-            frame = cv2.rotate(frame, cv2.ROTATE_180)
-            msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
-            self.publisher_.publish(msg)
-            self.get_logger().info('📤 이미지 1회 publish 완료')
+            return True  # 카메라는 열려 있지만 프레임을 못 읽은 경우, 재시도 가능
+
+        # 이미지 뒤집기
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+
+        msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
+        self.publisher_.publish(msg)
+        self.get_logger().info('📤 이미지 1회 퍼블리시 완료')
+        return True
 
 def main(args=None):
     rclpy.init(args=args)
     node = CameraPublisherNode()
-    rclpy.spin_once(node, timeout_sec=0.1)
-    node.destroy_node()
-    rclpy.shutdown()
+    if not rclpy.ok():
+        return
+
+    try:
+        while rclpy.ok():
+            try:
+                input("Enter 키를 누르고 한 프레임을 퍼블리시합니다...\n")
+            except EOFError:
+                break  # 터미널이 닫히는 등 입력이 더 이상 불가능한 경우 종료
+            proceed = node.capture_and_publish()
+            rclpy.spin_once(node, timeout_sec=0.1)
+
+            if not proceed:
+                break  # 카메라가 닫혔거나 심각한 오류가 발생한 경우 루프 탈출
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.get_logger().info('종료 중: 카메라 및 노드 정리')
+        if node.cap.isOpened():
+            node.cap.release()
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
