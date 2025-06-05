@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'whisper_stt'
+package_name = 'mic_pub'
 
 setup(
     name=package_name,
@@ -13,16 +13,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='soda',
-    maintainer_email='soda@todo.todo',
+    maintainer='shosae',
+    maintainer_email='phone13324@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'whisper_stt_node = whisper_stt.whisper_stt_node:main',
-            'whisperTest = whisper_stt.whisperTest:main'
-
+            'mic_publisher_node = mic_pub.mic_publisher_node:main'
         ],
     },
 )
