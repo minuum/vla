@@ -82,13 +82,9 @@ class AudioTranscriber(Node):
             transcription = self.processor.batch_decode(
                 output_ids, skip_special_tokens=True
             )[0]
-
+            # 로그 출력
             self.pub.publish(String(data=transcription))
             self.get_logger().info(f"[Whisper] {transcription}")
-
-            # 로그 출력
-            self.get_logger().info(f"[Whisper] {transcription}")
-
             txt_msg = String()
             txt_msg.data = transcription
             self.text_pub.publish(txt_msg)
