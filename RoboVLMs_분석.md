@@ -56,66 +56,250 @@ class BaseRoboVLM(nn.Module):
         return predicted_actions
 ```
 
-#### 지원되는 정책 헤드 타입들
+#### 지원되는 정책 헤드 타입들 상세 분석
 
-**1. FCDecoder (Fully Connected Policy)**
+**1. FCDecoder (Fully Connected Policy) - 즉시 반응형 정책**
+
+FCDecoder는 가장 기본적이고 직관적인 정책 헤드입니다.
+
 ```python
 class FCDecoder(BasePolicyHead):
-    def __init__(self, in_features, action_dim, ...):
+    def __init__(self, in_features, action_dim, fwd_pred_next_n, ...):
         # 완전연결층 기반 정책
-        self.actions = MLPTanhHead(hidden_size, action_dim-1)  # 팔 제어
-        self.gripper = MLPSigmoidHead(hidden_size, 1)         # 그리퍼 제어
+        self.actions = MLPTanhHead(hidden_size, fwd_pred_next_n * (action_dim-1))  # 팔 제어
+        self.gripper = MLPSigmoidHead(hidden_size, fwd_pred_next_n)               # 그리퍼 제어
+        self.mlp = Sequential(
+            Linear(in_features, in_features // 2),
+            ReLU(),
+            Linear(in_features // 2, hidden_size)
+        )
         
     def forward(self, features):
-        arm_actions = self.actions(features)      # [-1, 1] 범위 연속값
-        gripper_action = self.gripper(features)   # [0, 1] 확률값
+        # 1. 특징 압축
+        compressed_features = self.mlp(features)
+        
+        # 2. 팔 액션 예측 (6DOF: x,y,z,roll,pitch,yaw)
+        arm_actions = self.actions(compressed_features)  # [-1, 1] 범위
+        
+        # 3. 그리퍼 액션 예측 (open/close)
+        gripper_action = self.gripper(compressed_features)  # [0, 1] 확률
+        
         return arm_actions, gripper_action
 ```
 
-**2. LSTMDecoder (Sequential Policy)**
+**특징:**
+- ⚡ **빠른 추론**: 단일 패스로 즉시 액션 생성
+- 🎯 **직관적**: 현재 상황만 고려하는 단순한 매핑
+- 📏 **경량화**: 메모리 사용량 최소화
+- ❌ **한계**: 시간적 맥락 부족, 복잡한 시퀀스 태스크 어려움
+
+**적용 예시**: 컵 잡기, 물체 터치, 단순 이동
+
+---
+
+**2. LSTMDecoder (Sequential Policy) - 시퀀스 기반 정책**
+
+LSTMDecoder는 시간적 의존성을 고려하여 순차적 행동을 모델링합니다.
+
 ```python
 class LSTMDecoder(BasePolicyHead):
-    def __init__(self, window_size, fwd_pred_next_n, ...):
+    def __init__(self, window_size=16, fwd_pred_next_n=2, hidden_size=1024, ...):
         # 시퀀스 기반 정책 (시간적 의존성 고려)
-        self.rnn = LSTM(input_size, hidden_size, num_layers)
-        self.actions = MLPTanhHead(hidden_size, action_dim)
+        self.window_size = window_size      # 히스토리 윈도우
+        self.fwd_pred_next_n = fwd_pred_next_n  # 예측할 미래 스텝
+        self.history_memory = []            # 히스토리 저장
+        
+        self.rnn = LSTM(
+            input_size=in_features,
+            hidden_size=hidden_size,
+            num_layers=4,
+            dropout=0.1
+        )
+        self.actions = MLPTanhHead(hidden_size, fwd_pred_next_n * (action_dim-1))
+        self.gripper = MLPSigmoidHead(hidden_size, fwd_pred_next_n)
         
     def forward(self, feature_sequence):
-        # 과거 N스텝의 특징을 고려하여 미래 액션 예측
-        lstm_output, hidden = self.rnn(feature_sequence)
-        predicted_actions = self.actions(lstm_output[-1])
-        return predicted_actions
+        # 1. 히스토리 관리
+        if feature_sequence.shape[1] == 1:  # 단일 스텝 입력
+            self.history_memory.append(feature_sequence)
+            if len(self.history_memory) > self.window_size:
+                self.history_memory.pop(0)
+            hist_features = torch.cat(self.history_memory, dim=1)
+        else:  # 전체 시퀀스 입력
+            hist_features = feature_sequence
+            
+        # 2. LSTM을 통한 시퀀스 처리
+        lstm_output, (h_n, c_n) = self.rnn(hist_features)
+        
+        # 3. 마지막 출력으로 액션 예측
+        final_output = lstm_output[:, -1, :]  # [batch, hidden_size]
+        
+        # 4. 미래 N스텝 액션 예측
+        arm_actions = self.actions(final_output)      # [batch, N*6]
+        gripper_actions = self.gripper(final_output)  # [batch, N]
+        
+        # 5. 차원 재구성
+        arm_actions = arm_actions.view(batch_size, self.fwd_pred_next_n, 6)
+        gripper_actions = gripper_actions.view(batch_size, self.fwd_pred_next_n, 1)
+        
+        return arm_actions, gripper_actions
 ```
 
-**3. GPTDecoder (Transformer Policy)**
+**특징:**
+- 🔄 **시간적 맥락**: 과거 행동을 기억하여 일관성 있는 액션 생성
+- 📈 **순차적 학습**: 점진적으로 복잡한 태스크 수행 가능
+- 🎯 **미래 예측**: 다음 N스텝의 액션을 한 번에 예측
+- ❌ **한계**: 장기 의존성 문제, 그래디언트 소실
+
+**적용 예시**: 물 따르기, 문 열기, 연속적인 조작 태스크
+
+---
+
+**3. GPTDecoder (Transformer Policy) - 어텐션 기반 정책**
+
+GPTDecoder는 트랜스포머의 어텐션 메커니즘을 활용한 고급 정책입니다.
+
 ```python
 class GPTDecoder(BasePolicyHead):
-    def __init__(self, window_size, ...):
+    def __init__(self, window_size=16, hidden_size=1024, ...):
+        from robovlms.model.policy_head.trajectory_gpt2 import get_gpt_model
+        
         # GPT 스타일 트랜스포머 정책
-        self.gpt = GPT2Model(config)
-        self.actions = MLPTanhHead(hidden_size, action_dim)
+        self.gpt = get_gpt_model(
+            input_dim=hidden_size,
+            window_size=window_size,
+            n_layer=8,
+            n_head=8
+        )
+        self.fc = Linear(in_features, hidden_size)  # 입력 차원 조정
+        self.actions = MLPTanhHead(hidden_size, fwd_pred_next_n * (action_dim-1))
+        self.gripper = MLPSigmoidHead(hidden_size, fwd_pred_next_n)
+        self.history_memory = []
         
     def forward(self, feature_sequence):
-        # 어텐션 메커니즘으로 중요한 과거 정보에 집중
-        transformer_output = self.gpt(feature_sequence)
-        actions = self.actions(transformer_output)
-        return actions
+        # 1. 특징 압축
+        features = self.fc(feature_sequence)  # [batch, seq_len, hidden_size]
+        
+        # 2. 히스토리 관리 (추론 시)
+        if features.shape[1] == 1:
+            self.history_memory.append(features)
+            if len(self.history_memory) > self.window_size:
+                self.history_memory.pop(0)
+            hist_features = torch.cat(self.history_memory, dim=1)
+        else:
+            hist_features = features
+            
+        # 3. GPT 트랜스포머를 통한 처리
+        # - 셀프 어텐션으로 중요한 과거 정보에 집중
+        # - 위치 인코딩으로 시간 순서 고려
+        transformer_output = self.gpt(hist_features)  # [batch, seq_len, hidden_size]
+        
+        # 4. 마지막 토큰으로 액션 예측
+        final_output = transformer_output[:, -1, :]
+        
+        # 5. 액션 디코딩
+        arm_actions = self.actions(final_output)
+        gripper_actions = self.gripper(final_output)
+        
+        return arm_actions.view(-1, self.fwd_pred_next_n, 6), \
+               gripper_actions.view(-1, self.fwd_pred_next_n, 1)
 ```
 
-**4. DiscreteDecoder (Discrete Action Policy)**
+**특징:**
+- 🧠 **강력한 모델링**: 어텐션으로 중요 정보에 선택적 집중
+- 🔗 **장기 의존성**: LSTM보다 긴 시퀀스 처리 가능
+- 🎯 **병렬 처리**: 시퀀스 전체를 동시에 처리
+- ❌ **한계**: 높은 계산 비용, 메모리 사용량 증가
+
+**적용 예시**: 복잡한 조립 작업, 멀티스텝 요리, 장기 계획이 필요한 태스크
+
+---
+
+**4. DiscreteDecoder (Discrete Action Policy) - 토큰 기반 정책**
+
+DiscreteDecoder는 연속 액션을 이산 토큰으로 변환하여 언어모델처럼 처리합니다.
+
 ```python
 class DiscreteDecoder(BasePolicyHead):
-    def __init__(self, tokenizer, n_bin=256, ...):
+    def __init__(self, tokenizer, n_bin=256, min_action=-1, max_action=1, ...):
         # 이산적 액션 공간 정책
-        self.action_tokenizer = ActionTokenizer(tokenizer, bins=n_bin)
+        self.action_tokenizer = ActionTokenizer(
+            tokenizer=tokenizer,
+            bins=n_bin,
+            min_action=min_action,
+            max_action=max_action
+        )
+        
+        # 분류기 (액션 차원 * 빈 수 = 분류 클래스 수)
+        self.classifier = Linear(
+            hidden_size, 
+            action_dim * n_bin + tokenizer.vocab_size
+        )
         
     def forward(self, features):
-        # 연속 액션을 이산적 토큰으로 변환하여 언어모델처럼 처리
-        action_logits = self.classifier(features)  # [bs, seq_len, vocab_size]
-        action_tokens = torch.argmax(action_logits, dim=-1)
-        decoded_actions = self.action_tokenizer.decode(action_tokens)
-        return decoded_actions
+        # 1. 로짓 계산 (분류 문제로 접근)
+        logits = self.classifier(features)  # [batch, seq_len, vocab_size + action_vocab]
+        
+        # 2. 액션 토큰 예측
+        action_logits = logits[..., :self.action_dim * self.n_bin]
+        action_probs = F.softmax(action_logits, dim=-1)
+        
+        # 3. 가장 높은 확률의 토큰 선택
+        action_tokens = torch.argmax(action_probs, dim=-1)
+        
+        # 4. 토큰을 연속 액션으로 디코딩
+        decoded_actions = self.action_tokenizer.decode_token_ids_to_actions(
+            action_tokens.cpu().numpy()
+        )
+        
+        return torch.tensor(decoded_actions, device=features.device)
+        
+    def compute_loss(self, logits, target_actions, mask=None):
+        # 액션을 토큰으로 인코딩
+        target_tokens = self.action_tokenizer.encode_actions_to_token_ids(
+            target_actions.cpu().numpy()
+        )
+        
+        # 크로스 엔트로피 손실
+        loss = F.cross_entropy(
+            logits.view(-1, logits.size(-1)),
+            target_tokens.view(-1),
+            ignore_index=-100
+        )
+        
+        return loss
 ```
+
+**ActionTokenizer의 작동 원리:**
+```python
+class ActionTokenizer:
+    def encode_actions_to_token_ids(self, actions):
+        # 1. 연속값을 [-1, 1] 범위로 정규화
+        normalized = (actions - self.min_action) / (self.max_action - self.min_action)
+        
+        # 2. [0, 1] 범위를 n_bin 개의 구간으로 양자화
+        quantized = (normalized * (self.bins - 1)).astype(int)
+        
+        # 3. 각 액션 차원별로 고유 토큰 ID 할당
+        token_ids = []
+        for dim_idx, dim_values in enumerate(quantized.T):
+            dim_token_ids = dim_values + dim_idx * self.bins
+            token_ids.append(dim_token_ids)
+            
+        return np.concatenate(token_ids)
+    
+    def decode_token_ids_to_actions(self, token_ids):
+        # 역과정: 토큰 ID → 연속값
+        # ...
+```
+
+**특징:**
+- 🔗 **언어-액션 통합**: 텍스트와 액션을 동일한 토큰 공간에서 처리
+- 📚 **언어모델 활용**: 기존 언어모델의 강력한 학습 능력 활용
+- 🎯 **일관성**: 언어 명령과 액션 예측의 일관된 처리
+- ❌ **한계**: 연속성 정보 손실, 양자화 오차
+
+**적용 예시**: 언어 명령과 밀접한 태스크, 설명 가능한 액션 생성
 
 ### 3. 정책의 학습 과정
 
