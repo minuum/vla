@@ -98,9 +98,6 @@ Model_ws/log/
 # 추가 Python 파일
 *.pyc
 *.pyo
-<<<<<<< HEAD
-ROS_action/src/*.whl
-=======
 ROS_action/src/*.whl
 
 # Model_ws 빌드 아티팩트 및 캐시
@@ -109,4 +106,3 @@ Model_ws/build/
 Model_ws/install/
 Model_ws/log/
 *.lock
->>>>>>> 460f1aa (feat: VLA 노드 Model_ws 추가 및 핵심 ROS 노드들 개선)
