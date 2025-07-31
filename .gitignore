@@ -36,9 +36,6 @@ venv.bak/
 ROS_action/build/
 ROS_action/install/
 ROS_action/log/
-whisper2/build/
-whisper2/install/
-whisper2/log/
 whisper2/ros2_ws/build/
 whisper2/ros2_ws/install/
 whisper2/ros2_ws/log/
@@ -101,4 +98,15 @@ Model_ws/log/
 # 추가 Python 파일
 *.pyc
 *.pyo
+<<<<<<< HEAD
 ROS_action/src/*.whl
+=======
+ROS_action/src/*.whl
+
+# Model_ws 빌드 아티팩트 및 캐시
+Model_ws/.paligemma_ros_cache/
+Model_ws/build/
+Model_ws/install/
+Model_ws/log/
+*.lock
+>>>>>>> 460f1aa (feat: VLA 노드 Model_ws 추가 및 핵심 ROS 노드들 개선)
