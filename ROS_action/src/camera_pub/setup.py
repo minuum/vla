@@ -20,7 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'camera_publisher_node = camera_pub.camera_publisher_node:main'
+            'camera_publisher_node = camera_pub.camera_publisher_node:main',
+            'camera_publisher_continuous = camera_pub.camera_publisher_continuous:main',
+            'camera_publisher_usb = camera_pub.camera_publisher_usb:main'
         ],
     },
 )
