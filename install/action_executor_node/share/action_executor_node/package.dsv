@@ -1,0 +1,6 @@
+source;share/action_executor_node/hook/pythonpath.ps1
+source;share/action_executor_node/hook/pythonpath.dsv
+source;share/action_executor_node/hook/pythonpath.sh
+source;share/action_executor_node/hook/ament_prefix_path.ps1
+source;share/action_executor_node/hook/ament_prefix_path.dsv
+source;share/action_executor_node/hook/ament_prefix_path.sh

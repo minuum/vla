@@ -32,14 +32,7 @@ class ObjectPosePublisher(Node):
             10
         )
 
-        # ObjectInfo 퍼블리셔
-        self.pub = self.create_publisher(ObjectInfo, '/object_info', 1)
-
-<<<<<<< HEAD
         # 탐지할 클래스 (기본값: 'chair')
-=======
-        # 탐지할 클래스 (기본값: 'person')
->>>>>>> 460f1aa (feat: VLA 노드 Model_ws 추가 및 핵심 ROS 노드들 개선)
         self.object = 'chair'
         # 첫 추론 여부 플래그
         self.published = False

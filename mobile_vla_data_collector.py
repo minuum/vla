@@ -145,7 +145,6 @@ class MobileVLADataCollector(Node):
     def execute_action(self, action: Dict[str, float]):
         """액션 실행 (로봇 제어 + ROS2 퍼블리시) - 10cm씩 단발성 움직임"""
         self.current_action = action.copy()
-        timestamp = time.time()
         
         # 이동 거리 설정 (약 10cm에 해당하는 시간)
         move_duration = 0.3  # 0.3초 (속도에 따라 약 10cm)
@@ -194,12 +193,21 @@ class MobileVLADataCollector(Node):
             else:  # 정지
                 self.driver.stop()
         
-        # 3. 수집 중이면 액션 히스토리에 추가
+        # 3. 수집 중이면 액션 히스토리에 추가 (움직임 완료 후)
         if self.collecting:
+            timestamp = time.time()
+            # 이미지 캡처 (움직임 완료 후)
+            if self.latest_image is not None:
+                self.image_history.append({
+                    "image": self.latest_image.copy(),
+                    "timestamp": timestamp
+                })
+            
             self.action_history.append({
                 "action": action.copy(),
                 "timestamp": timestamp
             })
+            self.get_logger().info(f"💾 데이터 프레임 수집: {len(self.action_history)}개")
             
         return timestamp
 
