@@ -26,7 +26,7 @@ def check_h5_file(file_path: Path):
                 print(f"   📄 {name}: {dset.shape} {dset.dtype}")
 
             if 'action_chunks' not in f:
-                print("\n❌ Action Chunks 없음")
+                print("\n💡 정보: Action Chunks 데이터가 없습니다 (이미지 추출에는 영향 없음)")
 
     except Exception as e:
         print(f"HDF5 파일을 읽는 중 오류 발생: {e}")
