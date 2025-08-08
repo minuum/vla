@@ -3,6 +3,8 @@ import h5py
 import numpy as np
 import cv2
 import argparse
+import json
+import pandas as pd
 from pathlib import Path
 
 def check_h5_file(file_path: Path):
@@ -85,6 +87,100 @@ def save_single_image(file_path: Path, index: int):
     except Exception as e:
         print(f"이미지를 저장하는 중 오류 발생: {e}")
 
+def export_to_csv(file_path: Path, output_path: Path = None):
+    """HDF5 데이터를 CSV 파일로 추출합니다."""
+    if not file_path.is_file():
+        print(f"❌ 파일이 존재하지 않습니다: {file_path}")
+        return
+
+    try:
+        with h5py.File(file_path, 'r') as f:
+            # 메타데이터와 액션 데이터 추출
+            metadata = dict(f.attrs)
+            actions = f['actions'][:]
+            action_event_types = f['action_event_types'][:]
+            
+            # DataFrame 생성
+            data = []
+            for i in range(len(actions)):
+                row = {
+                    'frame_index': i,
+                    'action_x': actions[i][0],
+                    'action_y': actions[i][1], 
+                    'action_z': actions[i][2],
+                    'event_type': action_event_types[i].decode('utf-8') if isinstance(action_event_types[i], bytes) else str(action_event_types[i]),
+                    'episode_name': metadata.get('episode_name', ''),
+                    'total_duration': metadata.get('total_duration', 0),
+                    'action_chunk_size': metadata.get('action_chunk_size', 0)
+                }
+                data.append(row)
+            
+            df = pd.DataFrame(data)
+            
+            # 출력 파일 경로 설정
+            if output_path is None:
+                output_path = file_path.parent / f"{file_path.stem}_data.csv"
+            
+            df.to_csv(output_path, index=False)
+            print(f"📊 CSV 파일 저장 완료: {output_path}")
+            print(f"   총 {len(data)}개 프레임 데이터 추출")
+            
+    except Exception as e:
+        print(f"CSV 추출 중 오류 발생: {e}")
+
+def export_to_json(file_path: Path, output_path: Path = None):
+    """HDF5 데이터를 JSON 파일로 추출합니다."""
+    if not file_path.is_file():
+        print(f"❌ 파일이 존재하지 않습니다: {file_path}")
+        return
+
+    try:
+        with h5py.File(file_path, 'r') as f:
+            # 전체 데이터 구조 생성
+            metadata = {}
+            for key, value in f.attrs.items():
+                if isinstance(value, (np.integer, np.floating)):
+                    metadata[key] = value.item()
+                else:
+                    metadata[key] = value
+            
+            data = {
+                "file_name": file_path.name,
+                "file_size_mb": float(file_path.stat().st_size / (1024*1024)),
+                "metadata": metadata,
+                "frames": []
+            }
+            
+            # 각 프레임별 데이터
+            actions = f['actions'][:]
+            action_event_types = f['action_event_types'][:]
+            
+            for i in range(len(actions)):
+                frame_data = {
+                    "frame_index": i,
+                    "action": {
+                        "x": float(actions[i][0]),
+                        "y": float(actions[i][1]), 
+                        "z": float(actions[i][2])
+                    },
+                    "event_type": action_event_types[i].decode('utf-8') if isinstance(action_event_types[i], bytes) else str(action_event_types[i]),
+                    "image_file": f"frame_{i:04d}.png"
+                }
+                data["frames"].append(frame_data)
+            
+            # 출력 파일 경로 설정
+            if output_path is None:
+                output_path = file_path.parent / f"{file_path.stem}_data.json"
+            
+            with open(output_path, 'w', encoding='utf-8') as json_file:
+                json.dump(data, json_file, indent=2, ensure_ascii=False)
+            
+            print(f"📄 JSON 파일 저장 완료: {output_path}")
+            print(f"   총 {len(data['frames'])}개 프레임 데이터 추출")
+            
+    except Exception as e:
+        print(f"JSON 추출 중 오류 발생: {e}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -109,14 +205,35 @@ if __name__ == "__main__":
         metavar="FRAME_INDEX",
         help="지정된 인덱스의 프레임을 png 파일로 저장합니다."
     )
+    parser.add_argument(
+        "--csv",
+        action="store_true",
+        help="액션 데이터를 CSV 파일로 추출합니다."
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="전체 데이터를 JSON 파일로 추출합니다."
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="이미지, CSV, JSON을 모두 추출합니다."
+    )
 
     args = parser.parse_args()
 
     check_h5_file(args.file_path)
 
-    if args.extract:
+    if args.extract or args.all:
         output_dir = Path(args.extract) if isinstance(args.extract, str) else args.file_path.parent / args.file_path.stem
         extract_images(args.file_path, output_dir)
+
+    if args.csv or args.all:
+        export_to_csv(args.file_path)
+
+    if args.json or args.all:
+        export_to_json(args.file_path)
 
     if args.view is not None:
         save_single_image(args.file_path, args.view)
