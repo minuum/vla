@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'vla_collector = mobile_vla_package.mobile_vla_data_collector:main',
+            'simple_robot_mover = mobile_vla_package.simple_robot_mover:main',
         ]
     },
 )
