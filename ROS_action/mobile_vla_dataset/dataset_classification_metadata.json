@@ -1,0 +1,790 @@
+{
+  "timestamp": "2025-08-08T07:52:52.769776",
+  "total_files": 41,
+  "statistics": {
+    "long": 8,
+    "medium": 24,
+    "unknown": 5,
+    "extra_long": 2,
+    "short": 2
+  },
+  "categories": {
+    "short": {
+      "min": 1,
+      "max": 10,
+      "target": 50,
+      "description": "짧은 에피소드 (1-10 프레임)"
+    },
+    "medium": {
+      "min": 11,
+      "max": 25,
+      "target": 100,
+      "description": "중간 에피소드 (11-25 프레임)"
+    },
+    "long": {
+      "min": 26,
+      "max": 50,
+      "target": 30,
+      "description": "긴 에피소드 (26-50 프레임)"
+    },
+    "extra_long": {
+      "min": 51,
+      "max": Infinity,
+      "target": 10,
+      "description": "매우 긴 에피소드 (51+ 프레임)"
+    }
+  },
+  "files": {
+    "long": [
+      {
+        "episode_name": "episode_20250808_034448",
+        "total_duration": 36.48128867149353,
+        "num_frames": 33,
+        "action_chunk_size": 8,
+        "images_shape": [
+          33,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          33,
+          3
+        ],
+        "file_size_mb": 55.44395160675049,
+        "actual_frames": 33,
+        "category": "long"
+      },
+      {
+        "episode_name": "episode_20250805_111114",
+        "total_duration": 33.90949058532715,
+        "num_frames": 36,
+        "action_chunk_size": 8,
+        "images_shape": [
+          36,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          36,
+          3
+        ],
+        "file_size_mb": 45.566622734069824,
+        "actual_frames": 36,
+        "category": "long"
+      },
+      {
+        "episode_name": "episode_20250805_131453",
+        "total_duration": 100.3609209060669,
+        "num_frames": 34,
+        "action_chunk_size": 8,
+        "images_shape": [
+          34,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          34,
+          3
+        ],
+        "file_size_mb": 47.33051872253418,
+        "actual_frames": 34,
+        "category": "long"
+      },
+      {
+        "episode_name": "episode_20250805_132249",
+        "total_duration": 39.35313415527344,
+        "num_frames": 32,
+        "action_chunk_size": 8,
+        "images_shape": [
+          32,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          32,
+          3
+        ],
+        "file_size_mb": 44.88444995880127,
+        "actual_frames": 32,
+        "category": "long"
+      },
+      {
+        "episode_name": "episode_20250805_124738",
+        "total_duration": 23.347987413406372,
+        "num_frames": 43,
+        "action_chunk_size": 8,
+        "images_shape": [
+          43,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          43,
+          3
+        ],
+        "file_size_mb": 57.218257904052734,
+        "actual_frames": 43,
+        "category": "long"
+      },
+      {
+        "episode_name": "episode_20250808_025434",
+        "total_duration": 60.0121796131134,
+        "num_frames": 40,
+        "action_chunk_size": 8,
+        "images_shape": [
+          40,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          40,
+          3
+        ],
+        "file_size_mb": 70.18802833557129,
+        "actual_frames": 40,
+        "category": "long"
+      },
+      {
+        "episode_name": "episode_20250808_034257",
+        "total_duration": 43.97678518295288,
+        "num_frames": 29,
+        "action_chunk_size": 8,
+        "images_shape": [
+          29,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          29,
+          3
+        ],
+        "file_size_mb": 35.09029674530029,
+        "actual_frames": 29,
+        "category": "long"
+      },
+      {
+        "episode_name": "episode_20250805_113504",
+        "total_duration": 23.364312410354614,
+        "num_frames": 31,
+        "action_chunk_size": 8,
+        "images_shape": [
+          31,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          31,
+          3
+        ],
+        "file_size_mb": 12.194300651550293,
+        "actual_frames": 31,
+        "category": "long"
+      }
+    ],
+    "medium": [
+      {
+        "episode_name": "episode_20250805_125844",
+        "total_duration": 37.98954629898071,
+        "num_frames": 25,
+        "action_chunk_size": 8,
+        "images_shape": [
+          25,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          25,
+          3
+        ],
+        "file_size_mb": 33.07929801940918,
+        "actual_frames": 25,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250805_130902",
+        "total_duration": 30.00548768043518,
+        "num_frames": 23,
+        "action_chunk_size": 8,
+        "images_shape": [
+          23,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          23,
+          3
+        ],
+        "file_size_mb": 29.941243171691895,
+        "actual_frames": 23,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_074727",
+        "total_duration": 20.03213930130005,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 31.74235725402832,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_070428",
+        "total_duration": 36.698567628860474,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 31.680052757263184,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_071504",
+        "total_duration": 66.31840562820435,
+        "num_frames": 17,
+        "action_chunk_size": 8,
+        "images_shape": [
+          17,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          17,
+          3
+        ],
+        "file_size_mb": 27.31528091430664,
+        "actual_frames": 17,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_063050",
+        "total_duration": 46.954834938049316,
+        "num_frames": 21,
+        "action_chunk_size": 8,
+        "images_shape": [
+          21,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          21,
+          3
+        ],
+        "file_size_mb": 36.0148811340332,
+        "actual_frames": 21,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_063806",
+        "total_duration": 28.62218689918518,
+        "num_frames": 19,
+        "action_chunk_size": 8,
+        "images_shape": [
+          19,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          19,
+          3
+        ],
+        "file_size_mb": 31.42792797088623,
+        "actual_frames": 19,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_053623",
+        "total_duration": 33.14328145980835,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 30.470051765441895,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_065843",
+        "total_duration": 29.359850645065308,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 31.357086181640625,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_073602",
+        "total_duration": 17.04902410507202,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 31.65653133392334,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_063512",
+        "total_duration": 26.671154737472534,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 31.014171600341797,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_064101",
+        "total_duration": 25.974303245544434,
+        "num_frames": 17,
+        "action_chunk_size": 8,
+        "images_shape": [
+          17,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          17,
+          3
+        ],
+        "file_size_mb": 26.61337661743164,
+        "actual_frames": 17,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_074409",
+        "total_duration": 30.278883457183838,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 32.176812171936035,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_040140",
+        "total_duration": 29.158652544021606,
+        "num_frames": 19,
+        "action_chunk_size": 8,
+        "images_shape": [
+          19,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          19,
+          3
+        ],
+        "file_size_mb": 17.024526596069336,
+        "actual_frames": 19,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_032201",
+        "total_duration": 41.76898169517517,
+        "num_frames": 19,
+        "action_chunk_size": 8,
+        "images_shape": [
+          19,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          19,
+          3
+        ],
+        "file_size_mb": 31.858519554138184,
+        "actual_frames": 19,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_073405",
+        "total_duration": 23.63453245162964,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 32.07993125915527,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_063304",
+        "total_duration": 24.8574800491333,
+        "num_frames": 15,
+        "action_chunk_size": 8,
+        "images_shape": [
+          15,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          15,
+          3
+        ],
+        "file_size_mb": 26.480445861816406,
+        "actual_frames": 15,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_025155",
+        "total_duration": 19.810704231262207,
+        "num_frames": 19,
+        "action_chunk_size": 8,
+        "images_shape": [
+          19,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          19,
+          3
+        ],
+        "file_size_mb": 46.202406883239746,
+        "actual_frames": 19,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_074908",
+        "total_duration": 71.25087475776672,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 30.377020835876465,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_024329",
+        "total_duration": 22.53352952003479,
+        "num_frames": 22,
+        "action_chunk_size": 8,
+        "images_shape": [
+          22,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          22,
+          3
+        ],
+        "file_size_mb": 33.71822261810303,
+        "actual_frames": 22,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_072715",
+        "total_duration": 34.84210252761841,
+        "num_frames": 18,
+        "action_chunk_size": 8,
+        "images_shape": [
+          18,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          18,
+          3
+        ],
+        "file_size_mb": 31.5981388092041,
+        "actual_frames": 18,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_034634",
+        "total_duration": 45.671679973602295,
+        "num_frames": 21,
+        "action_chunk_size": 8,
+        "images_shape": [
+          21,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          21,
+          3
+        ],
+        "file_size_mb": 35.55738925933838,
+        "actual_frames": 21,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250808_040913",
+        "total_duration": 27.52627921104431,
+        "num_frames": 19,
+        "action_chunk_size": 8,
+        "images_shape": [
+          19,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          19,
+          3
+        ],
+        "file_size_mb": 32.62409496307373,
+        "actual_frames": 19,
+        "category": "medium"
+      },
+      {
+        "episode_name": "episode_20250807_233556",
+        "total_duration": 20.988362550735474,
+        "num_frames": 19,
+        "action_chunk_size": 8,
+        "images_shape": [
+          19,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          19,
+          3
+        ],
+        "file_size_mb": 26.904959678649902,
+        "actual_frames": 19,
+        "category": "medium"
+      }
+    ],
+    "unknown": [
+      {
+        "episode_name": "episode_20250805_094236",
+        "total_duration": 29.46230149269104,
+        "num_frames": 0,
+        "action_chunk_size": 0,
+        "images_shape": null,
+        "actions_shape": null,
+        "file_size_mb": 0.0100555419921875,
+        "actual_frames": 0,
+        "category": "unknown"
+      },
+      {
+        "episode_name": "episode_20250805_094306",
+        "total_duration": 797.2019391059875,
+        "num_frames": 0,
+        "action_chunk_size": 0,
+        "images_shape": null,
+        "actions_shape": null,
+        "file_size_mb": 0.00617218017578125,
+        "actual_frames": 0,
+        "category": "unknown"
+      },
+      {
+        "episode_name": "episode_20250805_101603",
+        "total_duration": 1.4370079040527344,
+        "num_frames": 0,
+        "action_chunk_size": 0,
+        "images_shape": null,
+        "actions_shape": null,
+        "file_size_mb": 0.00617218017578125,
+        "actual_frames": 0,
+        "category": "unknown"
+      },
+      {
+        "episode_name": "episode_20250805_092219",
+        "total_duration": 85.58067274093628,
+        "num_frames": 0,
+        "action_chunk_size": 0,
+        "images_shape": null,
+        "actions_shape": null,
+        "file_size_mb": 0.0100555419921875,
+        "actual_frames": 0,
+        "category": "unknown"
+      },
+      {
+        "episode_name": "episode_20250805_102127",
+        "total_duration": 55.856234312057495,
+        "num_frames": 0,
+        "action_chunk_size": 0,
+        "images_shape": null,
+        "actions_shape": null,
+        "file_size_mb": 24.210301399230957,
+        "actual_frames": 0,
+        "category": "unknown"
+      }
+    ],
+    "extra_long": [
+      {
+        "episode_name": "episode_20250805_104714",
+        "total_duration": 7.798007488250732,
+        "num_frames": 70,
+        "action_chunk_size": 8,
+        "images_shape": [
+          70,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          70,
+          8,
+          3
+        ],
+        "file_size_mb": 41.27658462524414,
+        "actual_frames": 70,
+        "category": "extra_long"
+      },
+      {
+        "episode_name": "episode_20250805_105402",
+        "total_duration": 27.648178577423096,
+        "num_frames": 269,
+        "action_chunk_size": 8,
+        "images_shape": [
+          269,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          269,
+          8,
+          3
+        ],
+        "file_size_mb": 123.27298259735107,
+        "actual_frames": 269,
+        "category": "extra_long"
+      }
+    ],
+    "short": [
+      {
+        "episode_name": "episode_20250805_112217",
+        "total_duration": 4.238667011260986,
+        "num_frames": 3,
+        "action_chunk_size": 8,
+        "images_shape": [
+          3,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          3,
+          3
+        ],
+        "file_size_mb": 3.903964042663574,
+        "actual_frames": 3,
+        "category": "short"
+      },
+      {
+        "episode_name": "episode_20250805_112216",
+        "total_duration": 1.2020776271820068,
+        "num_frames": 1,
+        "action_chunk_size": 8,
+        "images_shape": [
+          1,
+          720,
+          1280,
+          3
+        ],
+        "actions_shape": [
+          1,
+          3
+        ],
+        "file_size_mb": 1.3149785995483398,
+        "actual_frames": 1,
+        "category": "short"
+      }
+    ]
+  }
+}
