@@ -1,1 +1,1 @@
-cv_bridge:rclpy:sensor_msgs
+OpenCV:camera_interfaces:cv_bridge:rclpy:sensor_msgs

@@ -106,3 +106,5 @@ Model_ws/build/
 Model_ws/install/
 Model_ws/log/
 *.lock
+
+*.h5
