@@ -33,16 +33,16 @@ class MobileVLADataCollector(Node):
     def __init__(self):
         super().__init__('mobile_vla_data_collector')
         self.WASD_TO_CONTINUOUS = {
-            'w': {"linear_x": 1.25, "linear_y": 0.0, "angular_z": 0.0},
-            'a': {"linear_x": 0.0, "linear_y": 1.25, "angular_z": 0.0},
-            's': {"linear_x": -1.25, "linear_y": 0.0, "angular_z": 0.0},
-            'd': {"linear_x": 0.0, "linear_y": -1.25, "angular_z": 0.0},
-            'q': {"linear_x": 1.25, "linear_y": 1.25, "angular_z": 0.0},
-            'e': {"linear_x": 1.25, "linear_y": -1.25, "angular_z": 0.0},
-            'z': {"linear_x": -1.25, "linear_y": 1.25, "angular_z": 0.0},
-            'c': {"linear_x": -1.25, "linear_y": -1.25, "angular_z": 0.0},
-            'r': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 1.25},
-            't': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": -1.25},
+            'w': {"linear_x": 1.15, "linear_y": 0.0, "angular_z": 0.0},
+            'a': {"linear_x": 0.0, "linear_y": 1.15, "angular_z": 0.0},
+            's': {"linear_x": -1.15, "linear_y": 0.0, "angular_z": 0.0},
+            'd': {"linear_x": 0.0, "linear_y": -1.15, "angular_z": 0.0},
+            'q': {"linear_x": 1.15, "linear_y": 1.15, "angular_z": 0.0},
+            'e': {"linear_x": 1.15, "linear_y": -1.15, "angular_z": 0.0},
+            'z': {"linear_x": -1.15, "linear_y": 1.15, "angular_z": 0.0},
+            'c': {"linear_x": -1.15, "linear_y": -1.15, "angular_z": 0.0},
+            'r': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 1.15},
+            't': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": -1.15},
             ' ': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 0.0}
         }
         self.STOP_ACTION = {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 0.0}
@@ -75,9 +75,6 @@ class MobileVLADataCollector(Node):
         
         self.dataset_stats = defaultdict(int)
         self.scenario_stats = defaultdict(int)
-        
-        # 진행상황 저장 파일
-        self.progress_file = self.data_dir / "scenario_progress.json"
         
         # 시나리오 선택 모드
         self.scenario_selection_mode = False
@@ -125,6 +122,9 @@ class MobileVLADataCollector(Node):
         self.data_dir = Path("mobile_vla_dataset")
         self.data_dir.mkdir(exist_ok=True)
         
+        # 진행상황 저장 파일 (data_dir 정의 후)
+        self.progress_file = self.data_dir / "scenario_progress.json"
+        
         # 데이터셋 통계 로드
         self.load_dataset_stats()
         self.load_scenario_progress()
@@ -171,7 +171,7 @@ class MobileVLADataCollector(Node):
             if self.collecting:
                 self.stop_episode()
         elif key == 'p':
-            self.show_progress_status()
+            self.resync_and_show_progress()
         elif key in ['1', '2', '3', '4', '5', '6', '7', '8']:
             if self.scenario_selection_mode:
                 # 시나리오 선택 모드에서 숫자키 입력
@@ -216,7 +216,7 @@ class MobileVLADataCollector(Node):
 
             self.movement_timer = threading.Timer(0.3, self.stop_movement_timed)
             self.movement_timer.start()
-            self.get_logger().info(f"🚀 움직임 시작: 0.3초")
+            self.get_logger().info(f"🚀 움직임 시작: 0.3초 타이머 설정됨 (타이머 ID: {id(self.movement_timer)})")
             
         elif key == ' ':
             self.stop_movement_internal(collect_data=True) 
@@ -224,6 +224,7 @@ class MobileVLADataCollector(Node):
 
     def stop_movement_timed(self):
         """Stop function called by the timer - NO data collection for auto-stop"""
+        self.get_logger().info(f"⏰ 타이머 호출: 0.3초 후 자동 정지 (타이머 ID: {id(threading.current_thread())})")
         self.stop_movement_internal(collect_data=False)
 
     def stop_movement_internal(self, collect_data: bool):
@@ -231,7 +232,10 @@ class MobileVLADataCollector(Node):
         Internal function to stop robot movement and collect data if needed.
         collect_data: If True, collects data at the time of stopping.
         """
+        self.get_logger().info(f"🔧 stop_movement_internal 호출: collect_data={collect_data}, current_action={self.current_action}")
+        
         if not collect_data and self.current_action == self.STOP_ACTION:
+            self.get_logger().info("🔧 이미 정지 상태이므로 리턴")
             return
 
         self.current_action = self.STOP_ACTION.copy()
@@ -788,6 +792,69 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("✨ 1-8번 중 원하는 시나리오를 선택하세요!")
         self.get_logger().info("💡 환경 설정 후 숫자키를 누르면 에피소드가 시작됩니다.")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
+
+    def resync_scenario_progress(self):
+        """실제 H5 파일들을 스캔하여 시나리오 진행률 재동기화"""
+        self.get_logger().info("🔄 H5 파일 스캔하여 시나리오 진행률 동기화 중...")
+        
+        # 시나리오 통계 초기화
+        self.scenario_stats = defaultdict(int)
+        
+        # 데이터 디렉토리에서 모든 H5 파일 스캔
+        if self.data_dir.exists():
+            h5_files = list(self.data_dir.glob("*.h5"))
+            self.get_logger().info(f"📁 {len(h5_files)}개의 H5 파일을 발견했습니다.")
+            
+            scenario_matched = 0
+            old_format_files = []
+            
+            for h5_file in h5_files:
+                try:
+                    # 파일명에서 시나리오 추출
+                    scenario = self.extract_scenario_from_episode_name(h5_file.stem)
+                    if scenario and scenario in self.cup_scenarios:
+                        self.scenario_stats[scenario] += 1
+                        scenario_matched += 1
+                        self.get_logger().info(f"✅ {h5_file.name} → {scenario}")
+                    else:
+                        old_format_files.append(h5_file.name)
+                        self.get_logger().info(f"⚠️ {h5_file.name} → 시나리오 이름 없음 (구형 파일)")
+                except Exception as e:
+                    self.get_logger().warning(f"⚠️ {h5_file.name} 분석 실패: {e}")
+            
+            # 구형 파일들 정보 출력
+            if old_format_files:
+                self.get_logger().info(f"📋 시나리오 이름이 없는 구형 파일 {len(old_format_files)}개:")
+                for old_file in old_format_files[:5]:  # 최대 5개만 표시
+                    self.get_logger().info(f"   • {old_file}")
+                if len(old_format_files) > 5:
+                    self.get_logger().info(f"   • ... 외 {len(old_format_files) - 5}개")
+        else:
+            self.get_logger().info("📁 데이터 디렉토리가 존재하지 않습니다.")
+        
+        # 새로운 진행상황 저장
+        self.save_scenario_progress()
+        
+        # 동기화 결과 요약
+        total_found = sum(self.scenario_stats.values())
+        self.get_logger().info(f"✅ 동기화 완료! 총 {total_found}개의 시나리오 에피소드 발견")
+        
+        for scenario_id, count in self.scenario_stats.items():
+            if count > 0:
+                scenario_info = self.cup_scenarios[scenario_id]
+                key = scenario_info["key"]
+                desc = scenario_info["description"]
+                self.get_logger().info(f"   {key}키 {scenario_id}: {count}개 → {desc}")
+        
+        if total_found == 0:
+            self.get_logger().info("📝 시나리오 이름이 포함된 파일이 없습니다.")
+            self.get_logger().info("💡 새로운 N-숫자키 시스템으로 수집한 파일만 카운트됩니다.")
+
+    def resync_and_show_progress(self):
+        """H5 파일 재스캔 후 진행률 표시"""
+        self.resync_scenario_progress()
+        self.load_dataset_stats()  # 전체 데이터셋 통계도 다시 로드
+        self.show_progress_status()
 
 def main(args=None):
     rclpy.init(args=args)
