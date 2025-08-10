@@ -94,3 +94,6 @@ ROS_action/.paligemma_ros_cache/
 *.pyc
 *.pyo
 ROS_action/src/*.whl
+
+# Ignore numpy arrays
+*.npy
