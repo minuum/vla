@@ -32,6 +32,9 @@ class ObjectPosePublisher(Node):
             10
         )
 
+        # ObjectInfo 퍼블리셔
+        self.pub = self.create_publisher(ObjectInfo, '/object_info', 1)
+
         # 탐지할 클래스 (기본값: 'chair')
         self.object = 'chair'
         # 첫 추론 여부 플래그
