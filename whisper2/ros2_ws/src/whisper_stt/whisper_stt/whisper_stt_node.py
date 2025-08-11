@@ -85,11 +85,8 @@ class AudioTranscriber(Node):
             # 로그 출력
             self.pub.publish(String(data=transcription))
             self.get_logger().info(f"[Whisper] {transcription}")
-<<<<<<< HEAD
-=======
 
-
->>>>>>> 460f1aa (feat: VLA 노드 Model_ws 추가 및 핵심 ROS 노드들 개선)
+            # /stt/text 토픽으로도 퍼블리시
             txt_msg = String()
             txt_msg.data = transcription
             self.text_pub.publish(txt_msg)

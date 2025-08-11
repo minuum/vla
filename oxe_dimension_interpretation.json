@@ -1,0 +1,186 @@
+{
+  "dataset_info": {
+    "type": "OXE (Open X-Embodiment) Robot Demonstration",
+    "task": "Take the tiger out of the red bowl and put it in the grey bowl.",
+    "timesteps": 108,
+    "robot_type": "7-DOF manipulator with gripper"
+  },
+  "action_space": {
+    "dimension": 8,
+    "type": "Continuous delta control + discrete gripper",
+    "description": "6D end-effector control (3 translation + 3 rotation) + 2D gripper control",
+    "control_frequency": "Estimated ~10-20 Hz based on smooth trajectories"
+  },
+  "state_space": {
+    "dimension": 15,
+    "type": "Mixed continuous joint states + end-effector pose + gripper state",
+    "description": "7 joint angles + 2 gripper states + 4 end-effector pose + 2 gripper binary states"
+  },
+  "interpretations": {
+    "actions": {
+      "action_0": {
+        "name": "End-effector X translation",
+        "description": "X축 방향 엔드 이펙터 이동 (delta control)",
+        "range": "[-0.0200, 0.0200]",
+        "unit": "meters/step",
+        "evidence": "작은 값(-0.02~0.02), 연속적 변화"
+      },
+      "action_1": {
+        "name": "End-effector Y translation",
+        "description": "Y축 방향 엔드 이펙터 이동 (delta control)",
+        "range": "[-0.0109, 0.0151]",
+        "unit": "meters/step",
+        "evidence": "작은 값(-0.01~0.02), 연속적 변화"
+      },
+      "action_2": {
+        "name": "End-effector Z translation",
+        "description": "Z축 방향 엔드 이펙터 이동 (delta control)",
+        "range": "[-0.0200, 0.0200]",
+        "unit": "meters/step",
+        "evidence": "작은 값(-0.02~0.02), 연속적 변화"
+      },
+      "action_3": {
+        "name": "End-effector Roll rotation",
+        "description": "엔드 이펙터 Roll 회전 (delta control)",
+        "range": "[-0.0202, 0.0190]",
+        "unit": "radians/step",
+        "evidence": "작은 값(-0.02~0.02), angular motion"
+      },
+      "action_4": {
+        "name": "End-effector Pitch rotation",
+        "description": "엔드 이펙터 Pitch 회전 (delta control)",
+        "range": "[-0.0211, 0.0190]",
+        "unit": "radians/step",
+        "evidence": "많은 0값 (63.89%), 제한적 움직임"
+      },
+      "action_5": {
+        "name": "End-effector Yaw rotation",
+        "description": "엔드 이펙터 Yaw 회전 (delta control)",
+        "range": "[-0.0095, 0.0139]",
+        "unit": "radians/step",
+        "evidence": "많은 0값 (60.19%), 제한적 움직임"
+      },
+      "action_6": {
+        "name": "Gripper close/open command",
+        "description": "그리퍼 닫힘/열림 명령 (discrete)",
+        "range": "[-1.0, 1.0]",
+        "unit": "discrete (-1: 열림, 0: 유지, 1: 닫힘)",
+        "evidence": "98.15%가 0값, -1/0/1 discrete values"
+      },
+      "action_7": {
+        "name": "Gripper activation",
+        "description": "그리퍼 활성화 신호",
+        "range": "[0.0, 1.0]",
+        "unit": "binary (0: 비활성, 1: 활성)",
+        "evidence": "99.07%가 0값, binary control signal"
+      }
+    },
+    "states": {
+      "state_0": {
+        "name": "Joint 1 angle",
+        "description": "첫 번째 관절 각도 (base rotation)",
+        "range": "[-3.6962, -2.8879]",
+        "unit": "radians",
+        "evidence": "큰 음수값, 관절 각도 범위"
+      },
+      "state_1": {
+        "name": "Joint 2 angle",
+        "description": "두 번째 관절 각도 (shoulder)",
+        "range": "[-1.7803, -1.0731]",
+        "unit": "radians",
+        "evidence": "음수값, 관절 각도 범위"
+      },
+      "state_2": {
+        "name": "Joint 3 angle",
+        "description": "세 번째 관절 각도 (elbow)",
+        "range": "[2.1135, 2.4610]",
+        "unit": "radians",
+        "evidence": "양수값, 관절 각도 범위"
+      },
+      "state_3": {
+        "name": "Joint 4 angle",
+        "description": "네 번째 관절 각도 (wrist 1)",
+        "range": "[-2.7098, -2.0790]",
+        "unit": "radians",
+        "evidence": "음수값, 관절 각도 범위"
+      },
+      "state_4": {
+        "name": "Joint 5 angle",
+        "description": "다섯 번째 관절 각도 (wrist 2)",
+        "range": "[-1.6631, -1.5368]",
+        "unit": "radians",
+        "evidence": "음수값, 작은 변화량"
+      },
+      "state_5": {
+        "name": "Joint 6 angle",
+        "description": "여섯 번째 관절 각도 (wrist 3)",
+        "range": "[2.5441, 3.4554]",
+        "unit": "radians",
+        "evidence": "양수값, 큰 변화량"
+      },
+      "state_6": {
+        "name": "Joint 7 angle",
+        "description": "일곱 번째 관절 각도 (7DOF arm의 경우)",
+        "range": "[0.3293, 0.4900]",
+        "unit": "radians",
+        "evidence": "양수값, 중간 범위"
+      },
+      "state_7": {
+        "name": "Gripper position",
+        "description": "그리퍼 위치/개방도",
+        "range": "[-0.1600, 0.1957]",
+        "unit": "meters or normalized",
+        "evidence": "음수~양수, 그리퍼 동작"
+      },
+      "state_8": {
+        "name": "Gripper velocity",
+        "description": "그리퍼 속도",
+        "range": "[-0.1275, 0.0544]",
+        "unit": "meters/sec or normalized",
+        "evidence": "음수~양수, 속도 특성"
+      },
+      "state_9": {
+        "name": "End-effector X position",
+        "description": "엔드 이펙터 X 좌표",
+        "range": "[0.6861, 0.7248]",
+        "unit": "meters",
+        "evidence": "0.7 근처 값, 위치 좌표"
+      },
+      "state_10": {
+        "name": "End-effector Y position",
+        "description": "엔드 이펙터 Y 좌표",
+        "range": "[0.6868, 0.7268]",
+        "unit": "meters",
+        "evidence": "0.7 근처 값, 위치 좌표"
+      },
+      "state_11": {
+        "name": "End-effector Z position",
+        "description": "엔드 이펙터 Z 좌표",
+        "range": "[-0.0540, 0.0236]",
+        "unit": "meters",
+        "evidence": "0 근처 값, 높이 좌표"
+      },
+      "state_12": {
+        "name": "End-effector orientation",
+        "description": "엔드 이펙터 방향 (roll/pitch/yaw 중 하나)",
+        "range": "[0.0042, 0.0373]",
+        "unit": "radians",
+        "evidence": "작은 양수값, 방향각"
+      },
+      "state_13": {
+        "name": "Gripper state (binary)",
+        "description": "그리퍼 상태 (0: 열림, 1: 닫힘)",
+        "range": "[0.0, 1.0]",
+        "unit": "binary",
+        "evidence": "53.70%가 0값, binary state"
+      },
+      "state_14": {
+        "name": "Gripper lock/unlock",
+        "description": "그리퍼 잠금 상태",
+        "range": "[0.0, 1.0]",
+        "unit": "binary",
+        "evidence": "73.15%가 0값, binary control"
+      }
+    }
+  }
+}
