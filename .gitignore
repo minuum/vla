@@ -100,11 +100,7 @@ Model_ws/log/
 *.pyo
 ROS_action/src/*.whl
 
-# Model_ws 빌드 아티팩트 및 캐시
-Model_ws/.paligemma_ros_cache/
-Model_ws/build/
-Model_ws/install/
-Model_ws/log/
-*.lock
-
+# 모델 체크포인트 및 대용량 데이터
 *.h5
+# Ignore numpy arrays
+*.npy
