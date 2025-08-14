@@ -53,6 +53,9 @@ class MobileVLADataCollector(Node):
         self.episode_start_time = None
         self.action_chunk_size = 8
         
+        # RoboVLMs 일관성을 위한 18스텝 고정
+        self.fixed_episode_length = 18   # RoboVLMs 표준 길이
+        
         # 분류 및 모니터링 설정
         self.categories = {
             "short": {"min": 1, "max": 10, "target": 50, "description": "짧은 에피소드"},
@@ -61,23 +64,47 @@ class MobileVLADataCollector(Node):
             "extra_long": {"min": 51, "max": float('inf'), "target": 10, "description": "매우 긴 에피소드"}
         }
         
-        # 8가지 컵 도달 시나리오 목표 설정
+        # 8가지 컵 도달 시나리오 목표 설정 (현실적 타협점: 총 80개)
         self.cup_scenarios = {
-            "1box_vert_left": {"target": 15, "description": "1박스-세로-왼쪽경로", "key": "1"},
-            "1box_vert_right": {"target": 15, "description": "1박스-세로-오른쪽경로", "key": "2"},
-            "1box_hori_left": {"target": 15, "description": "1박스-가로-왼쪽경로", "key": "3"},
-            "1box_hori_right": {"target": 15, "description": "1박스-가로-오른쪽경로", "key": "4"},
-            "2box_vert_left": {"target": 15, "description": "2박스-세로-왼쪽경로", "key": "5"},
-            "2box_vert_right": {"target": 15, "description": "2박스-세로-오른쪽경로", "key": "6"},
-            "2box_hori_left": {"target": 15, "description": "2박스-가로-왼쪽경로", "key": "7"},
-            "2box_hori_right": {"target": 15, "description": "2박스-가로-오른쪽경로", "key": "8"}
+            "1box_vert_left": {"target": 10, "description": "1박스-세로-왼쪽경로", "key": "1"},
+            "1box_vert_right": {"target": 10, "description": "1박스-세로-오른쪽경로", "key": "2"},
+            "1box_hori_left": {"target": 10, "description": "1박스-가로-왼쪽경로", "key": "3"},
+            "1box_hori_right": {"target": 10, "description": "1박스-가로-오른쪽경로", "key": "4"},
+            "2box_vert_left": {"target": 10, "description": "2박스-세로-왼쪽경로", "key": "5"},
+            "2box_vert_right": {"target": 10, "description": "2박스-세로-오른쪽경로", "key": "6"},
+            "2box_hori_left": {"target": 10, "description": "2박스-가로-왼쪽경로", "key": "7"},
+            "2box_hori_right": {"target": 10, "description": "2박스-가로-오른쪽경로", "key": "8"}
+        }
+        
+        # 장애물(박스) 위치 단계 (3단계, 각 시나리오당 10개)
+        # 세로 배치: 로봇-장애물 거리 기준 / 가로 배치: 좌우 치우침 기준
+        # label: 안내용 텍스트, hint: 콘솔 힌트, samples_per_scenario: 권장 샘플 수
+        self.distance_levels = {
+            "close":   {"label": "세로: 로봇과 가까움 / 가로: 좌측 치우침",   "hint": "로봇 바로 앞 or 왼쪽에 더 가까운 장애물",
+                         "samples_per_scenario": 3},
+            "medium":  {"label": "세로: 중간 거리 / 가로: 중앙 근처",          "hint": "장애물이 중앙 라인에 가깝게 배치",
+                         "samples_per_scenario": 4},
+            "far":     {"label": "세로: 로봇과 멀음 / 가로: 우측 치우침",     "hint": "로봇에서 멀리 or 오른쪽에 더 가까운 장애물",
+                         "samples_per_scenario": 3}
         }
         
         self.dataset_stats = defaultdict(int)
         self.scenario_stats = defaultdict(int)
         
-        # 시나리오 선택 모드
+        # 시나리오/패턴/거리 선택 모드 및 상태
         self.scenario_selection_mode = False
+        self.pattern_selection_mode = False
+        self.distance_selection_mode = False
+        self.selected_scenario = None
+        self.selected_pattern_type = None
+        self.selected_distance_level = None
+
+        # 핵심 패턴(표준) 관리
+        self.core_patterns: Dict[str, List[str]] = {}
+        self.core_guidance_active: bool = False
+        self.core_guidance_index: int = 0
+        self.current_episode_keys: List[str] = []
+        self.record_core_pattern: bool = False
 
         self.current_action = self.STOP_ACTION.copy()
         self.movement_timer = None
@@ -124,10 +151,12 @@ class MobileVLADataCollector(Node):
         
         # 진행상황 저장 파일 (data_dir 정의 후)
         self.progress_file = self.data_dir / "scenario_progress.json"
+        self.core_pattern_file = self.data_dir / "core_patterns.json"
         
         # 데이터셋 통계 로드
         self.load_dataset_stats()
         self.load_scenario_progress()
+        self.load_core_patterns()
         
         self.get_logger().info("🤖 Mobile VLA Data Collector 준비 완료!")
         self.get_logger().info("📋 조작 방법:")
@@ -135,11 +164,11 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   R/T: 회전, 스페이스바: 정지")
         self.get_logger().info("   F/G: 속도 조절, N: 새 에피소드 시작")
         self.get_logger().info("   M: 에피소드 종료, P: 현재 진행 상황 확인")
-        self.get_logger().info("🎯 컵 도달 시나리오 선택:")
-        self.get_logger().info("   1: 1박스-세로-왼쪽, 2: 1박스-세로-오른쪽")
-        self.get_logger().info("   3: 1박스-가로-왼쪽, 4: 1박스-가로-오른쪽")
-        self.get_logger().info("   5: 2박스-세로-왼쪽, 6: 2박스-세로-오른쪽")
-        self.get_logger().info("   7: 2박스-가로-왼쪽, 8: 2박스-가로-오른쪽")
+        self.get_logger().info("🎯 수집 단계: N → 시나리오(1-8) → 패턴(C/V/X) → 장애물 위치(J/K/L)")
+        self.get_logger().info("🎯 컵 도달 시나리오 선택 (RoboVLMs 표준):")
+        self.get_logger().info("   📦 8개 시나리오 × 10개 샘플 × 18스텝 고정")
+        self.get_logger().info("   💡 총 목표: 80개 (기존 120개에서 33% 단축)")
+        self.get_logger().info("   🔬 거리 분포: 근거리(3) + 중거리(4) + 원거리(3)")
         self.get_logger().info("   Ctrl+C: 프로그램 종료")
         
         self.get_logger().info("⏳ 키보드 입력 대기 중...")
@@ -181,11 +210,39 @@ class MobileVLADataCollector(Node):
                     '5': "2box_vert_left", '6': "2box_vert_right",
                     '7': "2box_hori_left", '8': "2box_hori_right"
                 }
-                scenario_id = scenario_map[key]
-                self.scenario_selection_mode = False  # 선택 모드 해제
-                self.start_episode_with_scenario(scenario_id)
+                self.selected_scenario = scenario_map[key]
+                self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
+                self.show_pattern_selection()  # 패턴 선택 모드로 전환
             else:
                 self.get_logger().info("⚠️ 먼저 'N' 키를 눌러 에피소드 시작을 해주세요.")
+        elif key in ['c', 'v', 'x']:
+            if self.pattern_selection_mode:
+                # 패턴 선택 모드에서 c/v/x 키 입력
+                pattern_map = {
+                    'c': "core",      # 핵심 패턴
+                    'v': "variant",   # 변형 패턴  
+                    'x': "exception"  # 예외 패턴
+                }
+                pattern_type = pattern_map[key]
+                self.pattern_selection_mode = False  # 패턴 선택 모드 해제
+                self.selected_pattern_type = pattern_type
+                self.show_distance_selection()  # 거리 선택 모드로 전환
+            else:
+                # 패턴 선택 모드가 아닐 때는 일반 대각선 움직임으로 처리
+                if key == 'c':
+                    # C키가 패턴 선택에 사용되지 않을 때만 움직임으로 처리
+                    pass  # 아래 WASD 처리로 넘어감
+        elif key in ['j', 'k', 'l']:
+            if self.distance_selection_mode:
+                # 거리 선택 모드: j=근거리, k=중거리, l=원거리
+                distance_map = {'j': 'close', 'k': 'medium', 'l': 'far'}
+                self.selected_distance_level = distance_map[key]
+                self.distance_selection_mode = False
+                self.start_episode_with_pattern_and_distance(
+                    self.selected_scenario,
+                    self.selected_pattern_type,
+                    self.selected_distance_level
+                )
         elif key == 'f':
             if ROBOT_AVAILABLE:
                 self.throttle = max(10, self.throttle - 10)
@@ -195,12 +252,16 @@ class MobileVLADataCollector(Node):
                 self.throttle = min(100, self.throttle + 10)
                 self.get_logger().info(f'속도: {self.throttle}%')
         elif key in self.WASD_TO_CONTINUOUS:
-            if self.scenario_selection_mode:
+            if self.scenario_selection_mode or self.pattern_selection_mode:
                 self.scenario_selection_mode = False
-                self.get_logger().info("🚫 시나리오 선택이 취소되었습니다.")
+                self.pattern_selection_mode = False
+                self.get_logger().info("🚫 선택이 취소되었습니다.")
                 return
                 
             action = self.WASD_TO_CONTINUOUS[key]
+            # 현재 에피소드 키 기록 (핵심 패턴 녹화/가이드 용)
+            if self.collecting:
+                self.current_episode_keys.append(key)
             
             if self.movement_timer and self.movement_timer.is_alive():
                 self.movement_timer.cancel()
@@ -353,6 +414,20 @@ class MobileVLADataCollector(Node):
         if not action_desc:
             action_desc.append("정지")
             
+        # 핵심 패턴 가이드 흐름 표시
+        if self.core_guidance_active and action_event_type == "start_action":
+            planned = None
+            if self.selected_scenario in self.core_patterns:
+                # 등록된 가이드가 있으면 해당 시퀀스로 안내
+                seq = self.core_patterns[self.selected_scenario]
+                if self.core_guidance_index < len(seq):
+                    planned = seq[self.core_guidance_index].upper()
+            self.core_guidance_index += 1
+            if planned:
+                self.get_logger().info(f"🧭 가이드 키: {planned} | 입력: {action_desc}")
+            else:
+                self.get_logger().info(f"🧭 가이드: 사용자 표준 녹화 중 | 입력: {action_desc}")
+
         self.get_logger().info(f"💾 {action_event_type} 액션[{', '.join(action_desc)}] 데이터 수집: {len(self.episode_data)}개")
 
     def get_key(self) -> str:
@@ -374,6 +449,7 @@ class MobileVLADataCollector(Node):
             self.episode_name = episode_name
 
         self.episode_data = []
+        self.current_episode_keys = []
         
         self.get_logger().info("⏳ 에피소드 시작 전 준비 중...")
         
@@ -452,6 +528,17 @@ class MobileVLADataCollector(Node):
         total_duration = end_time - self.episode_start_time
         
         save_path = self.save_episode_data(self.episode_data, self.episode_name, total_duration)
+
+        # 핵심 패턴 표준 저장/갱신
+        scenario = self.extract_scenario_from_episode_name(self.episode_name)
+        if scenario and ("_core_" in self.episode_name or self.episode_name.endswith("_core")):
+            if self.record_core_pattern and len(self.current_episode_keys) > 0:
+                self.core_patterns[scenario] = self.current_episode_keys.copy()
+                self.save_core_patterns()
+                self.get_logger().info(f"💾 핵심 패턴 표준 등록: {scenario} → {self.core_patterns[scenario]}")
+            self.core_guidance_active = False
+            self.core_guidance_index = 0
+            self.record_core_pattern = False
         
         # 프레임 수에 따른 분류 및 통계 업데이트
         num_frames = len(self.episode_data)
@@ -459,7 +546,6 @@ class MobileVLADataCollector(Node):
         self.dataset_stats[category] += 1
         
         # 시나리오별 통계 업데이트 (에피소드명에서 시나리오 추출)
-        scenario = self.extract_scenario_from_episode_name(self.episode_name)
         if scenario:
             self.scenario_stats[scenario] += 1
             self.save_scenario_progress()
@@ -677,8 +763,9 @@ class MobileVLADataCollector(Node):
         self.start_episode(scenario_episode_name)
         
     def get_wasd_example(self, scenario_id: str) -> str:
-        """시나리오별 WASD 경로 예시"""
-        examples = {
+        """시나리오별 WASD 경로 예시 (하이브리드 전략)"""
+        # 핵심 패턴 (60% - 6개 샘플)
+        core_patterns = {
             "1box_vert_left": "W W W → A A → W W → D D",
             "1box_vert_right": "W W → D D → W W W → A A", 
             "1box_hori_left": "W → A A A → W W → D D D",
@@ -688,7 +775,15 @@ class MobileVLADataCollector(Node):
             "2box_hori_left": "W → A A A A → W W → D D D D",
             "2box_hori_right": "W W → D D → W W → A A"
         }
-        return examples.get(scenario_id, "W → A/D → W → ...")
+        
+        # 변형 패턴 예시 (30% - 3개 샘플)
+        variant_info = "변형: 타이밍 조정, 세분화된 움직임"
+        
+        # 예외 패턴 예시 (10% - 1개 샘플)  
+        exception_info = "예외: 회전 포함, 완전히 다른 접근"
+        
+        core_pattern = core_patterns.get(scenario_id, "W → A/D → W → ...")
+        return f"📍 핵심(6개): {core_pattern}\n   🔄 {variant_info}\n   ⚡ {exception_info}"
         
     def extract_scenario_from_episode_name(self, episode_name: str) -> str:
         """에피소드명에서 시나리오 추출"""
@@ -726,6 +821,29 @@ class MobileVLADataCollector(Node):
         except Exception as e:
             self.get_logger().warn(f"⚠️ 시나리오 진행상황 로드 실패: {e}")
             self.scenario_stats = defaultdict(int)
+
+    def load_core_patterns(self):
+        """핵심 패턴(표준) 파일 로드"""
+        try:
+            if self.core_pattern_file.exists():
+                with open(self.core_pattern_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # 값은 키 시퀀스 리스트
+                    self.core_patterns = {k: list(v) for k, v in data.items()}
+                self.get_logger().info(f"📘 핵심 패턴 로드: {list(self.core_patterns.keys())}")
+            else:
+                self.core_patterns = {}
+        except Exception as e:
+            self.get_logger().warn(f"⚠️ 핵심 패턴 로드 실패: {e}")
+            self.core_patterns = {}
+
+    def save_core_patterns(self):
+        """핵심 패턴(표준) 파일 저장"""
+        try:
+            with open(self.core_pattern_file, 'w', encoding='utf-8') as f:
+                json.dump(self.core_patterns, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            self.get_logger().warn(f"⚠️ 핵심 패턴 저장 실패: {e}")
             
     def save_scenario_progress(self):
         """시나리오 진행상황 저장"""
@@ -855,6 +973,156 @@ class MobileVLADataCollector(Node):
         self.resync_scenario_progress()
         self.load_dataset_stats()  # 전체 데이터셋 통계도 다시 로드
         self.show_progress_status()
+        
+    def show_pattern_selection(self):
+        """패턴 타입 선택 메뉴 표시"""
+        self.pattern_selection_mode = True
+        
+        config = self.cup_scenarios[self.selected_scenario]
+        
+        self.get_logger().info("🎯 패턴 타입 선택")
+        self.get_logger().info("=" * 50)
+        self.get_logger().info(f"📦 선택된 시나리오: {config['description']}")
+        self.get_logger().info("")
+        
+        # 핵심 패턴 가이드 표시
+        core_pattern = self.get_core_pattern_guide(self.selected_scenario)
+        
+        self.get_logger().info("📍 C키: 핵심 패턴 (Core) - 6개 수집 목표")
+        self.get_logger().info(f"   🎮 가이드: {core_pattern}")
+        self.get_logger().info("   💡 위 순서를 참고하여 정확히 따라하세요!")
+        self.get_logger().info("")
+        
+        self.get_logger().info("🔄 V키: 변형 패턴 (Variant) - 3개 수집 목표")
+        self.get_logger().info("   🎮 핵심 패턴의 타이밍이나 순서를 조금 변경")
+        self.get_logger().info("   💡 창의적으로 변형하여 움직이세요!")
+        self.get_logger().info("")
+        
+        self.get_logger().info("⚡ X키: 예외 패턴 (Exception) - 1개 수집 목표")
+        self.get_logger().info("   🎮 완전히 다른 접근법 (회전 포함 등)")
+        self.get_logger().info("   💡 자유롭게 실험해보세요!")
+        self.get_logger().info("")
+        
+        self.get_logger().info("✨ C, V, X 중 원하는 패턴을 선택하세요!")
+        self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
+
+    def show_distance_selection(self):
+        """장애물 위치 선택 메뉴 표시 (근/중/원 개념을 위치로 안내)"""
+        self.distance_selection_mode = True
+        levels = self.distance_levels
+        
+        self.get_logger().info("🎯 장애물 위치 선택")
+        self.get_logger().info("=" * 50)
+        self.get_logger().info("J키: CLOSE")
+        self.get_logger().info(f"   📍 {levels['close']['label']}")
+        self.get_logger().info(f"   💡 {levels['close']['hint']}")
+        self.get_logger().info("")
+        self.get_logger().info("K키: MEDIUM")
+        self.get_logger().info(f"   📍 {levels['medium']['label']}")
+        self.get_logger().info(f"   💡 {levels['medium']['hint']}")
+        self.get_logger().info("")
+        self.get_logger().info("L키: FAR")
+        self.get_logger().info(f"   📍 {levels['far']['label']}")
+        self.get_logger().info(f"   💡 {levels['far']['hint']}")
+        self.get_logger().info("")
+        self.get_logger().info("✨ J/K/L 중 장애물 위치를 선택하세요!")
+        self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
+        
+    def get_core_pattern_guide(self, scenario_id: str) -> str:
+        """핵심 패턴 가이드 반환"""
+        # 사용자 표준(첫 핵심 에피소드)에 기반한 동적 가이드 우선
+        if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
+            return " ".join([k.upper() for k in self.core_patterns[scenario_id]])
+        # 초기 기본 가이드(없을 때만 사용)
+        default_guides = {
+            "1box_vert_left": "W W W → A A → W W → D D",
+            "1box_vert_right": "W W → D D → W W W → A A", 
+            "1box_hori_left": "W → A A A → W W → D D D",
+            "1box_hori_right": "W W → D → W W → A",
+            "2box_vert_left": "W W → A A A → W W → D D D",
+            "2box_vert_right": "W → D D D → W W W → A A A",
+            "2box_hori_left": "W → A A A A → W W → D D D D",
+            "2box_hori_right": "W W → D D → W W → A A"
+        }
+        return default_guides.get(scenario_id, "W → A/D → W → ...")
+        
+    def start_episode_with_pattern(self, scenario_id: str, pattern_type: str):
+        """패턴 타입을 지정하여 에피소드 시작 (거리 선택 전)"""
+        config = self.cup_scenarios[scenario_id]
+        
+        # 패턴 타입 정보를 에피소드명에 포함
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        pattern_episode_name = f"episode_{timestamp}_{scenario_id}_{pattern_type}"
+        
+        pattern_names = {
+            "core": "핵심 패턴",
+            "variant": "변형 패턴", 
+            "exception": "예외 패턴"
+        }
+        
+        self.get_logger().info(f"🎯 {config['description']} - {pattern_names[pattern_type]} 시작!")
+        
+        if pattern_type == "core":
+            # 핵심 패턴인 경우 가이드 다시 표시
+            guide = self.get_core_pattern_guide(scenario_id)
+            self.get_logger().info(f"🎮 가이드 순서: {guide}")
+            self.get_logger().info("💡 위 순서를 정확히 따라해주세요!")
+        elif pattern_type == "variant":
+            self.get_logger().info("🔄 핵심 패턴을 변형하여 움직여주세요!")
+        else:  # exception
+            self.get_logger().info("⚡ 자유롭게 실험적인 방법으로 움직여주세요!")
+        
+        # 현재 진행 상황 표시
+        current = self.scenario_stats[scenario_id]
+        target = config["target"]
+        progress_bar = self.create_progress_bar(current, target)
+        self.get_logger().info(f"📊 {scenario_id.upper()}: {progress_bar}")
+        
+        self.start_episode(pattern_episode_name)
+
+    def start_episode_with_pattern_and_distance(self, scenario_id: str, pattern_type: str, distance_level: str):
+        """패턴 + 거리 정보를 포함하여 에피소드 시작"""
+        config = self.cup_scenarios[scenario_id]
+        levels = self.distance_levels
+        if distance_level not in levels:
+            self.get_logger().warn("⚠️ 알 수 없는 거리 레벨, 기본값 medium 사용")
+            distance_level = 'medium'
+        label = levels[distance_level]['label']
+        
+        # 이름에 거리 태그 포함
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        episode_name = f"episode_{timestamp}_{scenario_id}_{pattern_type}_{distance_level}"
+        
+        pattern_names = {
+            "core": "핵심 패턴",
+            "variant": "변형 패턴", 
+            "exception": "예외 패턴"
+        }
+        
+        self.get_logger().info(f"🎯 {config['description']} - {pattern_names.get(pattern_type, pattern_type)} - {distance_level.upper()}({label}) 시작!")
+        
+        if pattern_type == "core":
+            guide = self.get_core_pattern_guide(scenario_id)
+            # 거리별로 W 길이 참고 안내
+            self.get_logger().info(f"🎮 가이드 순서: {guide}")
+            self.get_logger().info("💡 위치별 조정: 세로-가까움/W 줄임, 세로-멀음/W 늘림, 가로-좌/우 치우침 맞춰 A/D 비율 조정")
+            # 핵심 패턴 가이드/녹화 플래그
+            self.core_guidance_active = True
+            self.core_guidance_index = 0
+            self.record_core_pattern = scenario_id not in self.core_patterns
+        elif pattern_type == "variant":
+            self.get_logger().info("🔄 핵심 패턴을 변형하여 움직여주세요! (타이밍/순서 변경)")
+        else:
+            self.get_logger().info("⚡ 자유롭게 실험적인 방법으로 움직여주세요!")
+        
+        current = self.scenario_stats[scenario_id]
+        target = config["target"]
+        progress_bar = self.create_progress_bar(current, target)
+        self.get_logger().info(f"📊 {scenario_id.upper()}: {progress_bar}")
+        
+        self.start_episode(episode_name)
+        
+
 
 def main(args=None):
     rclpy.init(args=args)
