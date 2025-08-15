@@ -61,10 +61,11 @@ class MobileVLADataset(Dataset):
         }
         
         # 이벤트 타입 매핑
+        # 문자열/바이트 문자열 모두 안전하게 처리
         self.event_mapping = {
-            b'episode_start': 0,
-            b'start_action': 1, 
-            b'stop_action': 2
+            'episode_start': 0,
+            'start_action': 1,
+            'stop_action': 2
         }
         
         # HDF5 파일 로드 및 필터링
@@ -182,8 +183,20 @@ class MobileVLADataset(Dataset):
             processed_actions = torch.FloatTensor(actions)
         
         # 3. 이벤트 타입 변환
+        # h5py가 반환하는 형식이 str 또는 bytes(np.bytes_)일 수 있어 통합 처리
+        def _to_text(e):
+            if isinstance(e, bytes):
+                return e.decode('utf-8', errors='ignore')
+            try:
+                import numpy as _np
+                if isinstance(e, _np.bytes_):
+                    return e.decode('utf-8', errors='ignore')
+            except Exception:
+                pass
+            return str(e)
+
         event_indices = np.array([
-            self.event_mapping.get(event, 1) for event in action_events
+            self.event_mapping.get(_to_text(event), 1) for event in action_events
         ])
         processed_events = torch.LongTensor(event_indices)  # [T]
         
