@@ -34,15 +34,15 @@ class KoreanTextEncoder(nn.Module):
         self.hidden_size = hidden_size
         self.max_length = max_length
         
-        # 한국어 토크나이저 및 모델 로드
+        # 한국어 토크나이저 및 모델 로드 (오프라인 환경 대비)
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.text_encoder = AutoModel.from_pretrained(model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, local_files_only=False)
+            self.text_encoder = AutoModel.from_pretrained(model_name, local_files_only=False)
             logger.info(f"✅ 한국어 모델 로드 완료: {model_name}")
         except Exception as e:
             logger.warning(f"⚠️ KLUE 모델 로드 실패, DistilBERT로 대체: {e}")
-            self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-multilingual-cased")
-            self.text_encoder = AutoModel.from_pretrained("distilbert-base-multilingual-cased")
+            self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-multilingual-cased", local_files_only=False)
+            self.text_encoder = AutoModel.from_pretrained("distilbert-base-multilingual-cased", local_files_only=False)
         
         # 인코더 가중치 고정 옵션
         if freeze_encoder:
