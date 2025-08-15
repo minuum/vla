@@ -1,15 +1,15 @@
 {
-  "last_updated": "2025-08-15T04:01:53.018712",
+  "last_updated": "2025-08-15T13:50:10.160068",
   "scenario_stats": {
-    "1box_vert_left": 2,
-    "1box_vert_right": 0,
-    "1box_hori_left": 0,
-    "1box_hori_right": 0,
-    "2box_vert_left": 0,
-    "2box_vert_right": 0,
-    "2box_hori_left": 0,
-    "2box_hori_right": 0
+    "1box_hori_right": 10,
+    "2box_hori_right": 6,
+    "2box_vert_right": 10,
+    "1box_hori_left": 10,
+    "1box_vert_right": 10,
+    "2box_hori_left": 6,
+    "2box_vert_left": 10,
+    "1box_vert_left": 10
   },
-  "total_completed": 2,
+  "total_completed": 72,
   "total_target": 80
 }
