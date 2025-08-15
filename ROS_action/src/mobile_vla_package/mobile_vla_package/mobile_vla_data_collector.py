@@ -90,6 +90,23 @@ class MobileVLADataCollector(Node):
         
         self.dataset_stats = defaultdict(int)
         self.scenario_stats = defaultdict(int)
+        # 패턴×거리(위치) 진행 통계: scenario -> pattern -> distance -> count
+        self.pattern_distance_stats: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
+        # 시나리오당 목표(패턴/위치 분배) - Exception 제거, Variant로 병합
+        # 세로(vert) 기본: Core 6, Variant 4 → 거리: Core(2/3/1), Variant(1/1/2)
+        self.pattern_targets = {"core": 6, "variant": 4}
+        self.distance_targets_per_pattern = {
+            "core": {"close": 2, "medium": 3, "far": 1},
+            "variant": {"close": 1, "medium": 1, "far": 2},
+        }
+
+        # 가로(수평) 시나리오 전용 오버라이드 목표 (Exception 없음)
+        self.hori_pattern_targets_override = {"core": 7, "variant": 3}
+        self.hori_distance_targets_override = {
+            "core": {"close": 2, "medium": 3, "far": 2},
+            "variant": {"close": 1, "medium": 1, "far": 1},
+        }
         
         # 시나리오/패턴/거리 선택 모드 및 상태
         self.scenario_selection_mode = False
@@ -100,11 +117,14 @@ class MobileVLADataCollector(Node):
         self.selected_distance_level = None
 
         # 핵심 패턴(표준) 관리
+        # key: 시나리오 또는 시나리오__패턴__거리 (예: "1box_vert_left__core__medium")
         self.core_patterns: Dict[str, List[str]] = {}
         self.core_guidance_active: bool = False
         self.core_guidance_index: int = 0
         self.current_episode_keys: List[str] = []
         self.record_core_pattern: bool = False
+        self.overwrite_core: bool = False  # '핵심 표준 재등록' 토글 상태
+        self.core_mismatch_count: int = 0  # 핵심 패턴 검증 불일치 카운트 (에피소드 단위)
 
         self.current_action = self.STOP_ACTION.copy()
         self.movement_timer = None
@@ -164,9 +184,9 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   R/T: 회전, 스페이스바: 정지")
         self.get_logger().info("   F/G: 속도 조절, N: 새 에피소드 시작")
         self.get_logger().info("   M: 에피소드 종료, P: 현재 진행 상황 확인")
-        self.get_logger().info("🎯 수집 단계: N → 시나리오(1-8) → 패턴(C/V/X) → 장애물 위치(J/K/L)")
+        self.get_logger().info("🎯 수집 단계: N → 시나리오(1-8) → 패턴(C/V) → 장애물 위치(J/K/L)")
         self.get_logger().info("🎯 컵 도달 시나리오 선택 (RoboVLMs 표준):")
-        self.get_logger().info("   📦 8개 시나리오 × 10개 샘플 × 18스텝 고정")
+        self.get_logger().info("   📦 8개 시나리오 × 10개 샘플 × 18스텝 고정 (패턴: Core/Variant)")
         self.get_logger().info("   💡 총 목표: 80개 (기존 120개에서 33% 단축)")
         self.get_logger().info("   🔬 거리 분포: 근거리(3) + 중거리(4) + 원거리(3)")
         self.get_logger().info("   Ctrl+C: 프로그램 종료")
@@ -215,13 +235,12 @@ class MobileVLADataCollector(Node):
                 self.show_pattern_selection()  # 패턴 선택 모드로 전환
             else:
                 self.get_logger().info("⚠️ 먼저 'N' 키를 눌러 에피소드 시작을 해주세요.")
-        elif key in ['c', 'v', 'x']:
+        elif key in ['c', 'v']:
             if self.pattern_selection_mode:
-                # 패턴 선택 모드에서 c/v/x 키 입력
+                # 패턴 선택 모드에서 c/v 키 입력
                 pattern_map = {
                     'c': "core",      # 핵심 패턴
-                    'v': "variant",   # 변형 패턴  
-                    'x': "exception"  # 예외 패턴
+                    'v': "variant"   # 변형 패턴  
                 }
                 pattern_type = pattern_map[key]
                 self.pattern_selection_mode = False  # 패턴 선택 모드 해제
@@ -414,19 +433,31 @@ class MobileVLADataCollector(Node):
         if not action_desc:
             action_desc.append("정지")
             
-        # 핵심 패턴 가이드 흐름 표시
+        # 핵심 패턴 가이드 표시 (요구 형식)
         if self.core_guidance_active and action_event_type == "start_action":
-            planned = None
-            if self.selected_scenario in self.core_patterns:
-                # 등록된 가이드가 있으면 해당 시퀀스로 안내
-                seq = self.core_patterns[self.selected_scenario]
-                if self.core_guidance_index < len(seq):
-                    planned = seq[self.core_guidance_index].upper()
-            self.core_guidance_index += 1
-            if planned:
-                self.get_logger().info(f"🧭 가이드 키: {planned} | 입력: {action_desc}")
-            else:
-                self.get_logger().info(f"🧭 가이드: 사용자 표준 녹화 중 | 입력: {action_desc}")
+            # 시나리오 추론: 선택 메뉴를 지나 시작했을 때 selected_scenario가 None일 수 있음
+            scenario_for_guide = self.selected_scenario or self.extract_scenario_from_episode_name(self.episode_name)
+            pattern_for_guide = self.selected_pattern_type or self.extract_pattern_from_episode_name(self.episode_name)
+            distance_for_guide = self.selected_distance_level or self.extract_distance_from_episode_name(self.episode_name)
+            planned_seq = self._get_planned_core_keys_18(scenario_for_guide, pattern_for_guide, distance_for_guide)
+            planned_display = ", ".join([k.upper() for k in planned_seq]) if planned_seq else "(표준 녹화 중)"
+            current_key = self._infer_key_from_action(action)
+            # 전체 18스텝 기준으로 남은 스텝 계산 (표준 없으면 18 기준)
+            total_steps = self.fixed_episode_length
+            remaining = max(0, total_steps - len(self.current_episode_keys))
+            # 요청 포맷으로 두 줄 출력 + 다음 눌러야 하는 액션
+            next_key = None
+            if planned_seq and len(self.current_episode_keys) < self.fixed_episode_length:
+                next_key = planned_seq[len(self.current_episode_keys)].upper()
+            self.get_logger().info(f"🧭 [1..{self.fixed_episode_length}] 선행 액션(참고 core): [{planned_display}]")
+            # 불일치 감지 (Core일 때만)
+            mismatch = False
+            if planned_seq and next_key and pattern_for_guide == 'core':
+                mismatch = (current_key != next_key)
+                if mismatch:
+                    self.core_mismatch_count += 1
+            status = "✅" if not mismatch else "⚠️"
+            self.get_logger().info(f"{status} ⌨️ [현재 액션 -> 다음]: [{current_key}] -> [{next_key if next_key else '-'}] | 남은({remaining})")
 
         self.get_logger().info(f"💾 {action_event_type} 액션[{', '.join(action_desc)}] 데이터 수집: {len(self.episode_data)}개")
 
@@ -441,6 +472,52 @@ class MobileVLADataCollector(Node):
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
         return ch.lower()
 
+    def _normalize_to_18_keys(self, keys: List[str]) -> List[str]:
+        """핵심 패턴 키 시퀀스를 18 길이로 정규화 (부족하면 SPACE로 패딩, 넘치면 자름)"""
+        normalized = list(keys[: self.fixed_episode_length])
+        if len(normalized) < self.fixed_episode_length:
+            normalized += ['SPACE'] * (self.fixed_episode_length - len(normalized))
+        return normalized
+
+    def _get_planned_core_keys_18(self, scenario_id: str, pattern_type: str | None, distance_level: str | None) -> List[str]:
+        """조합별 핵심 패턴을 18 길이로 반환 (없으면 덜 구체적인 키 → 기본)"""
+        # 1) 조합 우선
+        if pattern_type and distance_level:
+            combo = self._combined_key(scenario_id, pattern_type, distance_level)
+            if combo in self.core_patterns and self.core_patterns[combo]:
+                return self._normalize_to_18_keys(self.core_patterns[combo])
+        # 2) 시나리오 단독
+        if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
+            return self._normalize_to_18_keys(self.core_patterns[scenario_id])
+        return []
+
+    def _infer_key_from_action(self, action: Dict[str, float]) -> str:
+        """현재 액션 벡터에서 대표 키 추정 (로깅용)"""
+        # 단순 규칙: 회전 우선, 그 다음 전진/횡이동의 사분면
+        if abs(action.get("angular_z", 0.0)) > 0.1:
+            return 'R' if action["angular_z"] > 0 else 'T'
+        lx, ly = action.get("linear_x", 0.0), action.get("linear_y", 0.0)
+        if abs(lx) < 0.1 and abs(ly) < 0.1:
+            return 'SPACE'
+        # 사분면 매핑: W/A/S/D/Q/E/Z/C와 유사
+        if lx > 0.1 and abs(ly) <= 0.1:
+            return 'W'
+        if lx < -0.1 and abs(ly) <= 0.1:
+            return 'S'
+        if ly > 0.1 and abs(lx) <= 0.1:
+            return 'A'
+        if ly < -0.1 and abs(lx) <= 0.1:
+            return 'D'
+        if lx > 0.1 and ly > 0.1:
+            return 'Q'
+        if lx > 0.1 and ly < -0.1:
+            return 'E'
+        if lx < -0.1 and ly > 0.1:
+            return 'Z'
+        if lx < -0.1 and ly < -0.1:
+            return 'C'
+        return 'UNK'
+
     def start_episode(self, episode_name: str = None):
         """Starts a new episode collection"""
         if episode_name is None:
@@ -450,6 +527,7 @@ class MobileVLADataCollector(Node):
 
         self.episode_data = []
         self.current_episode_keys = []
+        self.core_mismatch_count = 0
         
         self.get_logger().info("⏳ 에피소드 시작 전 준비 중...")
         
@@ -533,9 +611,21 @@ class MobileVLADataCollector(Node):
         scenario = self.extract_scenario_from_episode_name(self.episode_name)
         if scenario and ("_core_" in self.episode_name or self.episode_name.endswith("_core")):
             if self.record_core_pattern and len(self.current_episode_keys) > 0:
-                self.core_patterns[scenario] = self.current_episode_keys.copy()
+                # SPACE는 명시적 정지일 때만 기록. 자동 패딩은 저장 시 제거
+                normalized = self._normalize_to_18_keys(self.current_episode_keys)
+                # 끝에 SPACE만 남았을 경우 제거하여 불필요한 SPACE 표준 방지
+                while normalized and normalized[-1] == 'SPACE':
+                    normalized.pop()
+                # 조합 키 우선 저장 (core + distance 있으면 조합으로 저장)
+                pattern = self.extract_pattern_from_episode_name(self.episode_name) or self.selected_pattern_type
+                distance = self.extract_distance_from_episode_name(self.episode_name) or self.selected_distance_level
+                if pattern and distance:
+                    combo = self._combined_key(scenario, pattern, distance)
+                    self.core_patterns[combo] = normalized
+                else:
+                    self.core_patterns[scenario] = normalized
                 self.save_core_patterns()
-                self.get_logger().info(f"💾 핵심 패턴 표준 등록: {scenario} → {self.core_patterns[scenario]}")
+                self.get_logger().info(f"💾 핵심 패턴 표준 등록: {scenario} [{pattern or '-'}|{distance or '-'}]")
             self.core_guidance_active = False
             self.core_guidance_index = 0
             self.record_core_pattern = False
@@ -549,6 +639,11 @@ class MobileVLADataCollector(Node):
         if scenario:
             self.scenario_stats[scenario] += 1
             self.save_scenario_progress()
+            # 패턴×거리 통계 업데이트 (에피소드명에서 추출)
+            pattern = self.extract_pattern_from_episode_name(self.episode_name)
+            distance = self.extract_distance_from_episode_name(self.episode_name)
+            if pattern and distance:
+                self.pattern_distance_stats[scenario][pattern][distance] += 1
         
         # 프레임 18개 데이터 특별 표시
         frame_18_indicator = "🎯 [18프레임!]" if num_frames == 18 else ""
@@ -557,11 +652,14 @@ class MobileVLADataCollector(Node):
         self.get_logger().info(f"✅ 에피소드 완료: {total_duration:.1f}초, 총 프레임 수: {num_frames}개{frame_18_indicator}{scenario_indicator}")
         self.get_logger().info(f"📂 카테고리: {category} ({self.categories[category]['description']})")
         self.get_logger().info(f"💾 저장됨: {save_path}")
+        if self.core_guidance_active:
+            self.get_logger().info(f"🧪 핵심 가이드 일치 여부: 불일치 {self.core_mismatch_count}회")
         
         # 현재 진행 상황 표시
         self.show_category_progress(category)
         if scenario:
             self.show_scenario_progress(scenario)
+            self.show_pattern_distance_table(scenario)
 
         self.publish_cmd_vel(self.STOP_ACTION)
 
@@ -709,6 +807,8 @@ class MobileVLADataCollector(Node):
             
             self.get_logger().info(f"{status_emoji} {config['key']}키 {scenario}: {progress_bar} ({percentage:.1f}%)")
             self.get_logger().info(f"   {config['description']}")
+            # 각 시나리오 옆에 패턴×거리 표 간단 요약 출력
+            self.show_pattern_distance_table(scenario, compact=True)
             
         # 전체 진행률
         overall_percentage = (total_completed / total_target * 100) if total_target > 0 else 0
@@ -776,14 +876,11 @@ class MobileVLADataCollector(Node):
             "2box_hori_right": "W W → D D → W W → A A"
         }
         
-        # 변형 패턴 예시 (30% - 3개 샘플)
+        # 변형 패턴 예시
         variant_info = "변형: 타이밍 조정, 세분화된 움직임"
         
-        # 예외 패턴 예시 (10% - 1개 샘플)  
-        exception_info = "예외: 회전 포함, 완전히 다른 접근"
-        
         core_pattern = core_patterns.get(scenario_id, "W → A/D → W → ...")
-        return f"📍 핵심(6개): {core_pattern}\n   🔄 {variant_info}\n   ⚡ {exception_info}"
+        return f"📍 핵심: {core_pattern}\n   🔄 {variant_info}"
         
     def extract_scenario_from_episode_name(self, episode_name: str) -> str:
         """에피소드명에서 시나리오 추출"""
@@ -791,6 +888,65 @@ class MobileVLADataCollector(Node):
             if scenario in episode_name:
                 return scenario
         return None
+
+    def extract_pattern_from_episode_name(self, episode_name: str) -> str:
+        """에피소드명에서 패턴(core/variant) 추출"""
+        for p in ["core", "variant"]:
+            if f"_{p}_" in episode_name or episode_name.endswith(f"_{p}"):
+                return p
+        return None
+
+    def extract_distance_from_episode_name(self, episode_name: str) -> str:
+        """에피소드명에서 거리(close/medium/far) 추출"""
+        for d in ["close", "medium", "far"]:
+            if episode_name.endswith(f"_{d}") or f"_{d}." in episode_name:
+                return d
+        return None
+
+    def show_pattern_distance_table(self, scenario: str, compact: bool = False):
+        """특정 시나리오의 패턴×거리 진행 현황 표 출력"""
+        if scenario not in self.cup_scenarios:
+            return
+        counts = self.pattern_distance_stats[scenario]
+        # 가로 시나리오인지 판별
+        is_hori = ("_hori_" in scenario)
+        pattern_targets = self.hori_pattern_targets_override if is_hori else self.pattern_targets
+        dist_targets = self.hori_distance_targets_override if is_hori else self.distance_targets_per_pattern
+        # 표 헤더
+        header = "패턴/위치  Close  Medium  Far   소계 (목표)"
+        rows = []
+        total_close = total_medium = total_far = total_all = 0
+        patterns = ["core", "variant"]
+        for pattern in patterns:
+            c_close = counts[pattern]["close"]
+            c_medium = counts[pattern]["medium"]
+            c_far = counts[pattern]["far"]
+            subtotal = c_close + c_medium + c_far
+            target_pd = dist_targets[pattern]
+            row = f"{pattern.capitalize():<10}  {c_close:>5}/{target_pd['close']}  {c_medium:>6}/{target_pd['medium']}  {c_far:>4}/{target_pd['far']}   {subtotal:>3}/{pattern_targets[pattern]}"
+            rows.append(row)
+            total_close += c_close
+            total_medium += c_medium
+            total_far += c_far
+            total_all += subtotal
+        # 합계 행의 목표도 시나리오 유형에 따라 다르게 표기 (Exception 제거)
+        total_close_target = dist_targets["core"]["close"] + dist_targets["variant"]["close"]
+        total_medium_target = dist_targets["core"]["medium"] + dist_targets["variant"]["medium"]
+        total_far_target = dist_targets["core"]["far"] + dist_targets["variant"]["far"]
+        total_target_all = sum(pattern_targets.values())
+        total_row = f"합계        {total_close:>5}/{total_close_target}  {total_medium:>6}/{total_medium_target}  {total_far:>4}/{total_far_target}   {total_all:>3}/{total_target_all}"
+        if compact:
+            self.get_logger().info("   ─ 패턴×위치 진행 요약")
+            self.get_logger().info(f"   {header}")
+            for r in rows:
+                self.get_logger().info(f"   {r}")
+            self.get_logger().info(f"   {total_row}")
+        else:
+            self.get_logger().info("📋 패턴×위치 진행 현황")
+            self.get_logger().info(header)
+            for r in rows:
+                self.get_logger().info(r)
+            self.get_logger().info(total_row)
         
     def show_scenario_progress(self, scenario: str):
         """특정 시나리오의 진행 상황 표시"""
@@ -806,6 +962,8 @@ class MobileVLADataCollector(Node):
         status_emoji = "✅" if current >= target else "⏳"
         remaining = max(0, target - current)
         self.get_logger().info(f"{status_emoji} {config['key']}키 {scenario}: {progress_bar} ({percentage:.1f}%) - {remaining}개 남음")
+        # 상세 표 즉시 제공
+        self.show_pattern_distance_table(scenario)
         
     def load_scenario_progress(self):
         """저장된 시나리오 진행상황 로드"""
@@ -829,7 +987,13 @@ class MobileVLADataCollector(Node):
                 with open(self.core_pattern_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     # 값은 키 시퀀스 리스트
-                    self.core_patterns = {k: list(v) for k, v in data.items()}
+                    loaded = {k: list(v) for k, v in data.items()}
+                    # exception 키를 variant로 마이그레이션
+                    migrated = {}
+                    for k, seq in loaded.items():
+                        new_k = k.replace('__exception__', '__variant__').replace('_exception__', '_variant__').replace('__exception', '__variant').replace('_exception', '_variant')
+                        migrated[new_k] = seq
+                    self.core_patterns = migrated
                 self.get_logger().info(f"📘 핵심 패턴 로드: {list(self.core_patterns.keys())}")
             else:
                 self.core_patterns = {}
@@ -895,6 +1059,9 @@ class MobileVLADataCollector(Node):
             self.get_logger().info(f"{status_emoji} {scenario['key']}키: {description}")
             self.get_logger().info(f"   🏗️ {scenario['env']}")
             self.get_logger().info(f"   🎮 {scenario['path']}")
+            # 가로 시나리오면 X(예외) 안내를 숨기고 목표 분배 요약을 덧붙임
+            if "_hori_" in scenario_id:
+                self.get_logger().info("   🎯 목표(가로): Core=7(2/3/2), Variant=3(1/1/1), Exception=0")
             self.get_logger().info(f"   📊 {progress_bar} ({current}/{target}) - {remaining}개 남음")
             self.get_logger().info("")
         
@@ -917,6 +1084,8 @@ class MobileVLADataCollector(Node):
         
         # 시나리오 통계 초기화
         self.scenario_stats = defaultdict(int)
+        self.pattern_distance_stats = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        combo_files = defaultdict(list)  # (scenario, pattern, distance) -> List[Path]
         
         # 데이터 디렉토리에서 모든 H5 파일 스캔
         if self.data_dir.exists():
@@ -929,9 +1098,16 @@ class MobileVLADataCollector(Node):
             for h5_file in h5_files:
                 try:
                     # 파일명에서 시나리오 추출
-                    scenario = self.extract_scenario_from_episode_name(h5_file.stem)
+                    stem = h5_file.stem
+                    scenario = self.extract_scenario_from_episode_name(stem)
                     if scenario and scenario in self.cup_scenarios:
                         self.scenario_stats[scenario] += 1
+                        # 패턴/거리도 함께 복원
+                        pattern = self.extract_pattern_from_episode_name(stem)
+                        distance = self.extract_distance_from_episode_name(stem)
+                        if pattern and distance:
+                            self.pattern_distance_stats[scenario][pattern][distance] += 1
+                            combo_files[(scenario, pattern, distance)].append(h5_file)
                         scenario_matched += 1
                         self.get_logger().info(f"✅ {h5_file.name} → {scenario}")
                     else:
@@ -968,6 +1144,61 @@ class MobileVLADataCollector(Node):
             self.get_logger().info("📝 시나리오 이름이 포함된 파일이 없습니다.")
             self.get_logger().info("💡 새로운 N-숫자키 시스템으로 수집한 파일만 카운트됩니다.")
 
+        # === 가이드(핵심 표준) 동기화 규칙 ===
+        # 1) 실제 존재 개수가 0이면 해당 조합(또는 시나리오 단독) 가이드를 초기화
+        # 2) 현재 케이스(조합) 중 오직 1개가 존재한다면 그 파일의 키 시퀀스를 가이드로 설정
+        changed = False
+        # 시나리오 단독 핵심(과거 호환) 초기화 조건: core 전체가 0개일 때만
+        for scenario in self.cup_scenarios.keys():
+            core_total = sum(len(combo_files[(scenario, 'core', d)]) for d in ['close', 'medium', 'far'])
+            if core_total == 0 and scenario in self.core_patterns:
+                del self.core_patterns[scenario]
+                changed = True
+                self.get_logger().info(f"🧹 가이드 초기화(시나리오 핵심): {scenario} (파일 0개)")
+        
+        # 조합별(core만) 초기화/생성
+        for scenario in self.cup_scenarios.keys():
+            for d in ['close', 'medium', 'far']:
+                combo = (scenario, 'core', d)
+                files = combo_files.get(combo, [])
+                combo_key = self._combined_key(scenario, 'core', d)
+                if len(files) == 0:
+                    if combo_key in self.core_patterns:
+                        del self.core_patterns[combo_key]
+                        changed = True
+                        self.get_logger().info(f"🧹 가이드 초기화(조합 핵심): {combo_key} (파일 0개)")
+                elif len(files) == 1:
+                    # 단 1개의 데이터가 존재하면 그 시퀀스를 가이드로 설정
+                    try:
+                        with h5py.File(files[0], 'r') as f:
+                            actions = np.array(f['actions']) if 'actions' in f else None
+                            events = f['action_event_types'][:] if 'action_event_types' in f else None
+                            if actions is not None and events is not None:
+                                # 문자열 디코딩
+                                if isinstance(events[0], bytes):
+                                    events = [e.decode('utf-8') for e in events]
+                                keys: List[str] = []
+                                for idx, ev in enumerate(events):
+                                    if ev == 'start_action':
+                                        ax, ay, az = float(actions[idx][0]), float(actions[idx][1]), float(actions[idx][2])
+                                        k_upper = self._infer_key_from_action({
+                                            'linear_x': ax, 'linear_y': ay, 'angular_z': az
+                                        })
+                                        # 저장은 소문자 키 사용, SPACE는 그대로 유지
+                                        k_store = k_upper.lower() if k_upper != 'SPACE' else 'SPACE'
+                                        keys.append(k_store)
+                                if keys:
+                                    normalized = self._normalize_to_18_keys(keys)
+                                    while normalized and normalized[-1] == 'SPACE':
+                                        normalized.pop()
+                                    self.core_patterns[combo_key] = normalized
+                                    changed = True
+                                    self.get_logger().info(f"📌 가이드 설정(조합 핵심): {combo_key} ← {files[0].name}")
+                    except Exception as e:
+                        self.get_logger().warn(f"⚠️ 가이드 복원 실패: {combo_key} → {files[0].name}: {e}")
+        if changed:
+            self.save_core_patterns()
+
     def resync_and_show_progress(self):
         """H5 파일 재스캔 후 진행률 표시"""
         self.resync_scenario_progress()
@@ -998,12 +1229,7 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   💡 창의적으로 변형하여 움직이세요!")
         self.get_logger().info("")
         
-        self.get_logger().info("⚡ X키: 예외 패턴 (Exception) - 1개 수집 목표")
-        self.get_logger().info("   🎮 완전히 다른 접근법 (회전 포함 등)")
-        self.get_logger().info("   💡 자유롭게 실험해보세요!")
-        self.get_logger().info("")
-        
-        self.get_logger().info("✨ C, V, X 중 원하는 패턴을 선택하세요!")
+        self.get_logger().info("✨ C, V 중 원하는 패턴을 선택하세요!")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
 
     def show_distance_selection(self):
@@ -1028,12 +1254,25 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("✨ J/K/L 중 장애물 위치를 선택하세요!")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
         
-    def get_core_pattern_guide(self, scenario_id: str) -> str:
-        """핵심 패턴 가이드 반환"""
-        # 사용자 표준(첫 핵심 에피소드)에 기반한 동적 가이드 우선
+    def _combined_key(self, scenario_id: str, pattern_type: str | None, distance_level: str | None) -> str:
+        parts = [scenario_id]
+        if pattern_type:
+            parts.append(pattern_type)
+        if distance_level:
+            parts.append(distance_level)
+        return "__".join(parts)
+
+    def get_core_pattern_guide(self, scenario_id: str, pattern_type: str | None = None, distance_level: str | None = None) -> str:
+        """핵심 패턴 가이드 반환 (시나리오/패턴/거리 조합별로 분기, 없으면 시나리오 기본값 → 디폴트)"""
+        # 1) 조합 키 우선
+        if pattern_type and distance_level:
+            combo = self._combined_key(scenario_id, pattern_type, distance_level)
+            if combo in self.core_patterns and self.core_patterns[combo]:
+                return " ".join([k.upper() for k in self.core_patterns[combo]])
+        # 2) 시나리오 단독 키 (과거 호환)
         if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
             return " ".join([k.upper() for k in self.core_patterns[scenario_id]])
-        # 초기 기본 가이드(없을 때만 사용)
+        # 3) 초기 기본 가이드(없을 때만 사용)
         default_guides = {
             "1box_vert_left": "W W W → A A → W W → D D",
             "1box_vert_right": "W W → D D → W W W → A A", 
@@ -1056,21 +1295,25 @@ class MobileVLADataCollector(Node):
         
         pattern_names = {
             "core": "핵심 패턴",
-            "variant": "변형 패턴", 
-            "exception": "예외 패턴"
+            "variant": "변형 패턴"
         }
         
         self.get_logger().info(f"🎯 {config['description']} - {pattern_names[pattern_type]} 시작!")
         
         if pattern_type == "core":
             # 핵심 패턴인 경우 가이드 다시 표시
-            guide = self.get_core_pattern_guide(scenario_id)
+            guide = self.get_core_pattern_guide(scenario_id, pattern_type="core", distance_level=None)
             self.get_logger().info(f"🎮 가이드 순서: {guide}")
             self.get_logger().info("💡 위 순서를 정확히 따라해주세요!")
+            # 핵심 패턴 가이드/녹화 플래그 (거리 미선택 플로우에서도 활성화)
+            self.core_guidance_active = True
+            self.core_guidance_index = 0
+            # 이미 표준이 있어도 재등록 가능하도록 토글 반영
+            self.record_core_pattern = (scenario_id not in self.core_patterns) or self.overwrite_core
+            if scenario_id in self.core_patterns:
+                self.core_patterns[scenario_id] = self._normalize_to_18_keys(self.core_patterns[scenario_id])
         elif pattern_type == "variant":
             self.get_logger().info("🔄 핵심 패턴을 변형하여 움직여주세요!")
-        else:  # exception
-            self.get_logger().info("⚡ 자유롭게 실험적인 방법으로 움직여주세요!")
         
         # 현재 진행 상황 표시
         current = self.scenario_stats[scenario_id]
@@ -1092,28 +1335,38 @@ class MobileVLADataCollector(Node):
         # 이름에 거리 태그 포함
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         episode_name = f"episode_{timestamp}_{scenario_id}_{pattern_type}_{distance_level}"
+        # 현재 선택 상태를 저장해서 종료 시 통계 업데이트에 사용
+        self.selected_scenario = scenario_id
+        self.selected_pattern_type = pattern_type
+        self.selected_distance_level = distance_level
         
         pattern_names = {
             "core": "핵심 패턴",
-            "variant": "변형 패턴", 
-            "exception": "예외 패턴"
+            "variant": "변형 패턴"
         }
         
         self.get_logger().info(f"🎯 {config['description']} - {pattern_names.get(pattern_type, pattern_type)} - {distance_level.upper()}({label}) 시작!")
         
         if pattern_type == "core":
-            guide = self.get_core_pattern_guide(scenario_id)
+            guide = self.get_core_pattern_guide(scenario_id, pattern_type="core", distance_level=distance_level)
             # 거리별로 W 길이 참고 안내
             self.get_logger().info(f"🎮 가이드 순서: {guide}")
             self.get_logger().info("💡 위치별 조정: 세로-가까움/W 줄임, 세로-멀음/W 늘림, 가로-좌/우 치우침 맞춰 A/D 비율 조정")
             # 핵심 패턴 가이드/녹화 플래그
             self.core_guidance_active = True
             self.core_guidance_index = 0
-            self.record_core_pattern = scenario_id not in self.core_patterns
+            # 이미 표준이 있어도 재등록 가능하도록 토글 반영 (조합 키 우선 확인)
+            combo_key = self._combined_key(scenario_id, pattern_type, distance_level)
+            has_combo = combo_key in self.core_patterns
+            has_scenario_only = scenario_id in self.core_patterns
+            self.record_core_pattern = (not has_combo and not has_scenario_only) or self.overwrite_core
+            # 안내용 정규화 (조합 키 또는 시나리오 키)
+            if has_combo:
+                self.core_patterns[combo_key] = self._normalize_to_18_keys(self.core_patterns[combo_key])
+            elif has_scenario_only:
+                self.core_patterns[scenario_id] = self._normalize_to_18_keys(self.core_patterns[scenario_id])
         elif pattern_type == "variant":
             self.get_logger().info("🔄 핵심 패턴을 변형하여 움직여주세요! (타이밍/순서 변경)")
-        else:
-            self.get_logger().info("⚡ 자유롭게 실험적인 방법으로 움직여주세요!")
         
         current = self.scenario_stats[scenario_id]
         target = config["target"]
