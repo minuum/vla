@@ -101,6 +101,7 @@ Model_ws/log/
 ROS_action/src/*.whl
 
 # 모델 체크포인트 및 대용량 데이터
-*.h5
+# (moved to Git LFS)
+# *.h5
 # Ignore numpy arrays
 *.npy
