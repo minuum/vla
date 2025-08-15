@@ -36,13 +36,14 @@ class MobileImageEncoder(nn.Module):
         
         # 백본 CNN (EfficientNet V2 - 모바일 최적화)
         if backbone == "efficientnet_v2_s":
-            self.backbone = models.efficientnet_v2_s(pretrained=True)
+            # Jetson/오프라인 환경 대비: 사전학습 가중치 다운로드 비활성화
+            self.backbone = models.efficientnet_v2_s(weights=None)
             backbone_output_size = 1000
         elif backbone == "resnet50":
-            self.backbone = models.resnet50(pretrained=True)
+            self.backbone = models.resnet50(weights=None)
             backbone_output_size = 2048
         elif backbone == "mobilenet_v3_large":
-            self.backbone = models.mobilenet_v3_large(pretrained=True)  
+            self.backbone = models.mobilenet_v3_large(weights=None)  
             backbone_output_size = 1000
         else:
             raise ValueError(f"지원하지 않는 백본: {backbone}")
@@ -155,7 +156,7 @@ class MobileImageEncoderLite(nn.Module):
         self.hidden_size = hidden_size
         
         # 경량화된 CNN 백본 (MobileNet V3)
-        self.backbone = models.mobilenet_v3_small(pretrained=True)
+        self.backbone = models.mobilenet_v3_small(weights=None)
         backbone_output_size = 1000
         
         # 특징 매핑 (더 작은 hidden_size)

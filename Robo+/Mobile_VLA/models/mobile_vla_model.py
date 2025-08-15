@@ -203,7 +203,7 @@ class MobileVLAModel(nn.Module):
                 "image_features": image_features,
                 "text_features": text_features,
                 "multimodal_features": multimodal_features,
-                "attention_weights": attention_weights if not self.use_lite_mode else None
+                "attention_weights": attention_weights if (not self.use_lite_mode and 'attention_weights' in locals()) else None
             })
         
         return result
