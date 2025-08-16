@@ -50,16 +50,16 @@ class KoreanTextEncoder(nn.Module):
                 param.requires_grad = False
             logger.info("🔒 텍스트 인코더 가중치 고정됨")
         
-        # mobile_vla_data_collector.py 시나리오별 한국어 명령어
+        # mobile_vla_data_collector.py 시나리오별 한국어 명령어 (장애물 개수/배치와 무관하게 최좌/최우 외곽 경로)
         self.scenario_instructions = {
-            "1box_vert_left": "박스를 왼쪽으로 돌아서 컵까지 가세요",
-            "1box_vert_right": "박스를 오른쪽으로 돌아서 컵까지 가세요", 
-            "1box_hori_left": "박스를 왼쪽으로 피해서 컵까지 가세요",
-            "1box_hori_right": "박스를 오른쪽으로 피해서 컵까지 가세요",
-            "2box_vert_left": "두 박스 사이 왼쪽 경로로 컵까지 가세요",
-            "2box_vert_right": "두 박스 사이 오른쪽 경로로 컵까지 가세요",
-            "2box_hori_left": "두 박스를 왼쪽으로 우회해서 컵까지 가세요", 
-            "2box_hori_right": "두 박스를 오른쪽으로 우회해서 컵까지 가세요"
+            "1box_vert_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "1box_vert_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요", 
+            "1box_hori_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "1box_hori_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_vert_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_vert_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_hori_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요", 
+            "2box_hori_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요"
         }
         
         # 시나리오 임베딩 (8가지 시나리오)
