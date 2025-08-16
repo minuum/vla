@@ -72,14 +72,22 @@ class BaseRoboVLM(nn.Module):
         self.kwargs = kwargs
         self.configs = configs
         self.model_name = configs["model"]
-        self.model_config = json.load(
-            open(
-                os.path.join(
-                    self.configs["vlm"]["pretrained_model_name_or_path"], "config.json"
-                ),
-                "r",
-            )
-        )
+        # 모델 설정 로드: 로컬 경로가 없으면 HF Hub에서 직접 로드
+        vlm_path = self.configs["vlm"]["pretrained_model_name_or_path"]
+        local_config_path = os.path.join(vlm_path, "config.json")
+        try:
+            if os.path.exists(local_config_path):
+                self.model_config = json.load(open(local_config_path, "r"))
+            else:
+                from transformers import AutoConfig
+                self.model_config = AutoConfig.from_pretrained(
+                    vlm_path, trust_remote_code=True
+                ).to_dict()
+        except Exception:
+            from transformers import AutoConfig
+            self.model_config = AutoConfig.from_pretrained(
+                vlm_path, trust_remote_code=True
+            ).to_dict()
 
         self.train_setup_configs = train_setup_configs
         self.act_encoder_configs = act_encoder_configs
@@ -90,6 +98,15 @@ class BaseRoboVLM(nn.Module):
         self.tokenizer, self.backbone = self._init_backbone()
         # import pdb;pdb.set_trace()
         self.tokenizer = update_tokenizer(self.tokenizer, self.configs["tokenizer"])
+        # Try to prepare a processor for models (e.g., Kosmos) that need pixel_values
+        if not hasattr(self, "processor") or self.processor is None:
+            try:
+                from transformers import AutoProcessor
+                self.processor = AutoProcessor.from_pretrained(
+                    self.configs["vlm"]["pretrained_model_name_or_path"], trust_remote_code=True
+                )
+            except Exception:
+                self.processor = None
         if self.train_setup_configs.get("reinit", False):
             initialize_param(self.backbone)
         self.act_head, self.fwd_head, self.clip_norm_head = self._init_heads()
@@ -1112,15 +1129,37 @@ class BaseRoboVLM(nn.Module):
                     multimodal_attention_mask, "(b l) n -> b (l n)", l=seq_len
                 )
 
-        output = self.model(
-            input_ids=None,
-            attention_mask=multimodal_attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            inputs_embeds=multimodal_embeds,
-            use_cache=use_cache,
-            output_hidden_states=True,
-        )
+        try:
+            output = self.model(
+                input_ids=None,
+                attention_mask=multimodal_attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=multimodal_embeds,
+                use_cache=use_cache,
+                output_hidden_states=True,
+            )
+        except ValueError as e:
+            # Some backbones (e.g., Kosmos-2) require pixel_values or image_embeds.
+            # Fall back to passing image_embeds produced by the model's vision tower.
+            if "pixel_values" in str(e) or "image_embeds" in str(e):
+                # vision_x is shaped as (bs*seq, 1, C, H, W) for history_type in [pre, post]
+                # Use pixel_values pathway preferred by Kosmos
+                if vision_x.ndim == 5 and vision_x.shape[1] == 1:
+                    pixel_values = vision_x.squeeze(1)
+                else:
+                    pixel_values = vision_x
+                output = self.model(
+                    input_ids=lang_x,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    past_key_values=past_key_values,
+                    pixel_values=pixel_values,
+                    use_cache=use_cache,
+                    output_hidden_states=True,
+                )
+            else:
+                raise
 
         output_hs = output.hidden_states[-1].clone()
         if history_type == "pre":
