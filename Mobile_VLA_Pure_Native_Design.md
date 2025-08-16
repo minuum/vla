@@ -99,14 +99,14 @@ class KoreanInstructionEncoder(nn.Module):
         
         # 시나리오별 한국어 명령어 템플릿
         self.scenario_instructions = {
-            "1box_vert_left": "박스를 왼쪽으로 돌아서 컵까지 가세요",
-            "1box_vert_right": "박스를 오른쪽으로 돌아서 컵까지 가세요", 
-            "1box_hori_left": "박스를 왼쪽으로 피해서 컵까지 가세요",
-            "1box_hori_right": "박스를 오른쪽으로 피해서 컵까지 가세요",
-            "2box_vert_left": "두 박스 사이 왼쪽 경로로 컵까지 가세요",
-            "2box_vert_right": "두 박스 사이 오른쪽 경로로 컵까지 가세요",
-            "2box_hori_left": "두 박스를 왼쪽으로 우회해서 컵까지 가세요", 
-            "2box_hori_right": "두 박스를 오른쪽으로 우회해서 컵까지 가세요"
+            "1box_vert_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "1box_vert_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요", 
+            "1box_hori_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "1box_hori_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_vert_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_vert_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_hori_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요", 
+            "2box_hori_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요"
         }
         
     def forward(self, scenario_names):
