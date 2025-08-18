@@ -217,7 +217,11 @@ def experiment(variant):
         print("INFO: MPS accelerator detected. Explicitly casting the entire model to float32.")
         model = model.float()
 
-    image_preprocess = model.model.image_processor
+    # Kosmos의 경우 processor 사용, 다른 모델은 image_processor 사용
+    if variant["model"] == "kosmos" and hasattr(model.model, "processor"):
+        image_preprocess = model.model.processor
+    else:
+        image_preprocess = model.model.image_processor
 
     _kwargs = {
         "model": model,
