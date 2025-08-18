@@ -44,6 +44,18 @@ class MobileVLAActionDataset(ActionPredictionDataset):
         gripper_pad: int = -1,
         **kwargs,
     ):
+        # 시나리오 명령어 정의 (super().__init__ 전에 필요)
+        self.scenario_instructions = {
+            "1box_vert_left": "박스 1개 장애물, 가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "1box_vert_right": "박스 1개 장애물, 가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            "1box_hori_left": "박스 1개 장애물, 가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "1box_hori_right": "박스 1개 장애물, 가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_vert_left": "박스 2개 장애물, 가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_vert_right": "박스 2개 장애물, 가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_hori_left": "박스 2개 장애물, 가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            "2box_hori_right": "박스 2개 장애물, 가장 오른쪽 외곽으로 돌아 컵까지 가세요"
+        }
+
         # ActionPredictionDataset 초기화 (토크나이저/이미지 전처리/변환기 구성)
         # GRDataModule가 is_training을 kwargs로 전달하므로 이를 반영해 mode 자동 결정
         resolved_mode = "train" if kwargs.get("is_training", mode == "train") else "inference"
@@ -61,7 +73,7 @@ class MobileVLAActionDataset(ActionPredictionDataset):
             fwd_pred_next_n=fwd_pred_next_n,
             tokenizer=tokenizer or {
                 "type": "AutoProcessor",
-                "pretrained_model_name_or_path": ".vlms/kosmos-2-patch14-224",
+                "pretrained_model_name_or_path": "microsoft/kosmos-2-patch14-224",
                 "tokenizer_type": "kosmos",
                 "max_text_len": 256,
                 "use_local_files": False,
@@ -78,16 +90,58 @@ class MobileVLAActionDataset(ActionPredictionDataset):
         valid_files: List[Path] = []
 
         def _is_valid_h5(path: Path) -> bool:
+            """mobile_vla_data_collector.py 형태인지 검증"""
             try:
                 if not h5py.is_hdf5(path.as_posix()):
                     return False
                 with h5py.File(path, "r") as f:
-                    return all(k in f for k in ["images", "actions", "action_event_types"]) and f["images"].shape[0] >= 18
+                    # 필수 키 검사
+                    required_keys = ["images", "actions", "action_event_types"]
+                    if not all(k in f for k in required_keys):
+                        return False
+                    
+                    # 필수 속성 검사
+                    required_attrs = ["episode_name", "num_frames"]
+                    if not all(attr in f.attrs for attr in required_attrs):
+                        return False
+                    
+                    # 데이터 형태 검사
+                    images = f["images"]
+                    actions = f["actions"]
+                    events = f["action_event_types"]
+                    
+                    # 차원 검사: images [T, H, W, 3], actions [T, 3], events [T]
+                    if len(images.shape) != 4 or images.shape[3] != 3:
+                        return False
+                    if len(actions.shape) != 2 or actions.shape[1] != 3:
+                        return False
+                    if len(events.shape) != 1:
+                        return False
+                    
+                    # 길이 일치 검사
+                    T = images.shape[0]
+                    if actions.shape[0] != T or events.shape[0] != T:
+                        return False
+                    
+                    # 이벤트 타입이 올바른 문자열인지 검사
+                    sample_event = events[0]
+                    if isinstance(sample_event, bytes):
+                        sample_event = sample_event.decode('utf-8')
+                    valid_events = ['episode_start', 'start_action', 'stop_action']
+                    if sample_event not in valid_events:
+                        return False
+                    
+                    return True
             except Exception:
                 return False
 
         for p in all_h5:
             if _is_valid_h5(p):
+                # 시나리오 태그 확인 (unknown 제외)
+                scenario = self._extract_scenario_from_filename(p.name)
+                if scenario == "unknown":
+                    print(f"파일 제외 (시나리오 태그 없음): {p.name}")
+                    continue
                 valid_files.append(p)
 
         self.h5_files = valid_files
@@ -104,6 +158,13 @@ class MobileVLAActionDataset(ActionPredictionDataset):
             "2box_hori_left": "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
             "2box_hori_right": "가장 오른쪽 외곽으로 돌아 컵까지 가세요",
         }
+
+    def _extract_scenario_from_filename(self, filename: str) -> str:
+        """파일명에서 시나리오 추출 (mobile_vla_data_collector.py 방식)"""
+        for scenario in self.scenario_instructions.keys():
+            if scenario in filename:
+                return scenario
+        return "unknown"
 
     def __len__(self) -> int:
         return len(self.h5_files)
@@ -126,6 +187,18 @@ class MobileVLAActionDataset(ActionPredictionDataset):
             if k in episode_name:
                 return k
         return "unknown"
+
+    def _convert_to_pil_images(self, images_array):
+        """numpy 배열을 PIL Image 리스트로 변환 (Kosmos processor용)"""
+        from PIL import Image
+        pil_images = []
+        for img in images_array:
+            # numpy uint8 [H, W, 3] → PIL Image
+            if img.dtype != np.uint8:
+                img = (img * 255).astype(np.uint8)
+            pil_img = Image.fromarray(img)
+            pil_images.append(pil_img)
+        return pil_images
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         # 안전하게 유효 파일로 접근 (드물게 런타임 손상 발생 대비)
@@ -164,16 +237,20 @@ class MobileVLAActionDataset(ActionPredictionDataset):
             last = actions[-1:]
             actions = np.concatenate([actions, np.repeat(last, pad, axis=0)], axis=0)
 
-        # gripper(이진) 생성: start_action=1, 그 외=0
+        # Mobile 태스크는 gripper 사용 안함 → action_event_types를 action_mask로 변환
         event_text = [self._to_text(e) for e in events]
-        gripper = np.array([1 if e == "start_action" else 0 for e in event_text], dtype=np.float32)
-        gripper = gripper[: actions.shape[0]]  # actions 길이에 맞춤(17)
+        # episode_start=0, start_action=1, stop_action=0 (실제 동작 구간만 1)
+        action_validity = np.array([1 if e == "start_action" else 0 for e in event_text], dtype=np.float32)
+        action_validity = action_validity[: actions.shape[0]]  # actions 길이에 맞춤(17)
 
-        # 3D → 7D 패딩: [ax, ay, az, 0, 0, 0, gripper]
+        # 3D → 7D 패딩: [linear_x, linear_y, angular_z, 0, 0, 0, 0] (gripper=0 고정)
         t = actions.shape[0]
-        padded = np.zeros((t, 7), dtype=np.float32)
-        padded[:, :3] = actions.astype(np.float32)
-        padded[:, 6] = gripper
+        padded_actions = np.zeros((t, 7), dtype=np.float32)
+        # Mobile VLA 액션 매핑: [linear_x, linear_y, angular_z] → [x, y, 0, 0, 0, rz, 0]
+        padded_actions[:, 0] = actions[:, 0]  # linear_x → x
+        padded_actions[:, 1] = actions[:, 1]  # linear_y → y
+        padded_actions[:, 5] = actions[:, 2]  # angular_z → rz
+        # 나머지는 0으로 유지 (z, rx, ry, gripper)
 
         # 에피소드 마스크: images(18) 기준으로 모두 유효
         episode_mask = np.ones((images.shape[0],), dtype=bool)
@@ -182,12 +259,15 @@ class MobileVLAActionDataset(ActionPredictionDataset):
         scenario = self._extract_scenario(str(episode_name))
         task_description = self.scenario_instructions.get(scenario, "컵까지 가세요")
 
+        # base_action_prediction_dataset.py의 convert_image가 numpy 배열을 기대하므로
+        # numpy 배열 그대로 전달 (convert_image에서 PIL로 변환됨)
+        
         # 변환 함수 호출 → 모델/콜레이터가 요구하는 키들 생성
         return self.batch_transform(
             task_description=task_description,
-            action=padded,  # [17, 7]
+            action=padded_actions,  # [17, 7] - Mobile VLA 액션 매핑 적용
             episode_mask=episode_mask,  # [18]
-            images=images,  # [18, H, W, 3]
+            images=images,  # [18, H, W, 3] numpy 배열 (convert_image에서 PIL로 변환됨)
             gripper_images=None,
         )
 
