@@ -438,10 +438,10 @@ def preprocess_image(sample, image_processor, model_type):
     #     image = [image_processor(s).unsqueeze(0) for s in sample]
     #     image = torch.cat(image, dim=0)
 
-    # elif model_type == 'kosmos':
-    #     image = [image_processor(s, return_tensors="pt")['pixel_values'] for s in sample]
-    #     image = torch.cat(image, dim=0)
-    if model_type.lower() in ["paligemma"]:
+    if model_type == 'kosmos':
+        image = [image_processor(s, return_tensors="pt")['pixel_values'] for s in sample]
+        image = torch.cat(image, dim=0)
+    elif model_type.lower() in ["paligemma"]:
         image = [
             image_processor(images=s, return_tensors="pt")["pixel_values"]
             for s in sample
