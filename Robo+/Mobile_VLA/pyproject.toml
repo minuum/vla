@@ -29,6 +29,7 @@ transformers = "4.41.2"
 numpy = "<2.0"
 h5py = "^3.8.0"
 pillow = "^9.5.0"
+pyarrow = ">=8.0.0,<15.0.0"  # datasets 2.12.0 호환
 # 📈 Training & Utilities (RoboVLMs 호환)
 tqdm = "^4.65.0"
 einops = "^0.8.0"
