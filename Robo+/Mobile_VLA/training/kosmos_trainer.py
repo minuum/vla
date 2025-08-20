@@ -81,10 +81,18 @@ class MobileKosmosModel(nn.Module):
     ) -> Dict[str, torch.Tensor]:
         """
         Args:
-            pixel_values: [B, T, 3, 224, 224] - 이미지 시퀀스
+            pixel_values: [B, T, 3, 224, 224] or [B, 1, T, 3, 224, 224] - 이미지 시퀀스
             input_ids: [B, seq_len] - 토크나이즈된 텍스트
             attention_mask: [B, seq_len] - 어텐션 마스크
         """
+        # 차원 안전 처리
+        if pixel_values.dim() == 6:  # [B, 1, T, C, H, W]
+            pixel_values = pixel_values.squeeze(1)  # [B, T, C, H, W]
+        elif pixel_values.dim() == 5:  # [B, T, C, H, W] - 이미 올바른 형태
+            pass
+        else:
+            raise ValueError(f"Unexpected pixel_values shape: {pixel_values.shape}")
+            
         B, T, C, H, W = pixel_values.shape
         
         # 배치와 시간 차원을 합쳐서 Kosmos에 입력
@@ -210,8 +218,24 @@ class MobileKosmosTrainer:
         # 입력 데이터 준비
         pixel_values = batch["vision_x"].to(self.device)  # [B, T, 3, 224, 224]
         
-        # 명령어 토크나이징
-        instructions = [batch["task_description"]]  # 단일 배치 가정
+        # 명령어 토크나이징 - 안전한 처리
+        task_desc = batch["task_description"]
+        
+        # task_description 타입 체크 및 안전한 처리
+        if isinstance(task_desc, str):
+            instructions = [task_desc]
+        elif isinstance(task_desc, (list, tuple)):
+            # 이미 리스트인 경우
+            instructions = list(task_desc)
+        else:
+            # 기타 경우 (텐서 등)
+            instructions = [str(task_desc)]
+        
+        # 빈 문자열 체크
+        instructions = [instr for instr in instructions if instr and instr.strip()]
+        if not instructions:
+            instructions = ["Navigate to track the target cup"]  # 기본 명령어
+        
         tokenized = self.tokenize_instructions(instructions)
         
         # 순전파
