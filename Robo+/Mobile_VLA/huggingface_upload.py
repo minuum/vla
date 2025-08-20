@@ -371,7 +371,7 @@ matplotlib>=3.5.0
     
     return upload_dir
 
-def upload_to_huggingface(upload_dir, repo_name="minuum/mobile-vla", token=None):
+def upload_to_huggingface(upload_dir, repo_name="minium/mobile-vla", token=None):
     """HuggingFace Hub에 업로드"""
     
     print(f"\n🤗 HuggingFace Hub 업로드 시작: {repo_name}")
@@ -416,7 +416,7 @@ def upload_to_huggingface(upload_dir, repo_name="minuum/mobile-vla", token=None)
         print(f"❌ 업로드 중 오류 발생: {e}")
         return False
 
-def download_from_huggingface(repo_name="minuum/mobile-vla", local_dir="./downloaded_model"):
+def download_from_huggingface(repo_name="minium/mobile-vla", local_dir="./downloaded_model"):
     """HuggingFace Hub에서 다운로드"""
     
     print(f"📥 HuggingFace에서 모델 다운로드: {repo_name}")
