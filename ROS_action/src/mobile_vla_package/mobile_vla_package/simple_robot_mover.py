@@ -101,42 +101,58 @@ class ManualRobotController(Node):
                 self.get_logger().info(f'🔼 속도: {self.throttle}%')
         elif key in self.actions:
             action = self.actions[key]
-            self.current_action = action.copy()
-            self.publish_cmd_vel(action)
-            
-            # 로그 출력
-            if key == ' ':
-                self.get_logger().info("🛑 정지")
+            # 별도 쓰레드에서 execute_action 실행 (블로킹 방지)
+            threading.Thread(target=self.execute_action, args=(action, key), daemon=True).start()
+
+    def execute_action(self, action: dict, key: str):
+        """액션을 실제 로봇으로 실행 (단발성 움직임)"""
+        move_duration = 0.3  # 0.3초간 움직이고 정지
+
+        # ROS2 메시지 발행
+        self.publish_cmd_vel(action)
+        
+        # 실제 로봇 제어 (단발성)
+        if ROBOT_AVAILABLE and self.driver:
+            if abs(action["angular_z"]) > 0.1:
+                # 회전 명령
+                spin_speed = int(action["angular_z"] * self.throttle)
+                self.driver.spin(spin_speed)
+                time.sleep(move_duration)
+                self.driver.stop()
+            elif abs(action["linear_x"]) > 0.1 or abs(action["linear_y"]) > 0.1:
+                # 이동 명령
+                angle = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
+                if angle < 0:
+                    angle += 360
+                self.driver.move(int(angle), self.throttle)
+                time.sleep(move_duration)
+                self.driver.stop()
             else:
-                action_names = {
-                    'w': '앞으로', 'a': '왼쪽', 's': '뒤로', 'd': '오른쪽',
-                    'q': '앞왼쪽', 'e': '앞오른쪽', 'z': '뒤왼쪽', 'c': '뒤오른쪽',
-                    'r': '왼쪽회전', 't': '오른쪽회전'
-                }
-                name = action_names.get(key, key.upper())
-                self.get_logger().info(f"🚀 {name}: ({action['linear_x']:+.1f}, {action['linear_y']:+.1f}, {action['angular_z']:+.1f})")
+                self.driver.stop()
+        
+        # 0.3초 후 자동 정지
+        time.sleep(move_duration)
+        self.publish_cmd_vel(self.actions[' '])
+        
+        # 로그 출력
+        if key == ' ':
+            self.get_logger().info("🛑 정지")
+        else:
+            action_names = {
+                'w': '앞으로', 'a': '왼쪽', 's': '뒤로', 'd': '오른쪽',
+                'q': '앞왼쪽', 'e': '앞오른쪽', 'z': '뒤왼쪽', 'c': '뒤오른쪽',
+                'r': '왼쪽회전', 't': '오른쪽회전'
+            }
+            name = action_names.get(key, key.upper())
+            self.get_logger().info(f"🚀 {name}: ({action['linear_x']:+.1f}, {action['linear_y']:+.1f}, {action['angular_z']:+.1f}) - {move_duration}초간 실행")
 
     def publish_cmd_vel(self, action: dict):
-        """Twist 메시지 발행 및 실제 로봇 제어"""
+        """Twist 메시지 발행"""
         twist = Twist()
         twist.linear.x = float(action["linear_x"])
         twist.linear.y = float(action["linear_y"]) 
         twist.angular.z = float(action["angular_z"])
         self.cmd_pub.publish(twist)
-
-        # 실제 로봇 제어
-        if ROBOT_AVAILABLE and self.driver:
-            if any(abs(v) > 0.1 for v in action.values()):
-                if abs(action["angular_z"]) > 0.1:
-                    spin_speed = int(action["angular_z"] * self.throttle)
-                    self.driver.spin(spin_speed)
-                elif abs(action["linear_x"]) > 0.1 or abs(action["linear_y"]) > 0.1:
-                    angle = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
-                    if angle < 0:
-                        angle += 360
-                    self.driver.move(int(angle), self.throttle)
-            else:
-                self.driver.stop()
 
 def main(args=None):
     rclpy.init(args=args)
