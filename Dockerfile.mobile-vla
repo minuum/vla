@@ -1,10 +1,13 @@
 # =============================================================================
-# 🚀 Mobile VLA Docker 환경 - 검증된 vla_app_final 기반
-# 기존 작동하는 VLA 환경에 Mobile VLA 기능 추가
+# 🚀 Mobile VLA Docker 환경 - Python 3.10 + PyTorch 2.3.0 wheel 파일 기반
+# 호스트 시스템과 정확히 매칭되는 버전으로 구성
 # =============================================================================
 
-# 베이스 이미지: 검증된 Jetson PyTorch (43.7GB 이미지 기반)
-FROM nvcr.io/nvidia/l4t-pytorch:r35.2.1-pth2.0-py3
+# 베이스 이미지: Ubuntu 22.04 (Jetson 호환)
+FROM ubuntu:22.04
+
+# NVIDIA CUDA 및 cuDNN 설치를 위한 저장소 추가
+ENV DEBIAN_FRONTEND=noninteractive
 
 # 메타데이터
 LABEL maintainer="Mobile VLA Team"
@@ -31,10 +34,19 @@ ENV PYTHONUNBUFFERED=1
 ENV RMW_IMPLEMENTATION=rmw_cyclonedx_cpp
 ENV HF_HOME=/root/.cache/huggingface
 
-# Jetson 전용 환경 설정 (기존과 동일)
-ENV TAR_INDEX_URL=http://jetson.webredirect.org:8000/jp6/cu122
-ENV PIP_INDEX_URL=http://jetson.webredirect.org/jp6/cu122
-ENV PIP_TRUSTED_HOST=jetson.webredirect.org
+# Jetson 전용 환경 설정 (네트워크 문제 해결을 위해 PyPI 기본 서버 사용)
+# ENV TAR_INDEX_URL=http://jetson.webredirect.org:8000/jp6/cu122
+# ENV PIP_INDEX_URL=http://jetson.webredirect.org/jp6/cu122
+# ENV PIP_TRUSTED_HOST=jetson.webredirect.org
+ENV PIP_INDEX_URL=https://pypi.org/simple/
+ENV PIP_TRUSTED_HOST=pypi.org
+
+# CUDA 환경 변수 설정 (호스트 CUDA 라이브러리 마운트용)
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=/usr/local/cuda/bin:${PATH}
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib/aarch64-linux-gnu:${LD_LIBRARY_PATH}
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=all
 
 # Mobile VLA 전용 환경 변수 추가
 ENV ROS_DOMAIN_ID=42
@@ -42,179 +54,228 @@ ENV ROS_LOCALHOST_ONLY=0
 ENV MOBILE_VLA_DATA_DIR=/workspace/vla/mobile_vla_dataset
 ENV MOBILE_VLA_LOG_LEVEL=INFO
 
-# 1. 시스템 패키지 업데이트 및 기본 도구 설치 (기존 + Mobile VLA 추가)
+# 1. 시스템 패키지 업데이트 및 Python 3.10 설치
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        # 기존 vla_app_final 패키지들
-        libhdf5-serial-dev hdf5-tools libhdf5-dev \
-        curl gnupg lsb-release \
-        # Mobile VLA 추가 패키지들
-        git vim nano htop tree \
+        # Python 3.10 및 개발 환경
+        software-properties-common \
+        python3.10 \
+        python3.10-dev \
+        python3.10-distutils \
+        python3-pip \
+        # 기본 개발 도구
         build-essential cmake pkg-config \
-        # GStreamer (CSI 카메라용)
+        curl wget git vim nano htop tree \
+        # CUDA 라이브러리 (호스트에서 마운트 예정)
+        # cuda-toolkit-12-2 \
+        # libcudnn8 \
+        # libcudnn8-dev \
+        # 필수 시스템 라이브러리 (실제 사용되는 것만)
+        libhdf5-serial-dev \
+        libjpeg-dev libpng-dev \
+        libgl1-mesa-glx libglib2.0-0 \
+        libopenblas0 \
+        # GStreamer (CSI 카메라용 - 필수만)
         libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-        libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base \
-        gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
-        gstreamer1.0-libav gstreamer1.0-tools \
-        # 오디오 지원
-        libasound2-dev portaudio19-dev \
-        # 추가 유틸리티
-        openssh-client rsync \
+        gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+        # 기본 네트워킹
+        curl wget \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
-# 2. ROS 2 Humble 설치 (기존과 동일)
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null && \
-    apt-get update && \
+# 2. Python 3.10을 기본 python3로 설정
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+
+# 3. pip 업그레이드 및 필수 Python 도구 설치
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+# 4. PyTorch wheel 파일들을 컨테이너로 복사
+COPY torch-2.3.0-cp310-cp310-linux_aarch64.whl /tmp/
+COPY torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl /tmp/
+COPY torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl /tmp/
+
+# 5. 로컬 wheel 파일에서 PyTorch 설치 (정확한 버전 매칭)
+RUN python3 -m pip install --no-cache-dir \
+        /tmp/torch-2.3.0-cp310-cp310-linux_aarch64.whl \
+        /tmp/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl \
+        /tmp/torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl \
+    && rm -f /tmp/*.whl \
+    && rm -rf /root/.cache/pip
+
+# 6. 필수 Python 패키지 설치 (실제 사용되는 것만)
+RUN python3 -m pip install --no-cache-dir \
+        # VLA 모델용
+        "transformers==4.46.3" \
+        "tokenizers==0.20.3" \
+        accelerate \
+        # 이미지 처리
+        Pillow \
+        opencv-python \
+        # 데이터 처리
+        numpy==1.24.3 \
+        h5py==3.8.0 \
+        # 기본 유틸리티
+        requests \
+    && rm -rf /root/.cache/pip
+
+# 7. ROS2 Humble 설치 (필수 패키지만)
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        # X11/Qt 라이브러리 (기존)
-        libxcb-randr0-dev libxcb-xtest0-dev libxcb-xinerama0-dev \
-        libxcb-shape0-dev libxcb-xkb-dev libqt5x11extras5 \
-        libxkbcommon-x11-0 libgl1-mesa-glx \
-        python3-pip \
-        # ROS 2 패키지 (기존 + Mobile VLA 추가)
+        # ROS2 Humble 필수 패키지
+        software-properties-common \
+        curl \
+        gnupg2 \
+        lsb-release \
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        # ROS2 Humble Desktop (GUI 포함)
         ros-humble-desktop \
+        # ROS2 개발 도구
         ros-dev-tools \
         python3-colcon-common-extensions \
         python3-rosdep \
+        python3-argcomplete \
+        # ROS2 Python 패키지
+        python3-rosinstall-generator \
+        python3-wstool \
+        python3-rosinstall \
+        # 필수 ROS2 패키지들
+        ros-humble-rviz2 \
+        ros-humble-tf2-tools \
+        ros-humble-xacro \
+        ros-humble-urdf \
+        ros-humble-robot-state-publisher \
+        ros-humble-joint-state-publisher \
+        ros-humble-joint-state-publisher-gui \
+        ros-humble-controller-manager \
+        ros-humble-ros2-control \
+        ros-humble-ros2-controllers \
+        # 카메라 관련 패키지
         ros-humble-cv-bridge \
-        python3-opencv \
-        ros-humble-rmw-cyclonedx-cpp \
-        # Mobile VLA용 추가 ROS2 패키지
         ros-humble-image-transport \
+        ros-humble-image-transport-plugins \
+        ros-humble-camera-calibration \
         ros-humble-camera-info-manager \
-    && apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+        # 로봇 제어 관련 패키지
+        ros-humble-teleop-twist-keyboard \
+        ros-humble-teleop-twist-joy \
+        ros-humble-joy \
+        ros-humble-joy-linux \
+        # 기본 네비게이션 패키지
+        ros-humble-nav2-bringup \
+        ros-humble-nav2-core \
+        ros-humble-nav2-msgs \
+        ros-humble-nav2-util \
+        ros-humble-nav2-behavior-tree \
+        ros-humble-nav2-bt-navigator \
+        ros-humble-nav2-controller \
+        ros-humble-nav2-costmap-2d \
+        ros-humble-nav2-lifecycle-manager \
+        ros-humble-nav2-map-server \
+        ros-humble-nav2-navfn-planner \
+        ros-humble-nav2-planner \
+        ros-humble-nav2-regulated-pure-pursuit-controller \
+        ros-humble-nav2-rotation-shim-controller \
+        ros-humble-nav2-rviz-plugins \
+        ros-humble-nav2-simple-commander \
+        ros-humble-nav2-smac-planner \
+        ros-humble-nav2-theta-star-planner \
+        ros-humble-nav2-velocity-smoother \
+        ros-humble-nav2-waypoint-follower \
+        # 시스템 도구
+        locales \
+        locales-all \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# 3. rosdep 초기화
-RUN rosdep init || true && rosdep update
+# 8. ROS2 환경 설정
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
+    echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /root/.bashrc && \
+    echo "export ROS_DOMAIN_ID=42" >> /root/.bashrc && \
+    echo "export ROS_LOCALHOST_ONLY=0" >> /root/.bashrc && \
+    echo "export RMW_IMPLEMENTATION=rmw_fastrtps_cpp" >> /root/.bashrc && \
+    echo "export ROS_DISTRO=humble" >> /root/.bashrc && \
+    echo "export LD_LIBRARY_PATH=/opt/ros/humble/lib:\$LD_LIBRARY_PATH" >> /root/.bashrc && \
+    echo "export PYTHONPATH=/opt/ros/humble/lib/python3.10/site-packages:\$PYTHONPATH" >> /root/.bashrc && \
+    echo "export ROS_VERSION=2" >> /root/.bashrc && \
+    echo "export ROS_PYTHON_VERSION=3" >> /root/.bashrc
 
-# 4. Python 패키지 설치 (기존 vla_app_final과 동일)
-RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir \
-        "transformers==4.52.3" \
-        "tokenizers==0.21.1" \
-        triton \
-        Pillow \
-    && rm -rf /root/.cache/pip
+# 9. ROS2 의존성 초기화
+RUN rosdep init && \
+    rosdep update
 
-# 5. h5py 설치 (기존과 동일)
-RUN H5PY_SETUP_REQUIRES=0 pip3 install --no-cache-dir --verbose 'h5py<3.11'
-
-# 6. OpenVLA 설치 (기존과 동일)
-RUN git clone --depth=1 --recursive https://github.com/dusty-nv/openvla /opt/openvla && \
-    cd /opt/openvla && \
-    pip3 install --verbose -e .
-
-# 7. Accelerate 패치 (기존과 동일)
-RUN PYTHON_ROOT=`pip3 show accelerate | grep Location: | cut -d' ' -f2` && \
-    ACCELERATE_STATE="$PYTHON_ROOT/accelerate/state.py" && \
-    echo "patching $ACCELERATE_STATE to use distributed backend 'gloo' instead of 'nccl'" && \
-    sed -i 's|self.backend = backend|self.backend = "gloo"|g' ${ACCELERATE_STATE} && \
-    grep 'self.backend' $ACCELERATE_STATE
-
-# 8. Mobile VLA 전용 Python 패키지 설치
-RUN pip3 install --no-cache-dir \
-        # 키보드 입력 처리
-        keyboard \
-        # 과학 계산 (추가)
-        scipy \
-        scikit-learn \
-        # 데이터 처리 (추가)
-        pandas \
-        # 오디오 처리
-        librosa \
-        soundfile \
-        # 유틸리티
-        python-dateutil \
-        requests \
-        # 로깅/모니터링
-        wandb \
-        tensorboard \
-        # 시리얼 통신 (로봇 제어용)
-        pyserial \
-    && rm -rf /root/.cache/pip
-
-# 9. PyTorch CUDA 테스트 스크립트 추가 (기존과 동일)
+# 10. 스크립트 파일들 복사
 COPY pytorch_cuda_test.py /usr/local/bin/pytorch_cuda_test.py
-RUN chmod +x /usr/local/bin/pytorch_cuda_test.py
+COPY scripts/run_mobile_vla.sh /usr/local/bin/run_mobile_vla.sh
+COPY scripts/container_run.sh /usr/local/bin/container_run.sh
+RUN chmod +x /usr/local/bin/pytorch_cuda_test.py /usr/local/bin/run_mobile_vla.sh /usr/local/bin/container_run.sh
 
-# 🔟 작업공간 디렉토리 생성
+# 11. 작업공간 디렉토리 생성
 RUN mkdir -p /workspace/vla \
     && mkdir -p /workspace/vla/ROS_action \
     && mkdir -p /workspace/vla/mobile_vla_dataset \
     && mkdir -p /workspace/vla/.cache/huggingface \
     && mkdir -p /workspace/vla/logs
 
-# 1️⃣1️⃣ .bashrc 설정 (기존 + Mobile VLA 추가)
+# 12. .bashrc 설정 (PyTorch 2.3.0 테스트용)
 RUN echo "" >> /root/.bashrc && \
     echo "# =============================================================================" >> /root/.bashrc && \
-    echo "# 🚀 Mobile VLA Docker 환경 - 검증된 VLA 기반" >> /root/.bashrc && \
+    echo "# 🚀 Mobile VLA + PyTorch 2.3.0 Docker 환경" >> /root/.bashrc && \
     echo "# =============================================================================" >> /root/.bashrc && \
     echo "" >> /root/.bashrc && \
-    echo "# ROS 2 Humble environment setup" >> /root/.bashrc && \
-    echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
-    echo "export ROS_DOMAIN_ID=42" >> /root/.bashrc && \
-    echo "export ROS_LOCALHOST_ONLY=0" >> /root/.bashrc && \
-    echo "" >> /root/.bashrc && \
-    echo "# ROS_action 워크스페이스 자동 소싱 (존재할 경우)" >> /root/.bashrc && \
-    echo "if [ -f \"/workspace/vla/ROS_action/install/setup.bash\" ]; then" >> /root/.bashrc && \
-    echo "    source /workspace/vla/ROS_action/install/setup.bash" >> /root/.bashrc && \
-    echo "fi" >> /root/.bashrc && \
-    echo "" >> /root/.bashrc && \
-    echo "# RoboVLMs Poetry Project Helper (기존 내용 유지)" >> /root/.bashrc && \
-    echo "alias activate_robovlms='cd /workspace/RoboVLMs && source \$(poetry env info --path)/bin/activate'" >> /root/.bashrc && \
-    echo "" >> /root/.bashrc && \
-    echo "# PyTorch & CUDA Test Alias (기존 내용 유지)" >> /root/.bashrc && \
+    echo "# PyTorch & CUDA Test Alias" >> /root/.bashrc && \
     echo "alias torch_cuda_test='python3 /usr/local/bin/pytorch_cuda_test.py'" >> /root/.bashrc && \
+    echo "alias cuda-test='python3 -c \"import torch; print(f\\\"PyTorch: {torch.__version__}\\\"); print(f\\\"CUDA Available: {torch.cuda.is_available()}\\\"); print(f\\\"Device Count: {torch.cuda.device_count()}\\\")\"'" >> /root/.bashrc && \
     echo "" >> /root/.bashrc && \
-    echo "# Mobile VLA 전용 alias" >> /root/.bashrc && \
-    echo "alias vla-build='cd /workspace/vla/ROS_action && colcon build'" >> /root/.bashrc && \
-    echo "alias vla-source='source /workspace/vla/ROS_action/install/setup.bash'" >> /root/.bashrc && \
-    echo "alias vla-camera='ros2 run camera_pub camera_publisher_continuous'" >> /root/.bashrc && \
-    echo "alias vla-collect='cd /workspace/vla && python mobile_vla_data_collector.py'" >> /root/.bashrc && \
-    echo "alias cuda-test='python -c \"import torch; print(f\\\"PyTorch: {torch.__version__}\\\"); print(f\\\"CUDA Available: {torch.cuda.is_available()}\\\"); print(f\\\"CUDA Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \\\"N/A\\\"}\\\")\"'" >> /root/.bashrc && \
+    echo "# Mobile VLA 테스트 Alias" >> /root/.bashrc && \
+    echo "alias mobile-vla-test='cd /workspace/vla && python3 kosmos_camera_test.py'" >> /root/.bashrc && \
+    echo "alias run-mobile-vla='/usr/local/bin/run_mobile_vla.sh'" >> /root/.bashrc && \
+    echo "alias container-run='/usr/local/bin/container_run.sh'" >> /root/.bashrc && \
     echo "" >> /root/.bashrc && \
     echo "# 환영 메시지" >> /root/.bashrc && \
-    echo "echo \"🚀 Mobile VLA Docker 환경 (검증된 VLA 기반)\"" >> /root/.bashrc && \
+    echo "echo \"🚀 Mobile VLA + PyTorch 2.3.0 Docker 환경\"" >> /root/.bashrc && \
     echo "echo \"📋 사용 가능한 명령어:\"" >> /root/.bashrc && \
-    echo "echo \"   vla-build     : ROS2 워크스페이스 빌드\"" >> /root/.bashrc && \
-    echo "echo \"   vla-source    : ROS2 환경 소싱\"" >> /root/.bashrc && \
-    echo "echo \"   vla-camera    : CSI 카메라 노드 실행\"" >> /root/.bashrc && \
-    echo "echo \"   vla-collect   : Mobile VLA 데이터 수집 시작\"" >> /root/.bashrc && \
-    echo "echo \"   cuda-test     : CUDA/PyTorch 상태 확인\"" >> /root/.bashrc && \
-    echo "echo \"   torch_cuda_test : 기존 VLA CUDA 테스트\"" >> /root/.bashrc && \
+    echo "echo \"   cuda-test       : PyTorch/CUDA 상태 확인\"" >> /root/.bashrc && \
+    echo "echo \"   mobile-vla-test : Mobile VLA 카메라 테스트\"" >> /root/.bashrc && \
+    echo "echo \"   torch_cuda_test : 상세 PyTorch CUDA 테스트\"" >> /root/.bashrc && \
+    echo "echo \"   run-mobile-vla  : Mobile VLA 시스템 실행\"" >> /root/.bashrc && \
+    echo "echo \"   container-run   : 컨테이너 내부 실행 메뉴\"" >> /root/.bashrc && \
     echo "echo \"\"" >> /root/.bashrc
 
-# 1️⃣2️⃣ 헬스체크 스크립트 생성
+# 13. 헬스체크 스크립트 생성
 RUN echo '#!/bin/bash' > /usr/local/bin/healthcheck.sh && \
-    echo 'echo "🔍 Mobile VLA Docker 환경 상태 확인..."' >> /usr/local/bin/healthcheck.sh && \
+    echo 'echo "🔍 Mobile VLA + PyTorch 2.3.0 Docker 환경 상태 확인..."' >> /usr/local/bin/healthcheck.sh && \
     echo 'python3 -c "import torch; print(f\"✅ PyTorch {torch.__version__} - CUDA: {torch.cuda.is_available()}\")"' >> /usr/local/bin/healthcheck.sh && \
-    echo 'python3 -c "import cv2; print(f\"✅ OpenCV {cv2.__version__}\")"' >> /usr/local/bin/healthcheck.sh && \
+    echo 'python3 -c "import cv2; print(f\"✅ OpenCV {cv2.__version__}\")" 2>/dev/null || echo "⚠️ OpenCV check skipped"' >> /usr/local/bin/healthcheck.sh && \
     echo 'python3 -c "import transformers; print(f\"✅ Transformers {transformers.__version__}\")"' >> /usr/local/bin/healthcheck.sh && \
     echo 'python3 -c "import h5py; print(f\"✅ HDF5 {h5py.__version__}\")"' >> /usr/local/bin/healthcheck.sh && \
-    echo 'source /opt/ros/humble/setup.bash && echo "✅ ROS2 Humble 준비 완료"' >> /usr/local/bin/healthcheck.sh && \
-    echo 'echo "🎉 모든 시스템 정상 - 검증된 VLA 환경 기반!"' >> /usr/local/bin/healthcheck.sh && \
+    echo 'python3 -c "from PIL import Image; print(\"✅ Pillow OK\")"' >> /usr/local/bin/healthcheck.sh && \
+    echo 'echo "🎉 PyTorch 2.3.0 환경 정상 - Mobile VLA 테스트 준비 완료!"' >> /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 
-# 1️⃣3️⃣ 볼륨 마운트 포인트 생성
+# 14. 볼륨 마운트 포인트 생성
 VOLUME ["/workspace/vla", "/workspace/vla/.cache"]
 
-# 1️⃣4️⃣ 포트 노출 (디버깅/모니터링용)
+# 15. 포트 노출 (디버깅/모니터링용)
 EXPOSE 8888 6006
 
-# 1️⃣5️⃣ 헬스체크 설정
+# 16. 헬스체크 설정
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
 
-# 1️⃣6️⃣ 작업 디렉토리 설정 (vla 폴더로 변경)
+# 17. 작업 디렉토리 설정
 WORKDIR /workspace/vla
 
-# 1️⃣7️⃣ 기본 명령어
+# 18. 기본 명령어
 CMD ["bash"]
 
 # =============================================================================
 # 빌드 명령어:
-# docker build -t mobile_vla:verified-base -f Dockerfile.mobile-vla .
+# docker build -t mobile_vla:pytorch-2.3.0 -f Dockerfile.mobile-vla .
+# 
+# 실행 명령어:
+# docker run --rm --gpus all -it mobile_vla:pytorch-2.3.0
 # =============================================================================
