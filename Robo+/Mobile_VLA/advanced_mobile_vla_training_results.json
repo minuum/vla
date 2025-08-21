@@ -1,0 +1,26 @@
+{
+  "final_loss": 1.971728159321679,
+  "best_loss": 1.971728159321679,
+  "epochs_trained": 10,
+  "config": {
+    "data_path": "../../ROS_action/mobile_vla_dataset",
+    "batch_size": 1,
+    "learning_rate": 0.0001,
+    "num_epochs": 10,
+    "save_interval": 2,
+    "device": "cuda",
+    "max_episodes": null,
+    "vision_dim": 768,
+    "language_dim": 768,
+    "action_dim": 3,
+    "fusion_dim": 512,
+    "plan_dim": 256,
+    "num_claw_layers": 3,
+    "num_subgoals": 6,
+    "frames_per_subgoal": 3,
+    "use_claw_matrix": true,
+    "use_hierarchical": true,
+    "use_advanced_attention": true
+  },
+  "timestamp": "2025-08-21T11:17:15.046343"
+}
