@@ -1,23 +1,23 @@
 {
-  "loss": 0.7542292773723602,
-  "mae": 0.6414722874760628,
-  "rmse": 0.8637648671865463,
+  "loss": 0.923264354467392,
+  "mae": 0.863199383020401,
+  "rmse": 0.957798182964325,
   "accuracy_0.1": 0.0,
   "accuracy_0.05": 0.0,
   "accuracy_0.01": 0.0,
   "individual_accuracies": {
     "linear_x": {
-      "0.1": 0.1875,
+      "0.1": 0.0,
       "0.05": 0.0,
       "0.01": 0.0
     },
     "linear_y": {
-      "0.1": 0.625,
+      "0.1": 0.0,
       "0.05": 0.0,
       "0.01": 0.0
     }
   },
-  "num_samples": 16,
+  "num_samples": 15,
   "model_config": {
     "use_vision_resampler": true,
     "action_dim": 2,
