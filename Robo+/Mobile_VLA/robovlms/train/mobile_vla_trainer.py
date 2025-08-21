@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from typing import Dict, Any, Optional
 import logging
 from pathlib import Path
+import numpy as np
 
 # RoboVLMs imports (로컬에서 사용 가능한 부분만)
 from transformers import AutoTokenizer, AutoProcessor
@@ -68,19 +69,44 @@ class MobileVLATrainer:
         from transformers import Kosmos2Model
         
         class MobileVLAModel(nn.Module):
-            def __init__(self, model_name: str, action_dim: int, window_size: int, chunk_size: int):
+            def __init__(self, model_name, action_dim=3, window_size=8, chunk_size=2):
                 super().__init__()
+                
+                # Kosmos2 모델 로드 (feature extractor로만 사용)
                 self.kosmos = Kosmos2Model.from_pretrained(model_name)
                 
-                # Hidden size 가져오기
-                self.hidden_size = self.kosmos.config.text_config.hidden_size
+                # Kosmos2 모델의 파라미터들이 gradient를 계산하도록 강제 설정
+                for param in self.kosmos.parameters():
+                    param.requires_grad = True
                 
-                # Action prediction head
+                # Vision model도 명시적으로 설정
+                if hasattr(self.kosmos, 'vision_model'):
+                    for param in self.kosmos.vision_model.parameters():
+                        param.requires_grad = True
+                
+                # 모델 설정
+                self.hidden_size = 768  # Kosmos2의 기본 hidden size
+                self.lstm_hidden_size = 512
+                self.lstm_layers = 2
+                
+                # LSTM 레이어
+                self.action_lstm = nn.LSTM(
+                    input_size=self.hidden_size,
+                    hidden_size=self.lstm_hidden_size,
+                    num_layers=self.lstm_layers,
+                    batch_first=True,
+                    dropout=0.1
+                )
+                
+                # LSTM 출력을 액션으로 변환하는 헤드
                 self.action_head = nn.Sequential(
-                    nn.Linear(self.hidden_size, 512),
+                    nn.Linear(self.lstm_hidden_size, 512),
                     nn.ReLU(),
                     nn.Dropout(0.1),
-                    nn.Linear(512, chunk_size * action_dim)  # 2 프레임 * 3 액션
+                    nn.Linear(512, 256),
+                    nn.ReLU(),
+                    nn.Dropout(0.1),
+                    nn.Linear(256, action_dim)
                 )
                 
                 self.window_size = window_size
@@ -96,8 +122,9 @@ class MobileVLATrainer:
                 else:
                     last_frame = pixel_values
                 
-                # Vision model만 사용해서 이미지 특징 추출
-                with torch.no_grad():
+                # RoboVLMs 방식: Kosmos2는 pixel_values를 직접 사용
+                try:
+                    # 표준 방식으로 시도
                     vision_outputs = self.kosmos.vision_model(pixel_values=last_frame)
                     # vision_outputs에서 pooler_output 또는 last_hidden_state 사용
                     if hasattr(vision_outputs, 'pooler_output') and vision_outputs.pooler_output is not None:
@@ -105,6 +132,43 @@ class MobileVLATrainer:
                     else:
                         # Global average pooling over patches
                         image_features = vision_outputs.last_hidden_state.mean(dim=1)  # [B, vision_hidden_size]
+                
+                except Exception as e:
+                    # RoboVLMs 방식: Kosmos2 모델을 직접 호출
+                    if "pixel_values" in str(e) or "image_embeds" in str(e):
+                        # Kosmos2 모델 직접 호출 - RoboVLMs 방식
+                        batch_size = last_frame.shape[0]
+                        
+                        # 적절한 input_ids 생성 (빈 텍스트가 아닌 실제 텍스트)
+                        if input_ids.sum() == 0:  # 모든 값이 0인 경우 (더미)
+                            # Kosmos의 기본 토큰들로 최소한의 입력 생성
+                            dummy_input_ids = torch.ones((batch_size, 3), dtype=torch.long, device=input_ids.device)
+                            dummy_input_ids[:, 0] = 0  # BOS token (일반적으로 0)
+                            dummy_input_ids[:, 1] = 1  # 단어 토큰
+                            dummy_input_ids[:, 2] = 2  # EOS token (일반적으로 2)
+                            
+                            # 단순한 어텐션 마스크
+                            simple_attention_mask = torch.ones((batch_size, 3), dtype=torch.bool, device=input_ids.device)
+                        else:
+                            dummy_input_ids = input_ids
+                            simple_attention_mask = attention_mask
+                        
+                        # image_embeds_position_mask 생성 (Kosmos에서 필요할 수 있음)
+                        image_embeds_position_mask = torch.zeros((batch_size, 3), dtype=torch.bool, device=last_frame.device)
+                        image_embeds_position_mask[:, 0] = True  # 첫 번째 위치에 이미지 임베딩
+                        
+                        output = self.kosmos(
+                            pixel_values=last_frame,  # pixel_values만 사용
+                            input_ids=dummy_input_ids,
+                            attention_mask=simple_attention_mask,
+                            image_embeds_position_mask=image_embeds_position_mask,
+                            output_hidden_states=True,
+                        )
+                        
+                        # 마지막 hidden state에서 이미지 특징 추출
+                        image_features = output.hidden_states[-1].mean(dim=1)  # [B, hidden_size]
+                    else:
+                        raise e
                 
                 # 이미지 특징을 action head의 입력 크기에 맞춰 조정
                 if image_features.size(-1) != self.hidden_size:
@@ -114,9 +178,24 @@ class MobileVLATrainer:
                         self.image_projection = self.image_projection.to(image_features.device)
                     image_features = self.image_projection(image_features)
                 
-                # 액션 예측 (이미지 특징만 사용)
-                action_logits = self.action_head(image_features)  # [B, chunk_size * action_dim]
-                action_preds = action_logits.view(-1, self.chunk_size, self.action_dim)  # [B, chunk_size, action_dim]
+                # LSTM을 사용한 시퀀스 액션 예측
+                # 이미지 특징을 시퀀스로 확장 (window_size만큼)
+                batch_size = image_features.size(0)
+                sequence_features = image_features.unsqueeze(1).repeat(1, self.window_size, 1)  # [B, window_size, hidden_size]
+                
+                # LSTM 처리
+                lstm_out, (hidden, cell) = self.action_lstm(sequence_features)  # [B, window_size, lstm_hidden_size]
+                
+                # 마지막 window의 chunk_size만큼 액션 예측
+                chunk_features = lstm_out[:, -self.chunk_size:, :]  # [B, chunk_size, lstm_hidden_size]
+                
+                # 각 시점별로 액션 예측
+                action_preds = []
+                for t in range(self.chunk_size):
+                    action_t = self.action_head(chunk_features[:, t, :])  # [B, action_dim]
+                    action_preds.append(action_t)
+                
+                action_preds = torch.stack(action_preds, dim=1)  # [B, chunk_size, action_dim]
                 
                 # 더미 텍스트 출력 (호환성을 위해)
                 dummy_hidden_states = torch.zeros(
@@ -148,9 +227,33 @@ class MobileVLATrainer:
         if target_actions.dim() == 4:  # [B, window_size, chunk_size, action_dim]
             # 마지막 window의 chunk만 사용
             target_actions = target_actions[:, -1, :, :]  # [B, chunk_size, action_dim]
+        elif target_actions.dim() == 3 and target_actions.shape[1] > self.chunk_size:
+            # [B, T, action_dim]에서 마지막 chunk_size개만 추출
+            target_actions = target_actions[:, -self.chunk_size:, :]  # [B, chunk_size, action_dim]
         
-        # Huber Loss (MSE보다 outlier에 강함)
-        action_loss = F.huber_loss(predicted_actions, target_actions)
+        # 배치 크기와 시퀀스 길이 맞추기
+        if predicted_actions.shape[0] != target_actions.shape[0]:
+            # 배치 크기 불일치 해결
+            min_batch_size = min(predicted_actions.shape[0], target_actions.shape[0])
+            predicted_actions = predicted_actions[:min_batch_size]
+            target_actions = target_actions[:min_batch_size]
+        
+        # chunk_size 차원 맞추기  
+        if predicted_actions.shape[1] != target_actions.shape[1]:
+            min_chunk_size = min(predicted_actions.shape[1], target_actions.shape[1])
+            predicted_actions = predicted_actions[:, :min_chunk_size, :]
+            target_actions = target_actions[:, :min_chunk_size, :]
+        
+        # Weighted Huber Loss (linear_y에 더 높은 가중치)
+        # linear_y가 가장 어려운 차원이므로 더 높은 가중치
+        weights = torch.tensor([1.0, 2.0, 1.5], device=predicted_actions.device)  # [linear_x, linear_y, angular_z]
+        
+        # 각 차원별 손실 계산
+        per_dim_loss = F.huber_loss(predicted_actions, target_actions, reduction='none')  # [B, chunk_size, action_dim]
+        
+        # 가중치 적용
+        weighted_loss = per_dim_loss * weights.unsqueeze(0).unsqueeze(0)  # [B, chunk_size, action_dim]
+        action_loss = weighted_loss.mean()
         
         # 각 차원별 MAE 계산 (로깅용)
         mae_per_dim = torch.abs(predicted_actions - target_actions).mean(dim=(0, 1))
@@ -194,7 +297,12 @@ class MobileVLATrainer:
         
         # 디바이스로 이동
         window_images = window_images.to(self.device)
+        
+        # numpy 배열을 torch 텐서로 변환
+        if isinstance(chunk_actions, np.ndarray):
+            chunk_actions = torch.from_numpy(chunk_actions).float()
         chunk_actions = chunk_actions.to(self.device)
+        
         input_ids = text_inputs["input_ids"].to(self.device)
         attention_mask = text_inputs["attention_mask"].to(self.device)
         
