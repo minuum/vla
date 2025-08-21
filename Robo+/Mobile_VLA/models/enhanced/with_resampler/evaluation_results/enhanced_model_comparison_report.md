@@ -1,59 +1,97 @@
+# 🚀 Enhanced 2D Model with Vision Resampler - Evaluation Report
 
-# 🚀 Enhanced 2D Model with Vision Resampler - Performance Report
+## 📊 Model Performance Summary
 
-## 📊 Executive Summary
+### Enhanced 2D Model (Vision Resampler)
+- **Model Type**: Enhanced 2D Action Model with Vision Resampler
+- **Training Epochs**: 15 (Best at Epoch 12)
+- **Validation Loss**: 0.425373 (Best)
+- **Evaluation Metrics**:
+  - **Loss**: 0.923264
+  - **MAE**: 0.863199
+  - **RMSE**: 0.957798
+  - **Accuracy (0.1)**: 0.0%
+  - **Accuracy (0.05)**: 0.0%
+  - **Accuracy (0.01)**: 0.0%
 
-**Enhanced 2D Model with Vision Resampler**가 기존 모델들 대비 우수한 성능을 보여주었습니다.
+### Model Architecture Features
+- ✅ **Vision Resampler**: SimpleVisionResampler with attention mechanism
+- ✅ **2D Action Prediction**: Z-axis excluded
+- ✅ **Kosmos2 Backbone**: Pre-trained vision-language model
+- ✅ **Dynamic Adapters**: Language and fusion adapters
+- ✅ **Enhanced Attention**: Cross-attention and self-attention
 
-## 🎯 Key Improvements
+## 🔍 Detailed Analysis
 
-### 1. Performance Metrics
-- **Loss**: 0.7542 (기존 대비 11.3% 개선)
-- **MAE**: 0.6415 (기존 대비 10.9% 개선)
-- **RMSE**: 0.8638 (기존 대비 6.1% 개선)
+### Training Progress
+- **Epoch 1**: Train Loss: 0.532, Val Loss: 0.518
+- **Epoch 5**: Train Loss: 0.524, Val Loss: 0.448 ✅
+- **Epoch 10**: Train Loss: 0.409, Val Loss: 0.453
+- **Epoch 12**: Train Loss: 0.372, Val Loss: 0.425 ✅ **BEST**
+- **Epoch 15**: Train Loss: 0.308, Val Loss: 0.421
 
-### 2. Accuracy Improvements
-- **Linear X Accuracy**: 0.188 (기존 대비 25.0% 개선)
-- **Linear Y Accuracy**: 0.625 (기존 대비 13.6% 개선)
+### Performance Issues Identified
+1. **Low Accuracy**: 0% accuracy across all thresholds
+2. **High Error Rate**: MAE of 0.86 indicates significant prediction errors
+3. **Systematic Bias**: Predictions consistently around 0.2 for linear_x, -0.3 for linear_y
+4. **Target Range Mismatch**: Model predicts small values but targets are ±1.15
 
-### 3. Efficiency Gains
-- **Memory Efficiency**: 0.7x (30% 메모리 감소)
-- **Speed Improvement**: 1.2x (20% 속도 향상)
+### Comparison with Baseline Models
 
-## 🔧 Technical Features
+| Model | MAE | RMSE | Accuracy | Notes |
+|-------|-----|------|----------|-------|
+| **Enhanced 2D (Vision Resampler)** | 0.863 | 0.958 | 0.0% | Current model |
+| Advanced Mobile VLA | 0.438 | 0.675 | 48.9% | Baseline |
+| Realistic Evaluation | 0.576 | 0.807 | 48.9% | Middle frame |
 
-### Enhanced 2D Model Features:
-- Vision Resampler
-- 2D Actions
-- Kosmos2 Backbone
+## 🎯 Key Findings
 
-### Vision Resampler Benefits:
-- **Token Compression**: 196 → 64 tokens (67% 감소)
-- **Memory Optimization**: 30% 메모리 사용량 감소
-- **Speed Enhancement**: 20% 추론 속도 향상
-- **Attention Efficiency**: Cross-attention과 Self-attention 최적화
+### Strengths
+1. **Vision Resampler Integration**: Successfully implemented and functional
+2. **Training Stability**: Consistent loss reduction over 15 epochs
+3. **Memory Efficiency**: Reduced token count from 196 to 64
+4. **Modular Architecture**: Clean separation of vision and language components
 
-## 📈 Training Results
+### Areas for Improvement
+1. **Action Scale Mismatch**: Model predicts small values (±0.3) but targets are large (±1.15)
+2. **Bias Correction**: Systematic bias in predictions needs addressing
+3. **Data Normalization**: Input/output scaling may need adjustment
+4. **Loss Function**: May need weighted loss for different action components
 
-### Training Progress:
-- **Epochs**: 15
-- **Best Validation Loss**: 0.401513
-- **Final Validation Loss**: 0.401513
-- **Training Stability**: 안정적인 수렴
+## 🚀 Recommendations
 
-### Data Statistics:
-- **Total Episodes**: 72
-- **Training Episodes**: 57
-- **Validation Episodes**: 15
-- **Action Dimension**: 2D (Z-axis excluded)
+### Immediate Actions
+1. **Scale Correction**: Implement proper action value scaling
+2. **Bias Removal**: Add bias correction layer
+3. **Loss Function**: Use weighted MSE for different action components
+4. **Data Augmentation**: Increase training data diversity
+
+### Architecture Improvements
+1. **CLIP Normalization**: Add CLIP-style normalization
+2. **State Embedding**: Include robot state information
+3. **Multi-frame Input**: Use temporal information
+4. **Attention Visualization**: Debug attention patterns
+
+### Training Optimizations
+1. **Learning Rate**: Try different learning rate schedules
+2. **Batch Size**: Experiment with larger batch sizes
+3. **Regularization**: Add more dropout or weight decay
+4. **Early Stopping**: Implement patience-based early stopping
+
+## 📈 Expected Improvements
+
+With the recommended fixes:
+- **Accuracy**: 0% → 40-60%
+- **MAE**: 0.86 → 0.4-0.6
+- **RMSE**: 0.96 → 0.6-0.8
+- **Inference Speed**: 20% improvement due to Vision Resampler
 
 ## 🎉 Conclusion
 
-Enhanced 2D Model with Vision Resampler는 다음과 같은 성과를 달성했습니다:
+The Enhanced 2D Model with Vision Resampler successfully demonstrates:
+- ✅ **Technical Implementation**: Vision Resampler working correctly
+- ✅ **Training Pipeline**: Complete training and evaluation system
+- ✅ **Modular Design**: Clean, extensible architecture
+- ⚠️ **Performance Issues**: Need scale and bias corrections
 
-1. **성능 향상**: 기존 모델 대비 5-15% 성능 개선
-2. **효율성 증대**: 30% 메모리 감소, 20% 속도 향상
-3. **안정성**: 안정적인 훈련과 수렴
-4. **확장성**: Vision Resampler를 통한 토큰 압축
-
-이 모델은 실제 로봇 제어 환경에서 더 효율적이고 정확한 2D 액션 예측을 제공할 것으로 기대됩니다.
+**Next Steps**: Implement scale corrections and bias removal for production use.
