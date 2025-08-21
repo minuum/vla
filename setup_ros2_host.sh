@@ -31,7 +31,10 @@ export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 echo "✅ RMW_IMPLEMENTATION=rmw_fastrtps_cpp 설정 완료"
 
 # 5. ROS2 워크스페이스 확인 및 설정
-if [ -f "/home/soda/vla/ROS_action/install/setup.bash" ]; then
+if [ -f "/home/soda/vla/ROS_action/install/local_setup.bash" ]; then
+    echo "✅ ROS2 워크스페이스 발견, 환경 설정 중..."
+    source /home/soda/vla/ROS_action/install/local_setup.bash
+elif [ -f "/home/soda/vla/ROS_action/install/setup.bash" ]; then
     echo "✅ ROS2 워크스페이스 발견, 환경 설정 중..."
     source /home/soda/vla/ROS_action/install/setup.bash
 else
