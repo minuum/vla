@@ -33,9 +33,9 @@ def generate_launch_description():
         description='데이터 수집 노드 실행 여부'
     )
     
-    # 패키지 경로
-    camera_pub_pkg = FindPackageShare('camera_pub')
-    mobile_vla_pkg = FindPackageShare('mobile_vla_package')
+    # 패키지 경로 (직접 지정)
+    camera_pub_pkg = '/workspace/vla/ROS_action/install/camera_pub'
+    mobile_vla_pkg = '/workspace/vla/ROS_action/install/mobile_vla_package'
     
     # 노드들
     nodes = []
