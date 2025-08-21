@@ -1,0 +1,8 @@
+{
+  "final_epoch": 1,
+  "best_val_loss": Infinity,
+  "final_train_loss": NaN,
+  "final_val_loss": NaN,
+  "training_completed": true,
+  "early_stopped": false
+}
