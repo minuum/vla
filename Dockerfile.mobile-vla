@@ -63,6 +63,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
+
 # 1.5. OpenCV 패키지 충돌 해결
 RUN apt-get update && \
     apt-get remove -y opencv-libs opencv-dev && \
@@ -145,7 +146,8 @@ RUN mkdir -p /workspace/vla \
     && mkdir -p /workspace/vla/ROS_action \
     && mkdir -p /workspace/vla/mobile_vla_dataset \
     && mkdir -p /workspace/vla/.cache/huggingface \
-    && mkdir -p /workspace/vla/logs
+    && mkdir -p /workspace/vla/logs \
+    && chmod -R 777 /workspace/vla
 
 # 1️⃣1️⃣ .bashrc 설정 (기존 + Mobile VLA 추가)
 RUN echo "" >> /root/.bashrc && \
