@@ -63,10 +63,12 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
-# 1.5. OpenCV 충돌 해결
+
+# 1.5. OpenCV 패키지 충돌 해결
 RUN apt-get update && \
-    apt-get remove -y libopencv-dev libopencv && \
+    apt-get remove -y opencv-libs opencv-dev && \
     apt-get install -y --no-install-recommends \
+        libopencv \
         libopencv-dev \
     && rm -rf /var/lib/apt/lists/* && \
     apt-get clean
@@ -107,25 +109,16 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
         Pillow \
     && rm -rf /root/.cache/pip
 
-# 5. h5py 설치 (기존과 동일)
-RUN H5PY_SETUP_REQUIRES=0 pip3 install --no-cache-dir --verbose 'h5py<3.11'
-
-# 6. OpenVLA 설치 (기존과 동일)
-RUN git clone --depth=1 --recursive https://github.com/dusty-nv/openvla /opt/openvla && \
-    cd /opt/openvla && \
-    pip3 install --verbose -e .
-
-# 7. Accelerate 패치 (기존과 동일)
-RUN PYTHON_ROOT=`pip3 show accelerate | grep Location: | cut -d' ' -f2` && \
-    ACCELERATE_STATE="$PYTHON_ROOT/accelerate/state.py" && \
-    echo "patching $ACCELERATE_STATE to use distributed backend 'gloo' instead of 'nccl'" && \
-    sed -i 's|self.backend = backend|self.backend = "gloo"|g' ${ACCELERATE_STATE} && \
-    grep 'self.backend' $ACCELERATE_STATE
-
-# 8. Mobile VLA 전용 Python 패키지 설치
+# 5. 추가 Python 패키지 설치 (Mobile VLA용)
 RUN pip3 install --no-cache-dir \
-        # 키보드 입력 처리
-        keyboard \
+        # 기존 vla_app_final 패키지들
+        torch torchvision torchaudio \
+        accelerate \
+        datasets \
+        evaluate \
+        huggingface_hub \
+        matplotlib \
+        numpy \
         # 과학 계산 (추가)
         scipy \
         scikit-learn \
@@ -185,6 +178,11 @@ RUN echo "" >> /root/.bashrc && \
     echo "alias vla-collect='cd /workspace/vla && python mobile_vla_data_collector.py'" >> /root/.bashrc && \
     echo "alias cuda-test='python -c \"import torch; print(f\\\"PyTorch: {torch.__version__}\\\"); print(f\\\"CUDA Available: {torch.cuda.is_available()}\\\"); print(f\\\"CUDA Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \\\"N/A\\\"}\\\")\"'" >> /root/.bashrc && \
     echo "" >> /root/.bashrc && \
+    echo "# Container Run 메뉴 alias" >> /root/.bashrc && \
+    echo "alias container-run='/usr/local/bin/container_run_enhanced.sh'" >> /root/.bashrc && \
+    echo "alias mobile-vla-test='cd /workspace/vla && python kosmos_camera_test.py'" >> /root/.bashrc && \
+    echo "alias run-mobile-vla='cd /workspace/vla && python launch_mobile_vla_system.py'" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
     echo "# 환영 메시지" >> /root/.bashrc && \
     echo "echo \"🚀 Mobile VLA Docker 환경 (검증된 VLA 기반)\"" >> /root/.bashrc && \
     echo "echo \"📋 사용 가능한 명령어:\"" >> /root/.bashrc && \
@@ -194,6 +192,9 @@ RUN echo "" >> /root/.bashrc && \
     echo "echo \"   vla-collect   : Mobile VLA 데이터 수집 시작\"" >> /root/.bashrc && \
     echo "echo \"   cuda-test     : CUDA/PyTorch 상태 확인\"" >> /root/.bashrc && \
     echo "echo \"   torch_cuda_test : 기존 VLA CUDA 테스트\"" >> /root/.bashrc && \
+    echo "echo \"   container-run : 컨테이너 내부 실행 메뉴\"" >> /root/.bashrc && \
+    echo "echo \"   mobile-vla-test : Mobile VLA 카메라 테스트\"" >> /root/.bashrc && \
+    echo "echo \"   run-mobile-vla : Mobile VLA 시스템 실행\"" >> /root/.bashrc && \
     echo "echo \"\"" >> /root/.bashrc
 
 # 1️⃣2️⃣ 헬스체크 스크립트 생성
@@ -220,8 +221,14 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # 1️⃣6️⃣ 작업 디렉토리 설정 (vla 폴더로 변경)
 WORKDIR /workspace/vla
 
-# 1️⃣7️⃣ 기본 명령어
-CMD ["bash"]
+# 1️⃣7️⃣ 자동 초기화 스크립트 복사
+COPY ROS_action/src/camera_pub/camera_pub/container_init.sh /usr/local/bin/container_init.sh
+COPY ROS_action/src/camera_pub/camera_pub/container_run_enhanced.sh /usr/local/bin/container_run_enhanced.sh
+RUN chmod +x /usr/local/bin/container_init.sh && \
+    chmod +x /usr/local/bin/container_run_enhanced.sh
+
+# 1️⃣8️⃣ 기본 명령어 (자동 초기화 포함)
+CMD ["/usr/local/bin/container_init.sh"]
 
 # =============================================================================
 # 빌드 명령어:

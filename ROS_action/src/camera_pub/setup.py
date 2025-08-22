@@ -26,6 +26,7 @@ setup(
             'camera_publisher_node = camera_pub.camera_publisher_node:main',
             'camera_publisher_usb = camera_pub.camera_publisher_usb:main',
             'camera_service_server = camera_pub.camera_publisher_continuous:main',
+            'usb_camera_service_server = camera_pub.camera_publisher_usb_service:main',
         ],
     },
 )
