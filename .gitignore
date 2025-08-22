@@ -105,3 +105,9 @@ ROS_action/src/*.whl
 # *.h5
 # Ignore numpy arrays
 *.npy
+
+# Setup scripts (generated automatically)
+setup_aliases_docker.sh
+setup_aliases_host.sh
+setup_ros2_docker.sh
+setup_ros2_host.sh
