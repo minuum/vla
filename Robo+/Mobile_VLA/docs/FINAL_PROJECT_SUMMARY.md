@@ -1,6 +1,6 @@
-# 🚀 Mobile VLA 프로젝트 최종 요약 보고서
+# Final Project Summary - Mobile VLA
 
-## 📅 프로젝트 완료일
+## 🎯 프로젝트 완료일
 2025년 08월 22일
 
 ## 🎯 프로젝트 개요
