@@ -30,6 +30,10 @@ setup(
             'system_monitor = mobile_vla_package.system_monitor:main',
             'test_camera_simulator = mobile_vla_package.test_camera_simulator:main',
             'test_monitor = mobile_vla_package.test_monitor:main',
+            'simple_inference_test = mobile_vla_package.simple_inference_test:main',
+            'robovlms_inference = mobile_vla_package.robovlms_inference:main',
+            'robovlms_controller = mobile_vla_package.robovlms_controller:main',
+            'robovlms_monitor = mobile_vla_package.robovlms_monitor:main',
         ]
     },
 )
