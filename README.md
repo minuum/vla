@@ -1,245 +1,236 @@
-# 🚀 Mobile VLA + ROS2 System
-
-PyTorch 2.3.0과 ROS2 Humble을 통합한 Vision-Language-Action (VLA) 시스템
-
-## 📋 목차
-
-- [시스템 개요](#시스템-개요)
-- [주요 기능](#주요-기능)
-- [시스템 아키텍처](#시스템-아키텍처)
-- [설치 및 실행](#설치-및-실행)
-- [사용법](#사용법)
-- [프로젝트 구조](#프로젝트-구조)
-- [문제 해결](#문제-해결)
-- [업데이트 내역](#업데이트-내역)
-
-## 🎯 시스템 개요
-
-이 프로젝트는 Jetson 플랫폼에서 PyTorch 2.3.0과 ROS2 Humble을 통합하여 Vision-Language-Action (VLA) 시스템을 구현합니다. Kosmos-2 모델을 사용하여 이미지 기반 로봇 제어를 수행합니다.
-
-### 🔧 기술 스택
-
-- **PyTorch**: 2.3.0 (CUDA 지원)
-- **ROS2**: Humble
-- **Python**: 3.10
-- **Docker**: 컨테이너화된 환경
-- **CUDA**: GPU 가속
-- **VLA 모델**: Kosmos-2
-
-## ✨ 주요 기능
-
-### 🤖 ROS2 노드 시스템
-- **카메라 노드**: 실시간 이미지 캡처 및 발행
-- **VLA 추론 노드**: Kosmos-2 모델을 사용한 이미지 분석 및 액션 생성
-- **로봇 제어 노드**: VLA 추론 결과에 따른 로봇 제어
-- **데이터 수집 노드**: 훈련 데이터 수집
-
-### 🎮 제어 모드
-- **Manual Mode**: 키보드 수동 제어
-- **VLA Mode**: AI 기반 자동 제어
-- **Hybrid Mode**: 수동 + AI 혼합 제어
-
-### 📊 데이터 관리
-- HDF5 형식 데이터 저장
-- 이미지 및 액션 데이터 수집
-- 에피소드 기반 데이터 구조
-
-## 🏗️ 시스템 아키텍처
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Camera Node   │───▶│  VLA Inference  │───▶│ Robot Control   │
-│                 │    │     Node        │    │     Node        │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Image Topic    │    │ Action Topic    │    │  Cmd Vel Topic  │
-│ /camera/image   │    │ /vla_action     │    │    /cmd_vel     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-## 🚀 설치 및 실행
-
-### 1. 사전 요구사항
-
-- NVIDIA Jetson (ARM64 아키텍처)
-- Docker
-- CUDA 지원
-- ROS2 Humble
-
-### 2. 프로젝트 클론
-
-```bash
-git clone <repository-url>
-cd vla
-```
-
-### 3. Docker 이미지 빌드
-
-```bash
-# PyTorch 2.3.0 + ROS2 Humble 이미지 빌드
-docker build -t mobile_vla:pytorch-2.3.0-ros2-complete -f Dockerfile.mobile-vla .
-```
-
-### 4. 컨테이너 실행
-
-```bash
-# GPU 지원으로 컨테이너 실행
-docker run --rm --gpus all \
-  -v /usr/local/cuda:/usr/local/cuda:ro \
-  -v /usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:ro \
-  -v $(pwd)/ROS_action:/workspace/vla/ROS_action \
-  -v $(pwd)/mobile_vla_dataset:/workspace/vla/mobile_vla_dataset \
-  --network host --privileged -it \
-  mobile_vla:pytorch-2.3.0-ros2-complete bash
-```
-
-## 📖 사용법
-
-### 컨테이너 내부 실행
-
-```bash
-# 1. ROS 환경 설정
-source /opt/ros/humble/setup.bash
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-export ROS_DISTRO=humble
-export LD_LIBRARY_PATH=/opt/ros/humble/lib:$LD_LIBRARY_PATH
-
-# 2. ROS 워크스페이스 빌드
-cd /workspace/vla/ROS_action
-colcon build
-
-# 3. 환경 설정
-source install/setup.bash
-
-# 4. Mobile VLA 시스템 실행
-ros2 launch launch_mobile_vla.launch.py
-```
-
-### 실행 옵션
-
-```bash
-# 카메라 노드만 실행
-ros2 launch launch_mobile_vla.launch.py camera_node:=true inference_node:=false control_node:=false
-
-# 추론 노드만 실행
-ros2 launch launch_mobile_vla.launch.py camera_node:=false inference_node:=true control_node:=false
-
-# 전체 시스템 실행
-ros2 launch launch_mobile_vla.launch.py camera_node:=true inference_node:=true control_node:=true
-
-# 데이터 수집 모드
-ros2 launch launch_mobile_vla.launch.py data_collector:=true
-```
-
-### 스크립트 사용
-
-```bash
-# 컨테이너 내부 메뉴 시스템
-container-run
-
-# 또는 직접 실행
-run-mobile-vla
-```
+# Mobile VLA Project
 
 ## 📁 프로젝트 구조
 
 ```
-vla/
-├── Dockerfile.mobile-vla              # Docker 이미지 설정
-├── docker-compose.yml                 # Docker Compose 설정
-├── scripts/
-│   ├── run_mobile_vla.sh             # 메인 실행 스크립트
-│   └── container_run.sh              # 컨테이너 내부 실행 스크립트
-├── ROS_action/                       # ROS2 워크스페이스
-│   ├── launch/
-│   │   └── launch_mobile_vla.launch.py  # 메인 launch 파일
-│   └── src/
-│       ├── mobile_vla_package/       # 메인 VLA 패키지
-│       │   ├── vla_inference_node.py     # VLA 추론 노드
-│       │   ├── robot_control_node.py     # 로봇 제어 노드
-│       │   ├── mobile_vla_data_collector.py  # 데이터 수집 노드
-│       │   └── ros_env_setup.py          # ROS 환경 설정 노드
-│       └── camera_pub/               # 카메라 패키지
-│           └── camera_publisher_continuous.py
-├── mobile_vla_dataset/               # 데이터셋 저장소
-└── README.md                         # 이 파일
+Mobile_VLA/
+├── core/                    # 핵심 코드
+│   ├── *_core.py           # 핵심 기능
+│   ├── data_core/          # 데이터 처리
+│   └── train_core/         # 훈련 관련
+├── models/                  # 모델 구현
+│   ├── core/               # 핵심 모델
+│   ├── experimental/       # 실험적 모델
+│   ├── data/               # 데이터 분석
+│   └── legacy/             # 레거시 코드
+├── experimental/            # 실험적 기능
+│   └── *_experimental.py   # 실험적 코드
+├── results/                 # 결과 파일들
+│   ├── *.json              # 성능 결과
+│   ├── *.png               # 시각화
+│   ├── *.pt                # 모델 체크포인트
+│   └── *.log               # 로그 파일
+├── docs/                    # 문서
+│   ├── *.md                # 마크다운 문서
+│   └── *.ipynb             # 노트북
+├── legacy/                  # 레거시 데이터
+└── README.md               # 이 파일
 ```
 
-## 🔧 문제 해결
+## 🎯 Core Components (핵심 구성요소)
 
-### RMW 구현체 오류
+### 🚀 핵심 기능
+- `action_analysis_core.py` - 액션 분석
+- `mobile_dataset_core.py` - 모바일 데이터셋
+- `mobile_trainer_core.py` - 모바일 훈련기
+- `mobile_trainer_simple_core.py` - 단순 훈련기
+- `train_mobile_vla_core.py` - VLA 훈련 스크립트
 
+### 📊 데이터 처리
+- `data_core/` - 데이터 처리 모듈
+- `train_core/` - 훈련 관련 모듈
+
+## 🤖 Models (모델)
+
+### 🎯 Core Models (핵심 모델)
+- **훈련 스크립트**: CLIP+LSTM, LSTM 기반 훈련
+- **인코더**: 모바일 이미지/텍스트 인코더
+- **정책 헤드**: 모바일 정책 네트워크
+- **유틸리티**: 추론, 최적화, 과적합 해결
+
+### 🔬 Experimental Models (실험적 모델)
+- **고급 모델**: 멀티모달, RoboVLMs 수정
+- **분석 도구**: 정확도, 성능 분석
+- **특수 기능**: Z축 처리, 차원 확인
+
+### 📈 Data Analysis (데이터 분석)
+- **데이터셋 분석**: 기본 분석, 증강 효과
+- **로봇 증강**: 로봇 특화 증강 분석
+
+### 📚 Legacy Code (레거시)
+- **참고용**: Kosmos2 분석, RoboVLMs 스타일
+
+## 🔬 Experimental Features (실험적 기능)
+
+### 🧪 실험적 코드
+- `example_usage_experimental.py` - 사용 예제
+- 기타 실험적 기능들
+
+## 📊 Results (결과)
+
+### 📈 성능 결과
+- **JSON 파일**: 훈련/평가 결과
+- **PNG 파일**: 시각화 그래프
+- **PT/PTH 파일**: 모델 체크포인트
+- **LOG 파일**: 훈련 로그
+
+### 📁 결과 디렉토리
+- `simple_baseline_results/` - 기본 베이스라인
+- `simple_clip_lstm_results_extended/` - CLIP+LSTM 확장
+- `simple_lstm_results_extended/` - LSTM 확장
+
+## 📚 Documentation (문서)
+
+### 📖 분석 문서
+- **성능 분석**: 다양한 성능 분석 보고서
+- **모델 비교**: 모델 간 비교 분석
+- **최적화 아이디어**: 성능 개선 방안
+- **프로젝트 요약**: 전체 프로젝트 요약
+
+### 📓 노트북
+- **액션 예측**: 주요 분석 노트북
+- **정리된 분석**: 정리된 분석 노트북
+
+## 🗂️ Legacy Data (레거시 데이터)
+
+### 📦 증강 데이터셋
+- `augmented_dataset/` - 기본 증강 데이터
+- `distance_aware_augmented_dataset/` - 거리 인식 증강
+
+## 🚀 사용 가이드
+
+### 🎯 빠른 시작
 ```bash
-# 오류: rmw_cyclonedx_cpp not found
-# 해결: FastRTPS 사용
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+# 핵심 훈련
+python core/train_mobile_vla_core.py
+
+# 모델 훈련
+python models/core/train_simple_clip_lstm_core.py
+
+# 실험적 모델
+python models/experimental/train_simplified_model.py
 ```
 
-### 라이브러리 경로 문제
-
+### 📊 성능 평가
 ```bash
-# 오류: librmw_cyclonedx_cpp.so not found
-# 해결: LD_LIBRARY_PATH 설정
-export LD_LIBRARY_PATH=/opt/ros/humble/lib:$LD_LIBRARY_PATH
+# 정확도 분석
+python models/experimental/accuracy_analysis_experimental.py
+
+# 2D 평가
+python models/experimental/accurate_2d_evaluation_eval.py
 ```
 
-### ROS 환경 설정
+### 🔧 모델 사용
+```python
+from core.mobile_dataset_core import MobileDataset
+from core.mobile_trainer_core import MobileTrainer
+from models.core.mobile_image_encoder_core import MobileImageEncoder
 
-```bash
-# 모든 ROS 환경 변수 설정
-source /opt/ros/humble/setup.bash
-export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-export ROS_DISTRO=humble
-export LD_LIBRARY_PATH=/opt/ros/humble/lib:$LD_LIBRARY_PATH
-export PYTHONPATH=/opt/ros/humble/lib/python3.10/site-packages:$PYTHONPATH
-export ROS_DOMAIN_ID=42
-export ROS_LOCALHOST_ONLY=0
+# 데이터셋 초기화
+dataset = MobileDataset()
+
+# 훈련기 초기화
+trainer = MobileTrainer()
+
+# 인코더 초기화
+encoder = MobileImageEncoder()
 ```
 
-### Docker 빌드 문제
+## 📋 파일 태그 시스템
 
-```bash
-# 캐시 삭제 후 재빌드
-docker system prune -a
-docker build --no-cache -t mobile_vla:pytorch-2.3.0-ros2-complete -f Dockerfile.mobile-vla .
-```
+### `_core.py`
+- 핵심 기능을 담당하는 안정적인 코드
+- 프로덕션 환경에서 사용 가능
+- 지속적인 유지보수 대상
 
-## 📈 업데이트 내역
+### `_experimental.py`
+- 실험적 기능 및 연구용 코드
+- 성능 검증이 필요한 코드
+- 향후 core로 이동 가능
 
-### v1.0.0 (2024-08-21)
-- ✅ PyTorch 2.3.0 + ROS2 Humble 통합
-- ✅ Docker 컨테이너화 완료
-- ✅ RMW 구현체 문제 해결 (FastRTPS 사용)
-- ✅ ROS 환경 설정 자동화
-- ✅ Launch 파일 시스템 구축
-- ✅ 데이터 수집 시스템 구현
-- ✅ 로봇 제어 시스템 구현
+### `_data.py`
+- 데이터 처리 및 분석 관련 코드
+- 데이터셋 전처리 및 증강
+- 통계 분석 및 시각화
 
-### 주요 해결 사항
-1. **Python 3.8 → 3.10 업그레이드**: PyTorch 2.3.0 호환성
-2. **RMW 구현체 변경**: cyclonedx → fastrtps
-3. **라이브러리 경로 설정**: LD_LIBRARY_PATH, PYTHONPATH
-4. **ROS 환경 변수 설정**: 자동화된 환경 설정
-5. **Docker 최적화**: 불필요한 패키지 제거로 이미지 크기 감소
+### `_policy.py`
+- 정책 네트워크 관련 코드
+- 액션 예측 및 결정 로직
+- 강화학습 정책 구현
 
-## 🤝 기여하기
+### `_eval.py`
+- 모델 평가 및 벤치마킹 코드
+- 성능 측정 및 비교
+- 테스트 스크립트
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### `_legacy.py`
+- 참고용 레거시 코드
+- 더 이상 활발히 개발되지 않음
+- 아카이브 목적
 
-## 📄 라이선스
+## 📈 성능 지표
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
+### 주요 메트릭
+- **MAE (Mean Absolute Error)**: 액션 예측 정확도
+- **정확도**: 임계값별 성공률
+- **R² 점수**: 모델 예측 능력
+- **상관관계**: 예측-실제 간 상관관계
 
-## 📞 연락처
+### 목표 성능
+- **MAE**: < 0.1 (10cm 이내)
+- **정확도 (0.3)**: > 80%
+- **R² 점수**: > 0.7
+- **상관관계**: > 0.8
 
-프로젝트 링크: [https://github.com/your-username/mobile-vla-ros2](https://github.com/your-username/mobile-vla-ros2)
+## 🔄 마이그레이션 가이드
+
+### Core로 이동 조건
+- 충분한 테스트 완료
+- 성능 검증 완료
+- 문서화 완료
+- 안정성 확인
+
+### Legacy로 이동 조건
+- 더 이상 사용되지 않음
+- 대체 코드 존재
+- 참고 가치만 남음
+
+## 🛠️ 개발 가이드라인
+
+### 코드 작성 규칙
+1. 파일명에 적절한 태그 사용
+2. 클래스명은 CamelCase
+3. 함수명은 snake_case
+4. 상세한 docstring 작성
+5. 타입 힌트 사용
+
+### 테스트 규칙
+1. 새로운 기능은 반드시 테스트 작성
+2. 실험적 코드는 별도 디렉토리에 배치
+3. 성능 개선 시 벤치마크 실행
+4. 문서화 필수
+
+### 배포 규칙
+1. Core 코드만 프로덕션 배포
+2. Experimental 코드는 검증 후 이동
+3. Legacy 코드는 참고용으로만 보관
+4. 정기적인 코드 리뷰 및 정리
+
+## 📝 프로젝트 요약
+
+### 🎯 목표
+Mobile VLA (Vision-Language-Action) 모델을 통한 로봇 제어 시스템 구현
+
+### 🔧 주요 기능
+- **Vision**: 이미지 인코딩 및 처리
+- **Language**: 텍스트 명령 이해
+- **Action**: 로봇 액션 예측 및 제어
+
+### 📊 현재 상태
+- 기본 모델 구현 완료
+- 성능 최적화 진행 중
+- 실험적 기능 개발 중
 
 ---
 
-**🚀 Mobile VLA + ROS2 System이 성공적으로 구축되었습니다!** 
+**📝 참고**: 이 프로젝트는 Mobile VLA 시스템의 모든 구성요소를 체계적으로 관리합니다. 새로운 기능 추가 시 적절한 태그를 사용하여 분류해주세요. 
