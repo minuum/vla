@@ -130,22 +130,41 @@ class RoboVLMsController(Node):
     def user_command_callback(self, msg):
         """사용자 명령 콜백"""
         try:
-            command = json.loads(msg.data)
-            action = command.get('action')
+            # 단순 문자열과 JSON 둘 다 지원
+            data = msg.data.strip()
             
-            if action == 'start':
-                self.start_system()
-            elif action == 'stop':
-                self.stop_system()
-            elif action == 'pause':
-                self.pause_system()
-            elif action == 'resume':
-                self.resume_system()
-            elif action == 'set_task':
-                task = command.get('task', self.system_state['task'])
-                self.set_task(task)
-            elif action == 'get_status':
-                self.publish_system_status()
+            # JSON 형식인지 확인
+            if data.startswith('{') and data.endswith('}'):
+                command = json.loads(data)
+                action = command.get('action')
+                
+                if action == 'start':
+                    self.start_system()
+                elif action == 'stop':
+                    self.stop_system()
+                elif action == 'pause':
+                    self.pause_system()
+                elif action == 'resume':
+                    self.resume_system()
+                elif action == 'set_task':
+                    task = command.get('task', self.system_state['task'])
+                    self.set_task(task)
+                elif action == 'get_status':
+                    self.publish_system_status()
+            else:
+                # 단순 문자열 명령 처리
+                if data == 'start':
+                    self.start_system()
+                elif data == 'stop':
+                    self.stop_system()
+                elif data == 'pause':
+                    self.pause_system()
+                elif data == 'resume':
+                    self.resume_system()
+                elif data == 'get_status':
+                    self.publish_system_status()
+                else:
+                    self.get_logger().warn(f"Unknown command: {data}")
             
         except Exception as e:
             self.get_logger().error(f"Error processing user command: {e}")
