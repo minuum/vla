@@ -23,12 +23,12 @@ services:
       - /dev/video0:/dev/video0
       - /dev/video1:/dev/video1
     privileged: true
-    command: >
+    command: 
       bash -c "
         source /opt/ros/humble/setup.bash &&
         cd /workspace/vla/ROS_action &&
         colcon build --packages-select mobile_vla_package &&
         source install/setup.bash &&
-        ros2 launch mobile_vla_package robovlms_system.launch.py
+        ros2 launch mobile_vla_package launch_mobile_vla.launch.py inference_node:=true
       "
     restart: unless-stopped

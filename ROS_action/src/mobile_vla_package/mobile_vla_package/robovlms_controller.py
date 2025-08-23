@@ -130,8 +130,8 @@ class RoboVLMsController(Node):
     def user_command_callback(self, msg):
         """사용자 명령 콜백"""
         try:
-            # 단순 문자열 명령 처리
-            action = msg.data.strip()
+            command = json.loads(msg.data)
+            action = command.get('action')
             
             if action == 'start':
                 self.start_system()
@@ -141,19 +141,11 @@ class RoboVLMsController(Node):
                 self.pause_system()
             elif action == 'resume':
                 self.resume_system()
+            elif action == 'set_task':
+                task = command.get('task', self.system_state['task'])
+                self.set_task(task)
             elif action == 'get_status':
                 self.publish_system_status()
-            else:
-                # JSON 형식 명령도 지원
-                try:
-                    command = json.loads(msg.data)
-                    action = command.get('action')
-                    
-                    if action == 'set_task':
-                        task = command.get('task', self.system_state['task'])
-                        self.set_task(task)
-                except json.JSONDecodeError:
-                    self.get_logger().warn(f"Unknown command: {action}")
             
         except Exception as e:
             self.get_logger().error(f"Error processing user command: {e}")
