@@ -15,6 +15,15 @@ import time
 from typing import List, Optional
 import threading
 from queue import Queue
+import os
+
+# ONNX Runtime import
+try:
+    import onnxruntime as ort
+    ONNX_AVAILABLE = True
+except ImportError:
+    print("Warning: ONNX Runtime not available. Install with: pip install onnxruntime-gpu")
+    ONNX_AVAILABLE = False
 
 class RoboVLMsInference(Node):
     """
@@ -25,11 +34,27 @@ class RoboVLMsInference(Node):
     def __init__(self):
         super().__init__('robovlms_inference')
         
-        # 모델 설정 (업데이트된 최신 모델 사용)
-        self.model_name = "minium/mobile-vla-omniwheel"  # MAE 0.222 달성한 최신 모델
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.get_logger().info(f"Using device: {self.device}")
-        self.get_logger().info(f"Using updated model: {self.model_name} (MAE 0.222)")
+        # 모델 설정 (파라미터화)
+        self.inference_mode = self.declare_parameter('inference_mode', 'transformers').value
+        self.model_type = self.declare_parameter('model_type', 'accurate_gpu').value
+        self.device = self.declare_parameter('device', 'auto').value
+        
+        # 모델 경로 설정 (양자화 모델용)
+        self.quantized_model_paths = {
+            'accurate_gpu': 'Robo+/Mobile_VLA/accurate_gpu_quantized/accurate_gpu_model.onnx',
+            'simple_gpu': 'Robo+/Mobile_VLA/simple_gpu_quantized/simple_gpu_model.onnx',
+            'cpu_mae0222': 'Robo+/Mobile_VLA/quantized_models_cpu/mae0222_model_cpu.onnx'
+        }
+        
+        # Transformers 모드 설정
+        if self.inference_mode == 'transformers':
+            self.model_name = "minium/mobile-vla-omniwheel"  # MAE 0.222 달성한 최신 모델
+            self.torch_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.get_logger().info(f"Using device: {self.torch_device}")
+            self.get_logger().info(f"Using updated model: {self.model_name} (MAE 0.222)")
+        else:
+            self.get_logger().info(f"Using quantized model: {self.model_type}")
+            self.get_logger().info(f"Using device: {self.device}")
         
         # 모델 로드
         self.load_model()
@@ -54,9 +79,16 @@ class RoboVLMsInference(Node):
         self.get_logger().info("RoboVLMs Inference Node initialized")
     
     def load_model(self):
-        """Mobile VLA Omniwheel 모델 로드 (MAE 0.222)"""
+        """모델 로드 (Transformers 또는 양자화 모델)"""
+        if self.inference_mode == 'transformers':
+            self.load_transformers_model()
+        else:
+            self.load_quantized_model()
+    
+    def load_transformers_model(self):
+        """Transformers 모델 로드 (MAE 0.222)"""
         try:
-            self.get_logger().info(f"Loading updated model: {self.model_name}")
+            self.get_logger().info(f"Loading transformers model: {self.model_name}")
             self.get_logger().info("Model performance: MAE 0.222 (72.5% improvement)")
             
             # 모델과 프로세서 로드
@@ -64,18 +96,59 @@ class RoboVLMsInference(Node):
             self.model = AutoModel.from_pretrained(self.model_name)
             
             # GPU로 이동
-            self.model.to(self.device)
+            self.model.to(self.torch_device)
             self.model.eval()
             
-            self.get_logger().info("✅ Updated Mobile VLA Omniwheel model loaded successfully")
+            self.get_logger().info("✅ Transformers model loaded successfully")
             self.get_logger().info("🎯 Model optimized for omniwheel robot navigation")
             
         except Exception as e:
-            self.get_logger().error(f"Failed to load updated model: {e}")
+            self.get_logger().error(f"Failed to load transformers model: {e}")
             # 테스트 모드로 전환
             self.get_logger().info("Switching to test mode (no model loading)")
             self.processor = None
             self.model = None
+    
+    def load_quantized_model(self):
+        """양자화된 ONNX 모델 로드"""
+        if not ONNX_AVAILABLE:
+            self.get_logger().error("❌ ONNX Runtime not available")
+            return
+            
+        try:
+            model_path = self.quantized_model_paths.get(self.model_type)
+            if not model_path or not os.path.exists(model_path):
+                self.get_logger().error(f"❌ Quantized model not found: {model_path}")
+                return
+            
+            self.get_logger().info(f"🔄 Loading quantized model: {model_path}")
+            
+            # ONNX Runtime 세션 생성
+            providers = []
+            if self.device == 'auto' or self.device == 'gpu':
+                # GPU 프로바이더 시도
+                try:
+                    providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+                    self.get_logger().info("🎯 Using CUDA execution provider")
+                except:
+                    providers = ['CPUExecutionProvider']
+                    self.get_logger().info("💻 Using CPU execution provider")
+            else:
+                providers = ['CPUExecutionProvider']
+            
+            self.session = ort.InferenceSession(model_path, providers=providers)
+            
+            # 입력/출력 정보 가져오기
+            self.input_name = self.session.get_inputs()[0].name
+            self.output_name = self.session.get_outputs()[0].name
+            
+            self.get_logger().info(f"✅ Quantized model loaded successfully")
+            self.get_logger().info(f"📥 Input: {self.input_name}")
+            self.get_logger().info(f"📤 Output: {self.output_name}")
+            
+        except Exception as e:
+            self.get_logger().error(f"❌ Failed to load quantized model: {e}")
+            self.session = None
     
     def setup_ros(self):
         """ROS 퍼블리셔/서브스크라이버 설정"""
@@ -213,8 +286,15 @@ class RoboVLMsInference(Node):
         except Exception as e:
             self.get_logger().error(f"Error processing image: {e}")
     
-    def preprocess_image(self, image: PILImage.Image) -> Optional[torch.Tensor]:
-        """이미지 전처리"""
+    def preprocess_image(self, image: PILImage.Image):
+        """이미지 전처리 (Transformers 또는 ONNX 모델용)"""
+        if self.inference_mode == 'transformers':
+            return self.preprocess_for_transformers(image)
+        else:
+            return self.preprocess_for_onnx(image)
+    
+    def preprocess_for_transformers(self, image: PILImage.Image) -> Optional[torch.Tensor]:
+        """Transformers 모델용 이미지 전처리"""
         try:
             if self.processor is None:
                 return None  # 테스트 모드
@@ -227,16 +307,45 @@ class RoboVLMsInference(Node):
             )
             
             # GPU로 이동
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            inputs = {k: v.to(self.torch_device) for k, v in inputs.items()}
             
             return inputs
             
         except Exception as e:
-            self.get_logger().error(f"Error preprocessing image: {e}")
+            self.get_logger().error(f"Error preprocessing image for transformers: {e}")
             return None
     
-    def predict_single_action(self, inputs: dict) -> Optional[List[float]]:
-        """단일 액션 예측 (RoboVLMs 방식) - MAE 0.222 모델 사용"""
+    def preprocess_for_onnx(self, image: PILImage.Image) -> Optional[np.ndarray]:
+        """ONNX 모델용 이미지 전처리"""
+        try:
+            # 이미지 리사이즈 (모델 입력 크기에 맞게)
+            target_size = (224, 224)  # Mobile VLA 모델 입력 크기
+            resized_image = image.resize(target_size)
+            
+            # PIL to numpy 변환
+            image_array = np.array(resized_image, dtype=np.float32)
+            
+            # 정규화 (0-255 -> 0-1)
+            image_array = image_array / 255.0
+            
+            # 배치 차원 추가
+            image_array = np.expand_dims(image_array, axis=0)
+            
+            return image_array
+            
+        except Exception as e:
+            self.get_logger().error(f"Error preprocessing image for ONNX: {e}")
+            return None
+    
+    def predict_single_action(self, inputs) -> Optional[List[float]]:
+        """단일 액션 예측 (Transformers 또는 양자화 모델)"""
+        if self.inference_mode == 'transformers':
+            return self.predict_with_transformers(inputs)
+        else:
+            return self.predict_with_quantized(inputs)
+    
+    def predict_with_transformers(self, inputs: dict) -> Optional[List[float]]:
+        """Transformers 모델로 액션 예측"""
         try:
             if self.model is None:
                 # 테스트 모드: 간단한 액션 생성
@@ -260,7 +369,40 @@ class RoboVLMsInference(Node):
                 return action.tolist()
                 
         except Exception as e:
-            self.get_logger().error(f"Error predicting action with updated model: {e}")
+            self.get_logger().error(f"Error predicting action with transformers model: {e}")
+            return None
+    
+    def predict_with_quantized(self, image_array: np.ndarray) -> Optional[List[float]]:
+        """양자화된 모델로 액션 예측"""
+        if not hasattr(self, 'session') or self.session is None:
+            self.get_logger().warn("⚠️ No quantized model loaded, using test action")
+            return self.generate_test_action()
+        
+        try:
+            # ONNX Runtime 추론
+            outputs = self.session.run(
+                [self.output_name], 
+                {self.input_name: image_array}
+            )
+            
+            # 출력 처리 (액션 예측)
+            action_output = outputs[0]
+            
+            # 출력 형태에 따라 처리
+            if len(action_output.shape) == 3:  # [batch, sequence, action_dim]
+                action = action_output[0, 0, :]  # 첫 번째 시퀀스의 첫 번째 액션
+            elif len(action_output.shape) == 2:  # [batch, action_dim]
+                action = action_output[0, :]
+            else:
+                action = action_output.flatten()[:3]  # 처음 3개 값 사용
+            
+            # 액션 정규화 (필요시)
+            action = np.clip(action, -1.0, 1.0)
+            
+            return action.tolist()
+            
+        except Exception as e:
+            self.get_logger().error(f"Error in quantized inference: {e}")
             return None
     
     def generate_test_action(self) -> List[float]:
@@ -348,14 +490,16 @@ class RoboVLMsInference(Node):
                 "action": action,
                 "task": self.current_task,
                 "inference_count": self.inference_count,
-                "mode": "robovlms_single_action"
+                "mode": f"robovlms_{self.inference_mode}",
+                "model_type": self.model_type if self.inference_mode != 'transformers' else 'transformers'
             }
             
             msg = String()
             msg.data = json.dumps(result)
             self.inference_result_pub.publish(msg)
             
-            self.get_logger().info(f"🎯 RoboVLMs Inference #{self.inference_count}: {inference_time:.3f}s, Action: {action} (MAE 0.222 Model)")
+            model_info = f"({self.model_type})" if self.inference_mode != 'transformers' else "(MAE 0.222 Model)"
+            self.get_logger().info(f"🎯 RoboVLMs Inference #{self.inference_count}: {inference_time:.3f}s, Action: {action} {model_info}")
             
         except Exception as e:
             self.get_logger().error(f"Error publishing inference result: {e}")
@@ -369,7 +513,8 @@ class RoboVLMsInference(Node):
                 "timestamp": time.time(),
                 "inference_count": self.inference_count,
                 "last_inference_time": self.last_inference_time,
-                "mode": "robovlms"
+                "mode": f"robovlms_{self.inference_mode}",
+                "model_type": self.model_type if self.inference_mode != 'transformers' else 'transformers'
             })
             self.status_pub.publish(msg)
             
