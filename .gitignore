@@ -113,3 +113,4 @@ setup_ros2_docker.sh
 setup_ros2_host.sh
 ./vla/RoboVLMs/.vlms
 RoboVLMs/.vlms/kosmos-2-patch14-224
+mobile-vla-omniwheel/
