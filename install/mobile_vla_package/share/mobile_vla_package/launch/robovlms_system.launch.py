@@ -75,7 +75,7 @@ def generate_launch_description():
     start_system_cmd = ExecuteProcess(
         cmd=[
             'ros2', 'topic', 'pub', '/robovlms/user_command', 'std_msgs/msg/String',
-            'data: "start"'
+            '{"action": "start"}'
         ],
         output='screen'
     )
