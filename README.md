@@ -99,6 +99,49 @@ Mobile_VLA/
 
 ## 🚀 사용 가이드
 
+### 🎯 Simple CLIP LSTM 모델 추론 시스템 (최신)
+
+#### 체크포인트 기반 추론
+- **체크포인트**: `vla/Robo+/Mobile_VLA/simple_clip_lstm_model/best_simple_clip_lstm_model.pth` (7.3GB)
+- **모델 구조**: Kosmos2 (24층) + CLIP (12층) 하이브리드
+- **출력**: 2D 로봇 액션 (선형/각속도)
+
+#### 실행 방법
+```bash
+# 1. 추론 컨테이너 시작
+cd /home/soda
+./vla/run_simple_clip_lstm_inference.sh
+
+# 2. 메모리 최적화된 추론 실행 (컨테이너 내부에서)
+python3 vla/memory_optimized_inference.py
+```
+
+#### 사용 가능한 명령어
+- **`infer`**: 단일 추론 실행
+- **`benchmark`**: 성능 벤치마크 (5회)
+- **`memory`**: 메모리 상태 확인
+- **`clear`**: 메모리 정리
+- **`quit`**: 종료
+
+#### 메모리 최적화 기능
+- **메모리 모니터링**: 시스템/GPU 메모리 실시간 확인
+- **메모리 정리**: PyTorch 캐시 및 가비지 컬렉션
+- **모델 최적화**: 레이어 수 축소 (24→6, 12→6)
+- **입력 최적화**: 시퀀스 길이 단축
+
+#### 현재 상태
+- ✅ 체크포인트 구조 분석 완료
+- ✅ 메모리 최적화된 모델 구현
+- ✅ 도커 컨테이너 실행 스크립트
+- ⚠️ 모델 가중치 로드 시 구조 불일치 (수정 중)
+- 🔄 실제 추론 성능 테스트 진행 중
+
+#### 관련 문서
+- [Simple CLIP LSTM 추론 진행상황](./SIMPLE_CLIP_LSTM_INFERENCE_PROGRESS.md)
+- [메모리 최적화 가이드](./MEMORY_OPTIMIZATION_GUIDE.md)
+
+### 🎯 기존 시스템
+
 ### 🎯 빠른 시작
 ```bash
 # 핵심 훈련
