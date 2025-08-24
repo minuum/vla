@@ -89,7 +89,7 @@ Model_ws/build/
 Model_ws/install/
 Model_ws/log/
 *.pt
-*.pth
+# *.pth  # 주석 처리하여 .pth 파일 추적 허용
 *.bin
 *.safetensors
 .vla_models_cache/
