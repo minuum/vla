@@ -20,7 +20,7 @@
 
 #### 2.1 실험 모델 구성
 
-본 연구에서는 총 4가지 모델 아키텍처를 실험하여 성능을 비교 분석하였다. 첫째, Pure Kosmos2 모델이다. 이 모델은 Kosmos-2만을 사용하여 시각-언어 특징을 추출하고, LSTM 기반의 정책 헤드로 2D 연속 액션을 생성한다. 둘째, Kosmos2+CLIP Hybrid 모델이다. 이 모델은 Kosmos-2와 CLIP을 조합하여 특징을 추출하고, 동일한 LSTM 정책 헤드를 사용한다. 셋째, Mobile VLA 모델이다. 이 모델은 모바일 환경에 특화된 아키텍처를 사용한다. 넷째, Simplified RoboVLMs 모델이다. 이 모델은 CLIP만을 사용하는 단순화된 구조를 가진다.
+본 연구에서는 총 6가지 모델 아키텍처를 실험하여 성능을 비교 분석하였다. 첫째, Kosmos2+CLIP Hybrid 모델이다. 이 모델은 Kosmos-2와 CLIP을 조합하여 특징을 추출하고, LSTM 기반의 정책 헤드로 2D 연속 액션을 생성한다. 둘째, Pure Kosmos2 모델이다. 이 모델은 Kosmos-2만을 사용하여 시각-언어 특징을 추출하고, 동일한 LSTM 정책 헤드를 사용한다. 셋째, Simple CLIP 모델이다. 이 모델은 CLIP Vision과 CLIP Text를 융합하여 특징을 추출한다. 넷째, CLIP with LSTM 모델이다. 이 모델은 CLIP 기반 특징에 LSTM을 추가하여 시퀀스 정보를 처리한다. 다섯째, Original CLIP 모델이다. 이 모델은 기본 CLIP 아키텍처를 사용한다. 여섯째, Original CLIP (증강) 모델이다. 이 모델은 증강된 데이터셋을 사용하여 훈련되었다.
 
 #### 2.2 모델별 상세 구성
 
@@ -30,13 +30,13 @@ Kosmos2+CLIP Hybrid 모델은 Kosmos-2의 Vision Transformer(24층, 1024차원)�
 
 Mobile VLA 모델은 Kosmos-2 기반의 Vision Transformer(24층, 1024차원)와 Text Transformer(24층, 2048차원)를 사용하며, MLP 기반의 정책 헤드로 6D 연속 액션을 생성한다.
 
-Simplified RoboVLMs 모델은 CLIP만을 사용하는 단순화된 구조로, 12층 Vision Transformer(768차원)와 12층 Text Transformer(512차원)를 포함한다. Policy Head는 2층 Bi-LSTM으로 구성되어 512개의 hidden unit을 가지며, 2D 연속 액션을 출력한다.
+
 
 ### 3. 성능 평가 결과
 
 #### 3.1 정확도 성능 비교
 
-모델별 정확도 성능을 MAE(Mean Absolute Error) 기준으로 비교한 결과, Kosmos2+CLIP Hybrid 모델이 0.212의 MAE로 가장 우수한 성능을 보였다. Pure Kosmos2 모델은 0.247의 MAE를 기록하였으며, 이는 하이브리드 모델보다 약간 낮은 성능을 보였다. Mobile VLA 모델의 MAE는 현재 확인되지 않았으며, Simplified RoboVLMs 모델은 0.0017의 매우 낮은 MAE를 기록하였다.
+모델별 정확도 성능을 MAE(Mean Absolute Error) 기준으로 비교한 결과, Kosmos2+CLIP Hybrid 모델이 0.212의 MAE로 가장 우수한 성능을 보였다. Pure Kosmos2 모델은 0.247의 MAE를 기록하였으며, 이는 하이브리드 모델보다 약간 낮은 성능을 보였다. Simple CLIP 모델은 0.451의 MAE를, CLIP with LSTM 모델은 0.456의 MAE를 기록하였다. Original CLIP 모델은 0.494의 MAE를 보였으며, Original CLIP (증강) 모델은 0.672의 MAE로 가장 낮은 성능을 기록하였다.
 
 #### 3.2 처리 속도 성능 비교
 
