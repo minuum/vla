@@ -1,4 +1,4 @@
-# Mobile VLA 논문 작성 현황
+# Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation - 논문 작성 현황
 
 ## 📊 현재 완성도: 85% (실제 기반 85%, 환각 15%)
 
