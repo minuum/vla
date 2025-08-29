@@ -1,4 +1,4 @@
-# 🎯 Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation - 논문 개선 계획
+# 🎯 Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation (2-DoF Mobile Robot) - 논문 개선 계획
 
 ## 📋 현재 상태 분석
 

@@ -1,4 +1,4 @@
-# I. Introduction - Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation
+# I. Introduction - Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation (2-DoF Mobile Robot)
 
 ## 실제 논문 내용
 
