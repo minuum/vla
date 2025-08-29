@@ -1,4 +1,4 @@
-# 📊 Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation - 논문 구조 분석
+# 📊 Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation (2-DoF Mobile Robot) - 논문 구조 분석
 
 ## 📋 현재 논문 구조 상태
 
