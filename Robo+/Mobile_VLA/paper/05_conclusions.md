@@ -1,4 +1,4 @@
-# V. Conclusions - Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation
+# V. Conclusions - Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation (2-DoF Mobile Robot)
 
 ## 실제 논문 내용
 
