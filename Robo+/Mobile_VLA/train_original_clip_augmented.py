@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-원본 72개 데이터셋을 사용한 간단한 CLIP 기반 모델들 학습
+Original 72 Episodes CLIP 모델을 증강 데이터로 학습
 """
 
 import torch
@@ -24,53 +24,63 @@ import torchvision.transforms as transforms
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-class Original72EpisodesDataset(Dataset):
-    """원본 72개 에피소드 데이터셋"""
+class AugmentedDataset(Dataset):
+    """증강 데이터셋"""
     
-    def __init__(self, data_dir, processor, max_episodes=72, transform=None):
+    def __init__(self, data_dir, processor, transform=None):
         self.data_dir = data_dir
         self.processor = processor
-        self.max_episodes = max_episodes
         self.transform = transform or transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor()
         ])
         
-        # .h5 파일들 찾기
-        self.episode_files = []
-        for file in os.listdir(data_dir):
-            if file.endswith('.h5'):
-                self.episode_files.append(os.path.join(data_dir, file))
+        # 증강된 데이터 파일들 찾기
+        self.episode_dirs = []
+        for item in os.listdir(data_dir):
+            item_path = os.path.join(data_dir, item)
+            if os.path.isdir(item_path):
+                self.episode_dirs.append(item_path)
         
-        self.episode_files = sorted(self.episode_files)[:max_episodes]
-        logger.info(f"📊 로드된 에피소드 수: {len(self.episode_files)}")
+        logger.info(f"📊 로드된 증강 에피소드 수: {len(self.episode_dirs)}")
         
         # 모든 데이터 로드
         self.all_data = []
-        for episode_file in self.episode_files:
-            with h5py.File(episode_file, 'r') as f:
-                images = f['images'][:]  # (18, 720, 1280, 3)
-                actions = f['actions'][:]  # (18, 3)
+        for episode_dir in self.episode_dirs:
+            episode_name = os.path.basename(episode_dir)
+            
+            # 이미지 파일들 찾기
+            image_files = []
+            for file in os.listdir(episode_dir):
+                if file.endswith('.jpg') or file.endswith('.png'):
+                    image_files.append(os.path.join(episode_dir, file))
+            
+            image_files = sorted(image_files)
+            
+            # 액션 파일 로드
+            actions_file = os.path.join(episode_dir, 'actions.npy')
+            if os.path.exists(actions_file):
+                actions = np.load(actions_file)
                 
-                # 각 프레임을 개별 샘플로 처리
-                for i in range(len(images)):
-                    # 이미지를 PIL Image로 변환
-                    img = Image.fromarray(images[i])
-                    
-                    # 액션 (linear_x, linear_y만 사용)
-                    action = actions[i][:2]  # 2D 액션만
-                    
-                    # 텍스트 명령 (에피소드 파일명에서 추출)
-                    episode_name = os.path.basename(episode_file).replace('.h5', '')
-                    text_command = f"Navigate around obstacle in {episode_name}"
-                    
-                    self.all_data.append({
-                        'image': img,
-                        'action': action,
-                        'text': text_command
-                    })
+                # 각 이미지와 액션을 매칭
+                for i, image_file in enumerate(image_files):
+                    if i < len(actions):
+                        # 이미지 로드
+                        img = Image.open(image_file).convert('RGB')
+                        
+                        # 액션 (linear_x, linear_y만 사용)
+                        action = actions[i][:2]  # 2D 액션만
+                        
+                        # 텍스트 명령
+                        text_command = f"Navigate around obstacle in {episode_name}"
+                        
+                        self.all_data.append({
+                            'image': img,
+                            'action': action,
+                            'text': text_command
+                        })
         
-        logger.info(f"📊 총 샘플 수: {len(self.all_data)}")
+        logger.info(f"📊 총 증강 샘플 수: {len(self.all_data)}")
     
     def __len__(self):
         return len(self.all_data)
@@ -103,8 +113,8 @@ class Original72EpisodesDataset(Dataset):
             'action': action
         }
 
-class SimpleCLIPModel(nn.Module):
-    """간단한 CLIP 기반 모델 (기본)"""
+class OriginalCLIPModel(nn.Module):
+    """Original 72 Episodes CLIP 모델"""
     
     def __init__(self, processor, hidden_dim=512, dropout=0.2):
         super().__init__()
@@ -144,56 +154,6 @@ class SimpleCLIPModel(nn.Module):
         
         # Action Prediction
         actions = self.action_head(fused)
-        
-        return actions
-
-class CLIPWithLSTMModel(nn.Module):
-    """CLIP + LSTM 모델 (Kosmos2+CLIP Hybrid 대체)"""
-    
-    def __init__(self, processor, hidden_dim=512, dropout=0.2):
-        super().__init__()
-        self.processor = processor
-        
-        # CLIP 모델들
-        self.clip_vision = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
-        self.clip_text = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
-        
-        # LSTM Layer
-        self.lstm = nn.LSTM(
-            input_size=768 + 512,  # CLIP Vision + Text
-            hidden_size=hidden_dim,
-            num_layers=2,
-            batch_first=True,
-            dropout=dropout
-        )
-        
-        # Action Head
-        self.action_head = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim // 2, 2)  # 2D action
-        )
-    
-    def forward(self, images, text_inputs):
-        # CLIP Vision
-        vision_outputs = self.clip_vision(images)
-        vision_features = vision_outputs.pooler_output  # [batch, 768]
-        
-        # CLIP Text
-        text_outputs = self.clip_text(**text_inputs)
-        text_features = text_outputs.pooler_output  # [batch, 512]
-        
-        # Feature Fusion
-        combined = torch.cat([vision_features, text_features], dim=1)
-        
-        # LSTM Processing (sequence length = 1)
-        lstm_input = combined.unsqueeze(1)  # [batch, 1, features]
-        lstm_out, _ = self.lstm(lstm_input)
-        lstm_features = lstm_out.squeeze(1)  # [batch, hidden_dim]
-        
-        # Action Prediction
-        actions = self.action_head(lstm_features)
         
         return actions
 
@@ -248,9 +208,9 @@ class Trainer:
         
         return total_loss / num_batches, total_mae / num_batches
 
-def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, batch_size=4, 
-               learning_rate=5e-5, weight_decay=1e-3):
-    """모델 훈련 함수"""
+def train_original_clip_augmented(data_path, output_dir, num_epochs=10, batch_size=4, 
+                                learning_rate=5e-5, weight_decay=1e-3):
+    """Original CLIP 모델을 증강 데이터로 훈련"""
     
     # 디바이스 설정
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -265,8 +225,8 @@ def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, b
     processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
     
     # 데이터셋 생성
-    logger.info("📊 데이터셋 생성 중...")
-    dataset = Original72EpisodesDataset(data_path, processor, max_episodes=72)
+    logger.info("📊 증강 데이터셋 생성 중...")
+    dataset = AugmentedDataset(data_path, processor)
     
     # 커스텀 collate 함수
     def custom_collate(batch):
@@ -297,8 +257,8 @@ def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, b
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, collate_fn=custom_collate)
     
     # 모델 생성
-    logger.info(f"🤖 {model_name} 모델 생성 중...")
-    model = model_class(processor, hidden_dim=512, dropout=0.2)
+    logger.info("🤖 Original CLIP 모델 생성 중...")
+    model = OriginalCLIPModel(processor, hidden_dim=512, dropout=0.2)
     
     # 훈련기 생성
     trainer = Trainer(model, device, learning_rate, weight_decay)
@@ -310,7 +270,7 @@ def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, b
     best_mae = float('inf')
     
     logger.info(f"🎯 훈련 설정:")
-    logger.info(f"   - 모델: {model_name}")
+    logger.info(f"   - 모델: Original CLIP (증강 데이터)")
     logger.info(f"   - 에포크: {num_epochs}")
     logger.info(f"   - 배치 크기: {batch_size}")
     logger.info(f"   - 학습률: {learning_rate}")
@@ -352,7 +312,7 @@ def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, b
         # 최고 성능 체크포인트 저장
         if val_mae < best_mae:
             best_mae = val_mae
-            best_checkpoint_path = output_path / f"best_{model_name.lower().replace(' ', '_')}_epoch_{epoch+1}.pth"
+            best_checkpoint_path = output_path / f"best_original_clip_augmented_epoch_{epoch+1}.pth"
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': trainer.optimizer.state_dict(),
@@ -364,7 +324,7 @@ def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, b
             logger.info(f"   🏆 새로운 최고 성능! MAE: {best_mae:.6f}")
     
     # 최종 모델 저장
-    final_checkpoint_path = output_path / f"final_{model_name.lower().replace(' ', '_')}.pth"
+    final_checkpoint_path = output_path / "final_original_clip_augmented.pth"
     torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': trainer.optimizer.state_dict(),
@@ -376,7 +336,6 @@ def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, b
     
     # 훈련 결과 저장
     training_results = {
-        'model_name': model_name,
         'train_losses': train_losses,
         'val_losses': val_losses,
         'val_maes': val_maes,
@@ -387,17 +346,17 @@ def train_model(model_name, model_class, data_path, output_dir, num_epochs=10, b
     with open(output_path / 'training_results.json', 'w') as f:
         json.dump(training_results, f, indent=2)
     
-    logger.info(f"✅ {model_name} 훈련 완료!")
+    logger.info(f"✅ Original CLIP (증강 데이터) 훈련 완료!")
     logger.info(f"   최고 MAE: {best_mae:.6f}")
     logger.info(f"   최종 MAE: {val_mae:.6f}")
     
-    return model, trainer, best_mae
+    return model, trainer
 
 def main():
     """메인 함수"""
-    parser = argparse.ArgumentParser(description='Train Simple CLIP Models on Original Dataset')
-    parser.add_argument('--data_path', type=str, default='mobile_vla_dataset', help='Path to dataset')
-    parser.add_argument('--output_dir', type=str, default='simple_models_original_results', help='Output directory')
+    parser = argparse.ArgumentParser(description='Train Original CLIP Model with Augmented Data')
+    parser.add_argument('--data_path', type=str, default='legacy/augmented_dataset', help='Path to augmented dataset')
+    parser.add_argument('--output_dir', type=str, default='original_clip_augmented_results', help='Output directory')
     parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=5e-5, help='Learning rate')
@@ -405,52 +364,15 @@ def main():
     
     args = parser.parse_args()
     
-    # 모델 정의
-    models = [
-        ("Simple CLIP", SimpleCLIPModel),
-        ("CLIP with LSTM", CLIPWithLSTMModel)
-    ]
-    
-    results = {}
-    
-    # 각 모델 훈련
-    for model_name, model_class in models:
-        logger.info(f"\n{'='*60}")
-        logger.info(f"🚀 {model_name} 모델 훈련 시작")
-        logger.info(f"{'='*60}")
-        
-        output_dir = f"{args.output_dir}/{model_name.lower().replace(' ', '_')}"
-        
-        try:
-            model, trainer, best_mae = train_model(
-                model_name=model_name,
-                model_class=model_class,
-                data_path=args.data_path,
-                output_dir=output_dir,
-                num_epochs=args.num_epochs,
-                batch_size=args.batch_size,
-                learning_rate=args.learning_rate,
-                weight_decay=args.weight_decay
-            )
-            results[model_name] = best_mae
-        except Exception as e:
-            logger.error(f"❌ {model_name} 훈련 실패: {e}")
-            results[model_name] = "실패"
-    
-    # 결과 요약
-    logger.info(f"\n{'='*60}")
-    logger.info("📊 최종 결과 요약")
-    logger.info(f"{'='*60}")
-    
-    for model_name, mae in results.items():
-        if isinstance(mae, float):
-            logger.info(f"   {model_name}: MAE {mae:.6f}")
-        else:
-            logger.info(f"   {model_name}: {mae}")
-    
-    # 결과 저장
-    with open(f"{args.output_dir}/final_results_summary.json", 'w') as f:
-        json.dump(results, f, indent=2)
+    # 훈련 실행
+    model, trainer = train_original_clip_augmented(
+        data_path=args.data_path,
+        output_dir=args.output_dir,
+        num_epochs=args.num_epochs,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay
+    )
 
 if __name__ == "__main__":
     main()
