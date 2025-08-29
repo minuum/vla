@@ -1,4 +1,4 @@
-# III. Proposed Scheme
+# III. Proposed Scheme - Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation
 
 ## 실제 논문 내용
 

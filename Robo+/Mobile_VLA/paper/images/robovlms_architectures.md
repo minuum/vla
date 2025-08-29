@@ -1,4 +1,4 @@
-# RoboVLMs 아키텍처 다이어그램
+# Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation - RoboVLMs 아키텍처 다이어그램
 
 ## 개요
 이 다이어그램은 RoboVLMs의 4가지 주요 아키텍처 패러다임을 보여줍니다. 각 모델은 액션 생성 방식에 따라 분류됩니다.

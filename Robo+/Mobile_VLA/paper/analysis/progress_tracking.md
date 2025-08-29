@@ -1,4 +1,4 @@
-# 📊 논문 작성 진행 상황 추적
+# 📊 Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation - 논문 작성 진행 상황 추적
 
 ## 🎯 전체 완성도: 80% (↑5%)
 
