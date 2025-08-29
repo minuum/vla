@@ -89,6 +89,6 @@
 - **VLM**: Kosmos-2 + CLIP 하이브리드
 - **Policy Head**: LSTM 기반 (4층, 4096 hidden size)
 - **Action Space**: 2D 연속 액션 [linear_x, linear_y] (2-DoF 모바일 로봇)
-- **실시간 처리**: 750+ FPS 달성
+- **실시간 처리**: 모바일 환경 최적화
 
 이 구조는 모바일 환경에 최적화되어 실시간 로봇 제어가 가능합니다. 기존 RoboVLMs의 7-DoF 로봇 팔 제어를 2-DoF 모바일 로봇 내비게이션에 적용한 것이 우리 연구의 핵심입니다.
