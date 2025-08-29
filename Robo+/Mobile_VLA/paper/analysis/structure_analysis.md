@@ -9,7 +9,7 @@
    - VLM 사용 이유 (4가지 장점)
    - Kosmos-2 선택 근거
    - VLA 구성 방법
-   - Cross-Embodiment 데이터 활용
+   
 
 ### 🔧 보완 필요 섹션
 2. **II. Preliminaries** - 보완 필요
