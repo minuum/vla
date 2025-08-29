@@ -219,8 +219,33 @@ def train_original_72_episodes_model(data_path, output_dir, num_epochs=10, batch
     logger.info("📊 데이터셋 생성 중...")
     dataset = Original72EpisodesDataset(data_path, processor, max_episodes=72)
     
+    # 커스텀 collate 함수
+    def custom_collate(batch):
+        images = torch.stack([item['image'] for item in batch])
+        actions = torch.stack([item['action'] for item in batch])
+        
+        # 텍스트 입력들을 동일한 크기로 패딩
+        text_inputs = {}
+        for key in batch[0]['text_inputs'].keys():
+            max_len = max(item['text_inputs'][key].size(0) for item in batch)
+            padded_tensors = []
+            for item in batch:
+                tensor = item['text_inputs'][key]
+                if tensor.size(0) < max_len:
+                    # 패딩
+                    padding = torch.zeros(max_len - tensor.size(0), dtype=tensor.dtype)
+                    tensor = torch.cat([tensor, padding])
+                padded_tensors.append(tensor)
+            text_inputs[key] = torch.stack(padded_tensors)
+        
+        return {
+            'image': images,
+            'text_inputs': text_inputs,
+            'action': actions
+        }
+    
     # 데이터 로더 생성
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, collate_fn=custom_collate)
     
     # 모델 생성
     logger.info("🤖 모델 생성 중...")
