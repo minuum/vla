@@ -18,104 +18,61 @@ logger = logging.getLogger(__name__)
 
 class Kosmos2CLIPHybridModel(nn.Module):
     """Kosmos2+CLIP Hybrid 모델"""
+    
     def __init__(self, processor, hidden_dim=512, dropout=0.2):
         super().__init__()
         self.processor = processor
+        
+        # Kosmos2 통합 모델
         self.kosmos2_model = AutoModel.from_pretrained("microsoft/kosmos-2-patch14-224")
+        
+        # CLIP 모델들
         self.clip_vision = AutoModel.from_pretrained("openai/clip-vit-base-patch32")
         self.clip_text = AutoModel.from_pretrained("openai/clip-vit-base-patch32")
         
-        # 융합 레이어
-        kosmos_dim = self.kosmos2_model.config.hidden_size
-        clip_dim = self.clip_vision.config.hidden_size
-        
-        self.fusion_layer = nn.Sequential(
-            nn.Linear(kosmos_dim + clip_dim * 2, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, hidden_dim // 2),
+        # Feature Fusion (Kosmos2 + CLIP)
+        self.fusion = nn.Sequential(
+            nn.Linear(2048 + 512, hidden_dim),  # Kosmos2 + CLIP Text
             nn.ReLU(),
             nn.Dropout(dropout)
         )
         
-        # LSTM 레이어
-        self.lstm = nn.LSTM(
-            input_size=hidden_dim // 2,
-            hidden_size=hidden_dim,
-            num_layers=4,
-            batch_first=True,
-            dropout=dropout
-        )
-        
-        # 액션 예측 헤드
+        # Action Head
         self.action_head = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim // 2, 2)  # 2D 액션
+            nn.Linear(hidden_dim // 2, 2)  # 2D action
         )
-        
-    def forward(self, images, texts):
-        batch_size = images.size(0)
-        
-        # Kosmos2 처리
-        kosmos_inputs = self.processor(
+    
+    def forward(self, images, text_inputs):
+        # Kosmos2 통합 처리
+        kosmos2_inputs = self.processor(
             images=images,
-            text=texts,
-            return_tensors="pt",
-            padding=True,
-            truncation=True
+            text=text_inputs,
+            return_tensors="pt"
         )
+        kosmos2_outputs = self.kosmos2_model(**kosmos2_inputs)
+        kosmos2_features = kosmos2_outputs.pooler_output  # [batch, 2048]
         
-        # 디바이스로 이동
-        for key in kosmos_inputs:
-            if isinstance(kosmos_inputs[key], torch.Tensor):
-                kosmos_inputs[key] = kosmos_inputs[key].to(images.device)
+        # CLIP Text
+        clip_text_outputs = self.clip_text(**text_inputs)
+        clip_text_features = clip_text_outputs.pooler_output  # [batch, 512]
         
-        kosmos_outputs = self.kosmos2_model(**kosmos_inputs)
-        kosmos_features = kosmos_outputs.last_hidden_state.mean(dim=1)  # [batch_size, kosmos_dim]
+        # Feature Fusion
+        combined = torch.cat([kosmos2_features, clip_text_features], dim=1)
+        fused = self.fusion(combined)
         
-        # CLIP Vision 처리
-        clip_vision_outputs = self.clip_vision(pixel_values=images)
-        clip_vision_features = clip_vision_outputs.pooler_output  # [batch_size, clip_dim]
-        
-        # CLIP Text 처리
-        clip_text_inputs = self.processor(
-            text=texts,
-            return_tensors="pt",
-            padding=True,
-            truncation=True
-        )
-        
-        for key in clip_text_inputs:
-            if isinstance(clip_text_inputs[key], torch.Tensor):
-                clip_text_inputs[key] = clip_text_inputs[key].to(images.device)
-        
-        clip_text_outputs = self.clip_text(**clip_text_inputs)
-        clip_text_features = clip_text_outputs.pooler_output  # [batch_size, clip_dim]
-        
-        # 특징 융합
-        combined_features = torch.cat([
-            kosmos_features,
-            clip_vision_features,
-            clip_text_features
-        ], dim=1)
-        
-        fused_features = self.fusion_layer(combined_features)
-        
-        # LSTM 처리 (시퀀스로 변환)
-        sequence_features = fused_features.unsqueeze(1)  # [batch_size, 1, hidden_dim//2]
-        lstm_out, _ = self.lstm(sequence_features)
-        
-        # 액션 예측
-        actions = self.action_head(lstm_out.squeeze(1))
+        # Action Prediction
+        actions = self.action_head(fused)
         
         return actions
 
 class Original72EpisodesDataset:
     """원본 72 에피소드 데이터셋"""
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, processor):
         self.data_dir = Path(data_dir)
+        self.processor = processor
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
@@ -155,12 +112,25 @@ class Original72EpisodesDataset:
         # 이미지 전처리
         image = self.transform(data['image'])
         
+        # 텍스트 전처리 (CLIP 기본 길이 사용)
+        text_inputs = self.processor(
+            text=data['text'],
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=77  # CLIP 기본 최대 길이
+        )
+        
+        # 텐서에서 스칼라 추출
+        for key in text_inputs:
+            text_inputs[key] = text_inputs[key].squeeze(0)
+        
         # 액션을 텐서로 변환
         action = torch.tensor(data['action'], dtype=torch.float32)
         
         return {
             'image': image,
-            'text': data['text'],
+            'text_inputs': text_inputs,
             'action': action
         }
 
@@ -175,11 +145,11 @@ def calculate_mae(model, dataset, device):
             sample = dataset[i]
             
             image = sample['image'].unsqueeze(0).to(device)
-            text = [sample['text']]
+            text_inputs = {k: v.unsqueeze(0).to(device) for k, v in sample['text_inputs'].items()}
             target_action = sample['action'].unsqueeze(0).to(device)
             
             # 예측
-            predicted_action = model(image, text)
+            predicted_action = model(image, text_inputs)
             
             # MAE 계산
             mae = torch.mean(torch.abs(predicted_action - target_action)).item()
@@ -224,7 +194,7 @@ def main():
     
     # 데이터셋 로드
     logger.info("📊 데이터셋 로드 중...")
-    dataset = Original72EpisodesDataset(checkpoint['args'].data_path)
+    dataset = Original72EpisodesDataset(checkpoint['args'].data_path, processor)
     
     # MAE 계산
     logger.info("📈 MAE 계산 중...")
