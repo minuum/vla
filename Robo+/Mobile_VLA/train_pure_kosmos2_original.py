@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Kosmos2+CLIP Hybrid 모델을 원본 72개 데이터셋으로 학습
+Pure Kosmos2 모델을 원본 72개 데이터셋으로 학습
 """
 
 import torch
@@ -81,13 +81,13 @@ class Original72EpisodesDataset(Dataset):
         # 이미지 전처리
         image = self.transform(data['image'])
         
-        # 텍스트 전처리 (CLIP 기본 길이 사용)
+        # 텍스트 전처리 (Kosmos2 기본 길이 사용)
         text_inputs = self.processor(
             text=data['text'],
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=77  # CLIP 기본 최대 길이
+            max_length=512  # Kosmos2 기본 최대 길이
         )
         
         # 텐서에서 스칼라 추출
@@ -103,8 +103,8 @@ class Original72EpisodesDataset(Dataset):
             'action': action
         }
 
-class Kosmos2CLIPHybridModel(nn.Module):
-    """Kosmos2+CLIP Hybrid 모델"""
+class PureKosmos2Model(nn.Module):
+    """Pure Kosmos2 모델"""
     
     def __init__(self, processor, hidden_dim=512, dropout=0.2):
         super().__init__()
@@ -113,13 +113,9 @@ class Kosmos2CLIPHybridModel(nn.Module):
         # Kosmos2 통합 모델
         self.kosmos2_model = AutoModel.from_pretrained("microsoft/kosmos-2-patch14-224")
         
-        # CLIP 모델들
-        self.clip_vision = AutoModel.from_pretrained("openai/clip-vit-base-patch32")
-        self.clip_text = AutoModel.from_pretrained("openai/clip-vit-base-patch32")
-        
-        # Feature Fusion (Kosmos2 + CLIP)
+        # Feature Fusion
         self.fusion = nn.Sequential(
-            nn.Linear(2048 + 512, hidden_dim),  # Kosmos2 + CLIP Text
+            nn.Linear(2048, hidden_dim),  # Kosmos2 features
             nn.ReLU(),
             nn.Dropout(dropout)
         )
@@ -142,13 +138,8 @@ class Kosmos2CLIPHybridModel(nn.Module):
         kosmos2_outputs = self.kosmos2_model(**kosmos2_inputs)
         kosmos2_features = kosmos2_outputs.pooler_output  # [batch, 2048]
         
-        # CLIP Text
-        clip_text_outputs = self.clip_text(**text_inputs)
-        clip_text_features = clip_text_outputs.pooler_output  # [batch, 512]
-        
         # Feature Fusion
-        combined = torch.cat([kosmos2_features, clip_text_features], dim=1)
-        fused = self.fusion(combined)
+        fused = self.fusion(kosmos2_features)
         
         # Action Prediction
         actions = self.action_head(fused)
@@ -206,9 +197,9 @@ class Trainer:
         
         return total_loss / num_batches, total_mae / num_batches
 
-def train_kosmos2_clip_hybrid_original(data_path, output_dir, num_epochs=10, batch_size=4, 
-                                     learning_rate=5e-5, weight_decay=1e-3):
-    """Kosmos2+CLIP Hybrid 모델을 원본 72개 에피소드로 훈련"""
+def train_pure_kosmos2_original(data_path, output_dir, num_epochs=10, batch_size=4, 
+                               learning_rate=5e-5, weight_decay=1e-3):
+    """Pure Kosmos2 모델을 원본 72개 에피소드로 훈련"""
     
     # 디바이스 설정
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -255,8 +246,8 @@ def train_kosmos2_clip_hybrid_original(data_path, output_dir, num_epochs=10, bat
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, collate_fn=custom_collate)
     
     # 모델 생성
-    logger.info("🤖 Kosmos2+CLIP Hybrid 모델 생성 중...")
-    model = Kosmos2CLIPHybridModel(processor, hidden_dim=512, dropout=0.2)
+    logger.info("🤖 Pure Kosmos2 모델 생성 중...")
+    model = PureKosmos2Model(processor, hidden_dim=512, dropout=0.2)
     
     # 훈련기 생성
     trainer = Trainer(model, device, learning_rate, weight_decay)
@@ -309,7 +300,7 @@ def train_kosmos2_clip_hybrid_original(data_path, output_dir, num_epochs=10, bat
         # 최고 성능 체크포인트 저장
         if val_mae < best_mae:
             best_mae = val_mae
-            best_checkpoint_path = output_path / f"best_kosmos2_clip_hybrid_original_epoch_{epoch+1}.pth"
+            best_checkpoint_path = output_path / f"best_pure_kosmos2_original_epoch_{epoch+1}.pth"
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': trainer.optimizer.state_dict(),
@@ -321,7 +312,7 @@ def train_kosmos2_clip_hybrid_original(data_path, output_dir, num_epochs=10, bat
             logger.info(f"   🏆 새로운 최고 성능! MAE: {best_mae:.6f}")
     
     # 최종 모델 저장
-    final_checkpoint_path = output_path / "final_kosmos2_clip_hybrid_original.pth"
+    final_checkpoint_path = output_path / "final_pure_kosmos2_original.pth"
     torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': trainer.optimizer.state_dict(),
@@ -351,9 +342,9 @@ def train_kosmos2_clip_hybrid_original(data_path, output_dir, num_epochs=10, bat
 
 def main():
     """메인 함수"""
-    parser = argparse.ArgumentParser(description='Train Kosmos2+CLIP Hybrid Original Model')
+    parser = argparse.ArgumentParser(description='Train Pure Kosmos2 Original Model')
     parser.add_argument('--data_path', type=str, default='mobile_vla_dataset', help='Path to dataset')
-    parser.add_argument('--output_dir', type=str, default='kosmos2_clip_hybrid_original_results', help='Output directory')
+    parser.add_argument('--output_dir', type=str, default='pure_kosmos2_original_results', help='Output directory')
     parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=5e-5, help='Learning rate')
@@ -362,7 +353,7 @@ def main():
     args = parser.parse_args()
     
     # 훈련 실행
-    model, trainer = train_kosmos2_clip_hybrid_original(
+    model, trainer = train_pure_kosmos2_original(
         data_path=args.data_path,
         output_dir=args.output_dir,
         num_epochs=args.num_epochs,
