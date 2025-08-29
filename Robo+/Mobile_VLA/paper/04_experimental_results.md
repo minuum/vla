@@ -1,4 +1,4 @@
-# IV. Experimental Results
+# IV. Experimental Results - Mobile-Optimized Vision-Language-Action Model for Real-Time Robot Navigation
 
 ## 실제 논문 내용
 
