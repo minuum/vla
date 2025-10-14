@@ -24,7 +24,7 @@ class MobileVLATrainer:
     def __init__(
         self,
         model_name: str = "microsoft/kosmos-2-patch14-224",
-        action_dim: int = 3,
+        action_dim: int = 2,  # 2D 액션 (linear_x, linear_y) - Z값은 항상 0
         window_size: int = 8,
         chunk_size: int = 2,
         learning_rate: float = 1e-4,
@@ -69,7 +69,7 @@ class MobileVLATrainer:
         from transformers import Kosmos2Model
         
         class MobileVLAModel(nn.Module):
-            def __init__(self, model_name, action_dim=3, window_size=8, chunk_size=2):
+            def __init__(self, model_name, action_dim=2, window_size=8, chunk_size=2):  # 2D 액션
                 super().__init__()
                 
                 # Kosmos2 모델 로드 (feature extractor로만 사용)
