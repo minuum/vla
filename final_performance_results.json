@@ -1,0 +1,236 @@
+{
+  "lstm_models": [
+    {
+      "path": "enhanced_kosmos2_clip_hybrid_with_normalization_results/best_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 3,
+      "model_size_mb": 7150.257008552551,
+      "epoch": 3,
+      "best_mae": 0.29353979602456093,
+      "best_val_loss": 0.247421660926193,
+      "final_train_mae": 0.28653910060723625,
+      "final_train_loss": 0.2215208305666844,
+      "epochs": 5
+    },
+    {
+      "path": "enhanced_kosmos2_clip_hybrid_results/best_enhanced_kosmos2_clip_hybrid.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 3,
+      "model_size_mb": 6980.716816902161,
+      "epoch": 1,
+      "best_mae": 0.43740369752049446,
+      "best_val_loss": 0.2982463724911213,
+      "final_train_mae": 0.5442818953045483,
+      "final_train_loss": 0.4926825304483545,
+      "epochs": 2
+    },
+    {
+      "path": "Robo+/Mobile_VLA/simple_models_original_results/clip_with_lstm/best_clip_with_lstm_epoch_1.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 2,
+      "model_size_mb": 1791.8488550186157,
+      "epoch": 1,
+      "best_mae": 0.4556265633070358,
+      "best_val_loss": 0.42241955473789095,
+      "final_train_mae": 0.4287936930224173,
+      "final_train_loss": 0.4287936930224173,
+      "epochs": 3
+    }
+  ],
+  "mlp_models": [
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_3.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "model_size_mb": 6369.920712471008,
+      "epoch": 3,
+      "best_mae": 0.4419582428203689,
+      "best_val_loss": 0.22019103707538712,
+      "final_train_mae": 0.4417599487221903,
+      "final_train_loss": 0.21938255863885084,
+      "epochs": 10
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_2.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "model_size_mb": 6369.920712471008,
+      "epoch": 2,
+      "best_mae": 0.4419582428203689,
+      "best_val_loss": 0.22019103707538712,
+      "final_train_mae": 0.4417599487221903,
+      "final_train_loss": 0.21938255863885084,
+      "epochs": 10
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_1.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "model_size_mb": 6369.920712471008,
+      "epoch": 1,
+      "best_mae": 0.4419582428203689,
+      "best_val_loss": 0.22019103707538712,
+      "final_train_mae": 0.4417599487221903,
+      "final_train_loss": 0.21938255863885084,
+      "epochs": 10
+    },
+    {
+      "path": "Robo+/Mobile_VLA/simple_models_original_results/simple_clip/best_simple_clip_epoch_2.pth",
+      "action_head_type": "MLP",
+      "action_dim": 2,
+      "model_size_mb": 1733.2508068084717,
+      "epoch": 2,
+      "best_mae": 0.45116785589467595,
+      "best_val_loss": 0.4247421973793089,
+      "final_train_mae": 0.43646401202846546,
+      "final_train_loss": 0.43646401202846546,
+      "epochs": 3
+    },
+    {
+      "path": "Robo+/Mobile_VLA/original_clip_augmented_results/best_original_clip_augmented_epoch_2.pth",
+      "action_head_type": "MLP",
+      "action_dim": 2,
+      "model_size_mb": 1733.269208908081,
+      "epoch": 2,
+      "best_mae": 0.6723373223556045,
+      "best_val_loss": 0.7062813510198468,
+      "final_train_mae": 0.7080586153462696,
+      "final_train_loss": 0.7080586153462696,
+      "epochs": 3
+    }
+  ],
+  "all_models_ranked": [
+    {
+      "path": "enhanced_kosmos2_clip_hybrid_with_normalization_results/best_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 3,
+      "model_size_mb": 7150.257008552551,
+      "epoch": 3,
+      "best_mae": 0.29353979602456093,
+      "best_val_loss": 0.247421660926193,
+      "final_train_mae": 0.28653910060723625,
+      "final_train_loss": 0.2215208305666844,
+      "epochs": 5
+    },
+    {
+      "path": "enhanced_kosmos2_clip_hybrid_results/best_enhanced_kosmos2_clip_hybrid.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 3,
+      "model_size_mb": 6980.716816902161,
+      "epoch": 1,
+      "best_mae": 0.43740369752049446,
+      "best_val_loss": 0.2982463724911213,
+      "final_train_mae": 0.5442818953045483,
+      "final_train_loss": 0.4926825304483545,
+      "epochs": 2
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_3.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "model_size_mb": 6369.920712471008,
+      "epoch": 3,
+      "best_mae": 0.4419582428203689,
+      "best_val_loss": 0.22019103707538712,
+      "final_train_mae": 0.4417599487221903,
+      "final_train_loss": 0.21938255863885084,
+      "epochs": 10
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_2.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "model_size_mb": 6369.920712471008,
+      "epoch": 2,
+      "best_mae": 0.4419582428203689,
+      "best_val_loss": 0.22019103707538712,
+      "final_train_mae": 0.4417599487221903,
+      "final_train_loss": 0.21938255863885084,
+      "epochs": 10
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_1.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "model_size_mb": 6369.920712471008,
+      "epoch": 1,
+      "best_mae": 0.4419582428203689,
+      "best_val_loss": 0.22019103707538712,
+      "final_train_mae": 0.4417599487221903,
+      "final_train_loss": 0.21938255863885084,
+      "epochs": 10
+    },
+    {
+      "path": "Robo+/Mobile_VLA/simple_models_original_results/simple_clip/best_simple_clip_epoch_2.pth",
+      "action_head_type": "MLP",
+      "action_dim": 2,
+      "model_size_mb": 1733.2508068084717,
+      "epoch": 2,
+      "best_mae": 0.45116785589467595,
+      "best_val_loss": 0.4247421973793089,
+      "final_train_mae": 0.43646401202846546,
+      "final_train_loss": 0.43646401202846546,
+      "epochs": 3
+    },
+    {
+      "path": "Robo+/Mobile_VLA/simple_models_original_results/clip_with_lstm/best_clip_with_lstm_epoch_1.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 2,
+      "model_size_mb": 1791.8488550186157,
+      "epoch": 1,
+      "best_mae": 0.4556265633070358,
+      "best_val_loss": 0.42241955473789095,
+      "final_train_mae": 0.4287936930224173,
+      "final_train_loss": 0.4287936930224173,
+      "epochs": 3
+    },
+    {
+      "path": "Robo+/Mobile_VLA/original_clip_augmented_results/best_original_clip_augmented_epoch_2.pth",
+      "action_head_type": "MLP",
+      "action_dim": 2,
+      "model_size_mb": 1733.269208908081,
+      "epoch": 2,
+      "best_mae": 0.6723373223556045,
+      "best_val_loss": 0.7062813510198468,
+      "final_train_mae": 0.7080586153462696,
+      "final_train_loss": 0.7080586153462696,
+      "epochs": 3
+    }
+  ],
+  "best_lstm": {
+    "path": "enhanced_kosmos2_clip_hybrid_with_normalization_results/best_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+    "action_head_type": "LSTM",
+    "action_dim": 3,
+    "model_size_mb": 7150.257008552551,
+    "epoch": 3,
+    "best_mae": 0.29353979602456093,
+    "best_val_loss": 0.247421660926193,
+    "final_train_mae": 0.28653910060723625,
+    "final_train_loss": 0.2215208305666844,
+    "epochs": 5
+  },
+  "best_mlp": {
+    "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_3.pt",
+    "action_head_type": "MLP",
+    "action_dim": "Unknown",
+    "model_size_mb": 6369.920712471008,
+    "epoch": 3,
+    "best_mae": 0.4419582428203689,
+    "best_val_loss": 0.22019103707538712,
+    "final_train_mae": 0.4417599487221903,
+    "final_train_loss": 0.21938255863885084,
+    "epochs": 10
+  },
+  "overall_best": {
+    "path": "enhanced_kosmos2_clip_hybrid_with_normalization_results/best_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+    "action_head_type": "LSTM",
+    "action_dim": 3,
+    "model_size_mb": 7150.257008552551,
+    "epoch": 3,
+    "best_mae": 0.29353979602456093,
+    "best_val_loss": 0.247421660926193,
+    "final_train_mae": 0.28653910060723625,
+    "final_train_loss": 0.2215208305666844,
+    "epochs": 5
+  }
+}
