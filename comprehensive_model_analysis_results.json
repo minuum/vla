@@ -1,0 +1,885 @@
+{
+  "analysis_date": "2025-09-11T13:50:15.477978",
+  "total_models": 53,
+  "failed_models": 2,
+  "lstm_models": [
+    {
+      "path": "./Robo+/Mobile_VLA/results/simple_lstm_results_extended/final_simple_lstm_model.pth",
+      "file_size_mb": 6801.806604385376,
+      "model_size_gb": 6.642389262095094,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": 0.24686191769109833,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 15,
+      "model_name": "Simple LSTM",
+      "features": [
+        "LSTM"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/results/simple_lstm_results_extended/final_simple_lstm_model.pth",
+      "file_size_mb": 6801.806604385376,
+      "model_size_gb": 6.642389262095094,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": 0.24686191769109833,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 15,
+      "model_name": "Simple LSTM",
+      "features": [
+        "LSTM"
+      ]
+    },
+    {
+      "path": "./enhanced_kosmos2_clip_hybrid_with_normalization_results/enhanced_kosmos2_clip_hybrid_with_mobile_normalization_epoch_5.pth",
+      "file_size_mb": 7150.260860443115,
+      "model_size_gb": 6.98267662152648,
+      "action_dim": 3,
+      "action_head_type": "LSTM",
+      "mae": 0.29353979602456093,
+      "val_loss": 0.247421660926193,
+      "train_mae": null,
+      "epoch": 4,
+      "model_name": "Enhanced Kosmos2+CLIP Hybrid",
+      "features": [
+        "Kosmos2",
+        "CLIP",
+        "Vision Resampler",
+        "CLIP Normalization"
+      ],
+      "total_parameters": 1874235013,
+      "trainable_parameters": 1874235013,
+      "model_size_mb": 7149.639179229736,
+      "vision_resampler_tokens": 64,
+      "mobile_optimized": true,
+      "use_clip_normalization": true,
+      "normalization_type": "mobile",
+      "total_epochs": 5
+    },
+    {
+      "path": "./enhanced_kosmos2_clip_hybrid_with_normalization_results/best_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+      "file_size_mb": 7150.257008552551,
+      "model_size_gb": 6.982672859914601,
+      "action_dim": 3,
+      "action_head_type": "LSTM",
+      "mae": 0.29353979602456093,
+      "val_loss": 0.247421660926193,
+      "train_mae": null,
+      "epoch": 4,
+      "model_name": "Enhanced Kosmos2+CLIP Hybrid",
+      "features": [
+        "Kosmos2",
+        "CLIP",
+        "Vision Resampler",
+        "CLIP Normalization"
+      ],
+      "total_parameters": 1874235013,
+      "trainable_parameters": 1874235013,
+      "model_size_mb": 7149.639179229736,
+      "vision_resampler_tokens": 64,
+      "mobile_optimized": true,
+      "use_clip_normalization": true,
+      "normalization_type": "mobile",
+      "total_epochs": 5
+    },
+    {
+      "path": "./enhanced_kosmos2_clip_hybrid_with_normalization_results/final_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+      "file_size_mb": 7150.258333206177,
+      "model_size_gb": 6.982674153521657,
+      "action_dim": 3,
+      "action_head_type": "LSTM",
+      "mae": 0.29353979602456093,
+      "val_loss": 0.247421660926193,
+      "train_mae": null,
+      "epoch": 4,
+      "model_name": "Enhanced Kosmos2+CLIP Hybrid",
+      "features": [
+        "Kosmos2",
+        "CLIP",
+        "Vision Resampler",
+        "CLIP Normalization"
+      ],
+      "total_parameters": 1874235013,
+      "trainable_parameters": 1874235013,
+      "model_size_mb": 7149.639179229736,
+      "vision_resampler_tokens": 64,
+      "mobile_optimized": true,
+      "use_clip_normalization": true,
+      "normalization_type": "mobile",
+      "total_epochs": 5
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/simple_models_original_results/clip_with_lstm/best_clip_with_lstm_epoch_1.pth",
+      "file_size_mb": 1791.8488550186157,
+      "model_size_gb": 1.749852397479117,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": 0.4556265633070358,
+      "val_loss": 0.4268584957311827,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "CLIP with LSTM",
+      "features": [
+        "CLIP",
+        "LSTM"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/simple_models_original_results/clip_with_lstm/final_clip_with_lstm.pth",
+      "file_size_mb": 1791.8379459381104,
+      "model_size_gb": 1.749841744080186,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": 0.4779303134131579,
+      "val_loss": 0.42241955473789095,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "CLIP with LSTM",
+      "features": [
+        "CLIP",
+        "LSTM"
+      ]
+    },
+    {
+      "path": "./enhanced_kosmos2_clip_hybrid_results/enhanced_kosmos2_clip_hybrid_epoch_10.pth",
+      "file_size_mb": 6980.722107887268,
+      "model_size_gb": 6.81711143348366,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 10,
+      "model_name": "Enhanced Kosmos2+CLIP Hybrid",
+      "features": [
+        "Kosmos2",
+        "CLIP",
+        "Vision Resampler"
+      ]
+    },
+    {
+      "path": "./enhanced_kosmos2_clip_hybrid_results/final_enhanced_kosmos2_clip_hybrid.pth",
+      "file_size_mb": 6980.718185424805,
+      "model_size_gb": 6.817107602953911,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 2,
+      "model_name": "Enhanced Kosmos2+CLIP Hybrid",
+      "features": [
+        "Kosmos2",
+        "CLIP",
+        "Vision Resampler"
+      ]
+    },
+    {
+      "path": "./enhanced_kosmos2_clip_hybrid_results/best_enhanced_kosmos2_clip_hybrid.pth",
+      "file_size_mb": 6980.716816902161,
+      "model_size_gb": 6.817106266506016,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "Enhanced Kosmos2+CLIP Hybrid",
+      "features": [
+        "Kosmos2",
+        "CLIP",
+        "Vision Resampler"
+      ]
+    },
+    {
+      "path": "./enhanced_kosmos2_clip_hybrid_results/enhanced_kosmos2_clip_hybrid_epoch_5.pth",
+      "file_size_mb": 6980.72080039978,
+      "model_size_gb": 6.81711015664041,
+      "action_dim": 2,
+      "action_head_type": "LSTM",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 5,
+      "model_name": "Enhanced Kosmos2+CLIP Hybrid",
+      "features": [
+        "Kosmos2",
+        "CLIP",
+        "Vision Resampler"
+      ]
+    }
+  ],
+  "mlp_models": [
+    {
+      "path": "./Robo+/Mobile_VLA/results/simple_clip_lstm_results_extended/best_simple_clip_lstm_model.pth",
+      "file_size_mb": 7428.601293563843,
+      "model_size_gb": 7.25449345074594,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.2120693027973175,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 10,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/results/simple_clip_lstm_results_extended/best_simple_clip_lstm_model.pth",
+      "file_size_mb": 7428.601293563843,
+      "model_size_gb": 7.25449345074594,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.2120693027973175,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 10,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/simple_models_original_results/simple_clip/best_simple_clip_epoch_2.pth",
+      "file_size_mb": 1733.2508068084717,
+      "model_size_gb": 1.6926277410238981,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.45116785589467595,
+      "val_loss": 0.4291062734052424,
+      "train_mae": null,
+      "epoch": 2,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/models/simple_models_original_results/simple_clip/best_simple_clip_epoch_2.pth",
+      "file_size_mb": 1733.2508068084717,
+      "model_size_gb": 1.6926277410238981,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.45116785589467595,
+      "val_loss": 0.4291062734052424,
+      "train_mae": null,
+      "epoch": 2,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/simple_models_original_results/simple_clip/best_simple_clip_epoch_1.pth",
+      "file_size_mb": 1733.2508068084717,
+      "model_size_gb": 1.6926277410238981,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.4537676900257299,
+      "val_loss": 0.42782208994088444,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/models/simple_models_original_results/simple_clip/best_simple_clip_epoch_1.pth",
+      "file_size_mb": 1733.2508068084717,
+      "model_size_gb": 1.6926277410238981,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.4537676900257299,
+      "val_loss": 0.42782208994088444,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/simple_models_original_results/simple_clip/final_simple_clip.pth",
+      "file_size_mb": 1733.24001121521,
+      "model_size_gb": 1.6926171984523535,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.48643886185262675,
+      "val_loss": 0.4247421973793089,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/models/simple_models_original_results/simple_clip/final_simple_clip.pth",
+      "file_size_mb": 1733.24001121521,
+      "model_size_gb": 1.6926171984523535,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.48643886185262675,
+      "val_loss": 0.4247421973793089,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Simple CLIP",
+      "features": [
+        "CLIP",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/original_clip_augmented_results/best_original_clip_augmented_epoch_2.pth",
+      "file_size_mb": 1733.269208908081,
+      "model_size_gb": 1.692645711824298,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.6723373223556045,
+      "val_loss": 0.7062813510198468,
+      "train_mae": null,
+      "epoch": 2,
+      "model_name": "CLIP Augmented",
+      "features": [
+        "CLIP",
+        "Augmented Data",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/original_clip_augmented_results/best_original_clip_augmented_epoch_2.pth",
+      "file_size_mb": 1733.269208908081,
+      "model_size_gb": 1.692645711824298,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.6723373223556045,
+      "val_loss": 0.7062813510198468,
+      "train_mae": null,
+      "epoch": 2,
+      "model_name": "CLIP Augmented",
+      "features": [
+        "CLIP",
+        "Augmented Data",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/original_clip_augmented_results/final_original_clip_augmented.pth",
+      "file_size_mb": 1733.2584743499756,
+      "model_size_gb": 1.692635228857398,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.6759820035969217,
+      "val_loss": 0.7111488280036016,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "CLIP Augmented",
+      "features": [
+        "CLIP",
+        "Augmented Data",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/original_clip_augmented_results/final_original_clip_augmented.pth",
+      "file_size_mb": 1733.2584743499756,
+      "model_size_gb": 1.692635228857398,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.6759820035969217,
+      "val_loss": 0.7111488280036016,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "CLIP Augmented",
+      "features": [
+        "CLIP",
+        "Augmented Data",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/original_clip_augmented_results/best_original_clip_augmented_epoch_1.pth",
+      "file_size_mb": 1733.269208908081,
+      "model_size_gb": 1.692645711824298,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.6855004286370527,
+      "val_loss": 0.712105288451687,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "CLIP Augmented",
+      "features": [
+        "CLIP",
+        "Augmented Data",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/original_clip_augmented_results/best_original_clip_augmented_epoch_1.pth",
+      "file_size_mb": 1733.269208908081,
+      "model_size_gb": 1.692645711824298,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": 0.6855004286370527,
+      "val_loss": 0.712105288451687,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "CLIP Augmented",
+      "features": [
+        "CLIP",
+        "Augmented Data",
+        "MLP"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/results/mobile_vla_epoch_2.pt",
+      "file_size_mb": 6369.920712471008,
+      "model_size_gb": 6.220625695772469,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 2,
+      "model_name": "Mobile VLA",
+      "features": [
+        "Kosmos2",
+        "MLP Head"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/results/mobile_vla_epoch_1.pt",
+      "file_size_mb": 6369.920712471008,
+      "model_size_gb": 6.220625695772469,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "Mobile VLA",
+      "features": [
+        "Kosmos2",
+        "MLP Head"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/results/mobile_vla_epoch_3.pt",
+      "file_size_mb": 6369.920712471008,
+      "model_size_gb": 6.220625695772469,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Mobile VLA",
+      "features": [
+        "Kosmos2",
+        "MLP Head"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/results/mobile_vla_epoch_2.pt",
+      "file_size_mb": 6369.920712471008,
+      "model_size_gb": 6.220625695772469,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 2,
+      "model_name": "Mobile VLA",
+      "features": [
+        "Kosmos2",
+        "MLP Head"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/results/mobile_vla_epoch_1.pt",
+      "file_size_mb": 6369.920712471008,
+      "model_size_gb": 6.220625695772469,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "Mobile VLA",
+      "features": [
+        "Kosmos2",
+        "MLP Head"
+      ]
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/results/mobile_vla_epoch_3.pt",
+      "file_size_mb": 6369.920712471008,
+      "model_size_gb": 6.220625695772469,
+      "action_dim": 2,
+      "action_head_type": "MLP",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Mobile VLA",
+      "features": [
+        "Kosmos2",
+        "MLP Head"
+      ]
+    }
+  ],
+  "unknown_models": [
+    {
+      "path": "./checkpoints_enhanced/best_model_epoch_3.pt",
+      "file_size_mb": 7172.02840423584,
+      "model_size_gb": 7.003933988511562,
+      "action_dim": 3,
+      "action_head_type": "Unknown",
+      "mae": 0.3044125624001026,
+      "val_loss": 0.22811123728752136,
+      "train_mae": 0.36662362813949584,
+      "epoch": 3,
+      "model_name": "Unknown",
+      "features": [],
+      "total_parameters": 1874235013,
+      "trainable_parameters": 1874235013,
+      "model_size_mb": 7149.639179229736,
+      "vision_resampler_tokens": 64,
+      "mobile_optimized": true,
+      "use_clip_normalization": true,
+      "normalization_type": "mobile",
+      "total_epochs": 5
+    },
+    {
+      "path": "./checkpoints_enhanced/best_model_epoch_2.pt",
+      "file_size_mb": 7172.028160095215,
+      "model_size_gb": 7.003933750092983,
+      "action_dim": 3,
+      "action_head_type": "Unknown",
+      "mae": 0.3044125624001026,
+      "val_loss": 0.22811123728752136,
+      "train_mae": 0.36253172953923546,
+      "epoch": 3,
+      "model_name": "Unknown",
+      "features": [],
+      "total_parameters": 1874235013,
+      "trainable_parameters": 1874235013,
+      "model_size_mb": 7149.639179229736,
+      "vision_resampler_tokens": 64,
+      "mobile_optimized": true,
+      "use_clip_normalization": true,
+      "normalization_type": "mobile",
+      "total_epochs": 5
+    },
+    {
+      "path": "./checkpoints_enhanced/best_model_epoch_1.pt",
+      "file_size_mb": 7172.02791595459,
+      "model_size_gb": 7.003933511674404,
+      "action_dim": 3,
+      "action_head_type": "Unknown",
+      "mae": 0.3044125624001026,
+      "val_loss": 0.22811123728752136,
+      "train_mae": 0.42643389105796814,
+      "epoch": 3,
+      "model_name": "Unknown",
+      "features": [],
+      "total_parameters": 1874235013,
+      "trainable_parameters": 1874235013,
+      "model_size_mb": 7149.639179229736,
+      "vision_resampler_tokens": 64,
+      "mobile_optimized": true,
+      "use_clip_normalization": true,
+      "normalization_type": "mobile",
+      "total_epochs": 5
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/original_72_episodes_results/final_original_72_episodes_model.pth",
+      "file_size_mb": 1733.263074874878,
+      "model_size_gb": 1.692639721557498,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": 0.493891701148248,
+      "val_loss": 0.42431892168903607,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Unknown",
+      "features": []
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/original_72_episodes_results/best_original_72_episodes_model_epoch_3.pth",
+      "file_size_mb": 1733.2738094329834,
+      "model_size_gb": 1.6926502045243979,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": 0.493891701148248,
+      "val_loss": 0.42431892168903607,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Unknown",
+      "features": []
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/original_72_episodes_results/final_original_72_episodes_model.pth",
+      "file_size_mb": 1733.263074874878,
+      "model_size_gb": 1.692639721557498,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": 0.493891701148248,
+      "val_loss": 0.42431892168903607,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Unknown",
+      "features": []
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/original_72_episodes_results/best_original_72_episodes_model_epoch_3.pth",
+      "file_size_mb": 1733.2738094329834,
+      "model_size_gb": 1.6926502045243979,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": 0.493891701148248,
+      "val_loss": 0.42431892168903607,
+      "train_mae": null,
+      "epoch": 3,
+      "model_name": "Unknown",
+      "features": []
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/original_72_episodes_results/best_original_72_episodes_model_epoch_1.pth",
+      "file_size_mb": 1733.2738094329834,
+      "model_size_gb": 1.6926502045243979,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": 0.5033967352851674,
+      "val_loss": 0.4306670647620419,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "Unknown",
+      "features": []
+    },
+    {
+      "path": "./Mobile_VLA/evaluation/original_72_episodes_results/best_original_72_episodes_model_epoch_1.pth",
+      "file_size_mb": 1733.2738094329834,
+      "model_size_gb": 1.6926502045243979,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": 0.5033967352851674,
+      "val_loss": 0.4306670647620419,
+      "train_mae": null,
+      "epoch": 1,
+      "model_name": "Unknown",
+      "features": []
+    },
+    {
+      "path": "./best_robovlms_mobile_model_epoch_1.pt",
+      "file_size_mb": 6959.530464172363,
+      "model_size_gb": 6.7964164689183235,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": 0.0,
+      "train_mae": null,
+      "epoch": 0,
+      "model_name": "RoboVLMs Mobile",
+      "features": [
+        "RoboVLMs"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_20_optimizer.pth",
+      "file_size_mb": 49.95666027069092,
+      "model_size_gb": 0.0487858010455966,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/best_enhanced_model_model.pth",
+      "file_size_mb": 24.976338386535645,
+      "model_size_gb": 0.024390955455601215,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_15_optimizer.pth",
+      "file_size_mb": 49.95666027069092,
+      "model_size_gb": 0.0487858010455966,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_20_model.pth",
+      "file_size_mb": 24.976449012756348,
+      "model_size_gb": 0.02439106348901987,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_5_model.pth",
+      "file_size_mb": 24.976421356201172,
+      "model_size_gb": 0.024391036480665207,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_15_model.pth",
+      "file_size_mb": 24.976449012756348,
+      "model_size_gb": 0.02439106348901987,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/final_enhanced_model_optimizer.pth",
+      "file_size_mb": 49.95643424987793,
+      "model_size_gb": 0.048785580322146416,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_5_optimizer.pth",
+      "file_size_mb": 49.95658493041992,
+      "model_size_gb": 0.048785727471113205,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_10_optimizer.pth",
+      "file_size_mb": 49.95666027069092,
+      "model_size_gb": 0.0487858010455966,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/best_enhanced_model_optimizer.pth",
+      "file_size_mb": 49.956358909606934,
+      "model_size_gb": 0.04878550674766302,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/enhanced_model_epoch_10_model.pth",
+      "file_size_mb": 24.976449012756348,
+      "model_size_gb": 0.02439106348901987,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    },
+    {
+      "path": "./Robo+/Mobile_VLA/enhanced_real_data_results/final_enhanced_model_model.pth",
+      "file_size_mb": 24.97636604309082,
+      "model_size_gb": 0.02439098246395588,
+      "action_dim": 2,
+      "action_head_type": "Unknown",
+      "mae": null,
+      "val_loss": null,
+      "train_mae": null,
+      "epoch": null,
+      "model_name": "Enhanced Model",
+      "features": [
+        "Enhanced"
+      ]
+    }
+  ],
+  "failed_model_paths": [
+    "./Mobile_VLA/models/simple_models_original_results/clip_with_lstm/best_clip_with_lstm_epoch_1.pth",
+    "./Mobile_VLA/models/simple_models_original_results/clip_with_lstm/final_clip_with_lstm.pth"
+  ]
+}

@@ -1914,38 +1914,45 @@ class Kosmos2TextForCausalLM(Kosmos2PreTrainedModel):
 
 
 class Kosmos2ImageToTextProjection(nn.Module):
-    """The layer that transforms the image model's output to part of the text model's input (namely, image features)"""
+    """이미지 모델의 출력을 텍스트 모델의 입력 형태로 변환하는 레이어 (즉, 이미지 특징)"""
 
     def __init__(self, config: Kosmos2Config):
         super().__init__()
+        # 비전 특징을 텍스트 임베딩 차원으로 변환하는 선형 레이어
         self.dense = nn.Linear(
             config.vision_config.hidden_size, config.text_config.embed_dim
         )
+        # 잠재 쿼리 파라미터 (학습 가능한 파라미터)
         self.latent_query = nn.Parameter(
             torch.randn(config.latent_query_num, config.text_config.embed_dim)
         )
 
+        # 크로스 어텐션 레이어 (이미지-텍스트 간 상호작용)
         self.x_attn = KosmosTextAttention(
             config.text_config,
             config.text_config.embed_dim,
             config.text_config.attention_heads,
             dropout=config.text_config.attention_dropout,
-            is_decoder=False,
+            is_decoder=False,  # 인코더 역할
             add_inner_attn_layernorm=False,
         )
 
     def forward(self, features):
+        # 비전 특징을 텍스트 임베딩 차원으로 변환
         hidden_states = self.dense(features)
 
+        # 잠재 쿼리를 배치 크기에 맞게 확장
         # shape = [batch, latent_query_num, h_dim]
         latent_query = self.latent_query.unsqueeze(0).expand(
             hidden_states.size(0), -1, -1
         )
+        # 이미지 특징과 잠재 쿼리를 연결하여 키-값 상태 생성
         key_value_states = torch.cat([hidden_states, latent_query], dim=1)
 
+        # 크로스 어텐션을 통해 이미지 특징과 텍스트 쿼리 간 상호작용 계산
         hidden_states, attn_weights, _ = self.x_attn(
-            hidden_states=latent_query,
-            encoder_hidden_states=key_value_states,
+            hidden_states=latent_query,  # 쿼리로 사용할 잠재 벡터
+            encoder_hidden_states=key_value_states,  # 키-값으로 사용할 이미지 특징
             past_key_value=None,
             attention_mask=None,
             output_attentions=None,

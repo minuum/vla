@@ -267,11 +267,14 @@ class MobileVLADataset(ActionPredictionDataset):
         # PIL 이미지로 변환
         images_pil = self._convert_to_pil_images(images_array)
         
+        # 2D 액션만 추출 (Z축은 항상 0이므로 제거)
+        actions_2d = actions_array[:, :2]  # [T, 2] - linear_x, linear_y만 사용
+        
         # 간단한 배치 변환 (RoboVLMs 스타일)
         return {
             'task_description': task_description,
             'images': images_pil,
-            'actions': actions_array,
+            'actions': actions_2d,  # 2D 액션 사용
             'episode_mask': episode_mask,
             'scenario': episode['scenario']
         }

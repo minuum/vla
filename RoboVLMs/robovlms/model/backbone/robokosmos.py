@@ -25,18 +25,20 @@ class RoboKosMos(BaseRoboVLM):
         return self.backbone
 
     def model_encode_images(self, images):
+        # 비전 모델을 통해 이미지 특징 추출
         vision_model_output = self.model.vision_model(
-            pixel_values=images,
-            output_attentions=self.model.config.output_attentions,
-            output_hidden_states=self.model.config.output_hidden_states,
-            return_dict=self.model.config.return_dict,
+            pixel_values=images,  # 이미지 입력
+            output_attentions=self.model.config.output_attentions,  # Vision Attention 계산 여부
+            output_hidden_states=self.model.config.output_hidden_states,  # 결과 hidden states 출력 여부
+            return_dict=self.model.config.return_dict,  # dict 형태의 임베딩 데이터 반환 여부
         )
-        # The whole `last_hidden_state` through `post_layernorm` instead of just `pooled_output`.
+        # pooled_output 대신 전체 last_hidden_state를 post_layernorm을 통해 처리
         image_embeds = self.model.vision_model.model.post_layernorm(
-            vision_model_output[0]
+            vision_model_output[0]  # 비전 모델의 마지막 hidden state
         )
-        # normalized features
+        # 정규화된 특징 벡터 생성
         image_embeds = torch.nn.functional.normalize(image_embeds, dim=-1)
+        # 이미지 특징을 텍스트 모델 입력 형태로 변환
         image_embeds, projection_attentions = self.model.image_to_text_projection(
             image_embeds
         )
