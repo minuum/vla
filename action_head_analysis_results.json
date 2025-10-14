@@ -1,0 +1,960 @@
+{
+  "model_analyses": [
+    {
+      "path": "enhanced_kosmos2_clip_hybrid_results/best_enhanced_kosmos2_clip_hybrid.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 3,
+      "has_lstm": true,
+      "has_mlp": false,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 6980.716816902161,
+      "mae": "N/A",
+      "val_loss": "N/A",
+      "train_loss": "N/A",
+      "epoch": 1,
+      "training_history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.8109910624294445,
+          "train_mae": 0.7161738749208122,
+          "val_loss": 0.2982463724911213,
+          "val_mae": 0.43740369752049446,
+          "lr": 9.999999999999996e-05
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.4926825304483545,
+          "train_mae": 0.5442818953045483,
+          "val_loss": 0.30390235781669617,
+          "val_mae": 0.46444011852145195,
+          "lr": 9.997557473810375e-05
+        }
+      ]
+    },
+    {
+      "path": "enhanced_kosmos2_clip_hybrid_with_normalization_results/best_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 3,
+      "has_lstm": true,
+      "has_mlp": false,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 7150.257008552551,
+      "mae": "N/A",
+      "val_loss": "N/A",
+      "train_loss": "N/A",
+      "epoch": 3,
+      "training_history": {
+        "train_loss": [
+          0.41631064216295877,
+          0.20317158090571563,
+          0.3222881498436133,
+          0.26681420554717383,
+          0.2215208305666844
+        ],
+        "train_mae": [
+          0.4431423008441925,
+          0.2743293449282646,
+          0.34979140758514404,
+          0.3262813995281855,
+          0.28653910060723625
+        ],
+        "val_loss": [
+          0.32561712339520454,
+          0.36503653787076473,
+          0.37575479596853256,
+          0.247421660926193,
+          0.3149050213396549
+        ],
+        "val_mae": [
+          0.4202507361769676,
+          0.35286181792616844,
+          0.4054607227444649,
+          0.29353979602456093,
+          0.34496673941612244
+        ],
+        "learning_rate": [
+          9.045084971874738e-05,
+          6.545084971874737e-05,
+          3.454915028125263e-05,
+          9.549150281252631e-06,
+          0.0
+        ]
+      }
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_3.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "has_lstm": false,
+      "has_mlp": true,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 6369.920712471008,
+      "mae": "N/A",
+      "val_loss": "N/A",
+      "train_loss": "N/A",
+      "epoch": 3,
+      "training_history": {
+        "training_history": [
+          {
+            "epoch": 1,
+            "train_loss": 0.23628541878941986,
+            "train_mae": 0.4635088449964921,
+            "val_loss": 0.2623060420155525,
+            "val_mae": 0.49135664519336486
+          },
+          {
+            "epoch": 2,
+            "train_loss": 0.22346285999649101,
+            "train_mae": 0.45177708690365154,
+            "val_loss": 0.22491053864359856,
+            "val_mae": 0.461019034186999
+          },
+          {
+            "epoch": 3,
+            "train_loss": 0.22125266937332022,
+            "train_mae": 0.4489887555440267,
+            "val_loss": 0.22085118335154322,
+            "val_mae": 0.44668153093920815
+          },
+          {
+            "epoch": 4,
+            "train_loss": 0.22127701424890095,
+            "train_mae": 0.4496709497438537,
+            "val_loss": 0.22019103707538712,
+            "val_mae": 0.44705376194583046
+          },
+          {
+            "epoch": 5,
+            "train_loss": 0.21979875831554332,
+            "train_mae": 0.4460307438340452,
+            "val_loss": 0.22131593235664898,
+            "val_mae": 0.4523047051495976
+          },
+          {
+            "epoch": 6,
+            "train_loss": 0.2206925019207928,
+            "train_mae": 0.445336164906621,
+            "val_loss": 0.2285919338464737,
+            "val_mae": 0.46363816493087345
+          },
+          {
+            "epoch": 7,
+            "train_loss": 0.219281494203541,
+            "train_mae": 0.4435726890547408,
+            "val_loss": 0.22604891368084484,
+            "val_mae": 0.4596591144800186
+          },
+          {
+            "epoch": 8,
+            "train_loss": 0.22029962613143855,
+            "train_mae": 0.4443726177430815,
+            "val_loss": 0.2272083448867003,
+            "val_mae": 0.46544571303659016
+          },
+          {
+            "epoch": 9,
+            "train_loss": 0.21906735825662813,
+            "train_mae": 0.4437396035840114,
+            "val_loss": 0.22081316841973198,
+            "val_mae": 0.4450816214084625
+          },
+          {
+            "epoch": 10,
+            "train_loss": 0.21938255863885084,
+            "train_mae": 0.4417599487221903,
+            "val_loss": 0.22027436561054653,
+            "val_mae": 0.4419582428203689
+          }
+        ],
+        "best_val_loss": 0.22019103707538712,
+        "final_train_mae": 0.4417599487221903,
+        "final_val_mae": 0.4419582428203689,
+        "model_name": "microsoft/kosmos-2-patch14-224",
+        "num_epochs": 10,
+        "batch_size": 4,
+        "augmentation_factor": 10,
+        "total_episodes": 720,
+        "completion_date": "2025-08-21T08:19:30.528472"
+      }
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_2.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "has_lstm": false,
+      "has_mlp": true,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 6369.920712471008,
+      "mae": "N/A",
+      "val_loss": "N/A",
+      "train_loss": "N/A",
+      "epoch": 2,
+      "training_history": {
+        "training_history": [
+          {
+            "epoch": 1,
+            "train_loss": 0.23628541878941986,
+            "train_mae": 0.4635088449964921,
+            "val_loss": 0.2623060420155525,
+            "val_mae": 0.49135664519336486
+          },
+          {
+            "epoch": 2,
+            "train_loss": 0.22346285999649101,
+            "train_mae": 0.45177708690365154,
+            "val_loss": 0.22491053864359856,
+            "val_mae": 0.461019034186999
+          },
+          {
+            "epoch": 3,
+            "train_loss": 0.22125266937332022,
+            "train_mae": 0.4489887555440267,
+            "val_loss": 0.22085118335154322,
+            "val_mae": 0.44668153093920815
+          },
+          {
+            "epoch": 4,
+            "train_loss": 0.22127701424890095,
+            "train_mae": 0.4496709497438537,
+            "val_loss": 0.22019103707538712,
+            "val_mae": 0.44705376194583046
+          },
+          {
+            "epoch": 5,
+            "train_loss": 0.21979875831554332,
+            "train_mae": 0.4460307438340452,
+            "val_loss": 0.22131593235664898,
+            "val_mae": 0.4523047051495976
+          },
+          {
+            "epoch": 6,
+            "train_loss": 0.2206925019207928,
+            "train_mae": 0.445336164906621,
+            "val_loss": 0.2285919338464737,
+            "val_mae": 0.46363816493087345
+          },
+          {
+            "epoch": 7,
+            "train_loss": 0.219281494203541,
+            "train_mae": 0.4435726890547408,
+            "val_loss": 0.22604891368084484,
+            "val_mae": 0.4596591144800186
+          },
+          {
+            "epoch": 8,
+            "train_loss": 0.22029962613143855,
+            "train_mae": 0.4443726177430815,
+            "val_loss": 0.2272083448867003,
+            "val_mae": 0.46544571303659016
+          },
+          {
+            "epoch": 9,
+            "train_loss": 0.21906735825662813,
+            "train_mae": 0.4437396035840114,
+            "val_loss": 0.22081316841973198,
+            "val_mae": 0.4450816214084625
+          },
+          {
+            "epoch": 10,
+            "train_loss": 0.21938255863885084,
+            "train_mae": 0.4417599487221903,
+            "val_loss": 0.22027436561054653,
+            "val_mae": 0.4419582428203689
+          }
+        ],
+        "best_val_loss": 0.22019103707538712,
+        "final_train_mae": 0.4417599487221903,
+        "final_val_mae": 0.4419582428203689,
+        "model_name": "microsoft/kosmos-2-patch14-224",
+        "num_epochs": 10,
+        "batch_size": 4,
+        "augmentation_factor": 10,
+        "total_episodes": 720,
+        "completion_date": "2025-08-21T08:19:30.528472"
+      }
+    },
+    {
+      "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_1.pt",
+      "action_head_type": "MLP",
+      "action_dim": "Unknown",
+      "has_lstm": false,
+      "has_mlp": true,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 6369.920712471008,
+      "mae": "N/A",
+      "val_loss": "N/A",
+      "train_loss": "N/A",
+      "epoch": 1,
+      "training_history": {
+        "training_history": [
+          {
+            "epoch": 1,
+            "train_loss": 0.23628541878941986,
+            "train_mae": 0.4635088449964921,
+            "val_loss": 0.2623060420155525,
+            "val_mae": 0.49135664519336486
+          },
+          {
+            "epoch": 2,
+            "train_loss": 0.22346285999649101,
+            "train_mae": 0.45177708690365154,
+            "val_loss": 0.22491053864359856,
+            "val_mae": 0.461019034186999
+          },
+          {
+            "epoch": 3,
+            "train_loss": 0.22125266937332022,
+            "train_mae": 0.4489887555440267,
+            "val_loss": 0.22085118335154322,
+            "val_mae": 0.44668153093920815
+          },
+          {
+            "epoch": 4,
+            "train_loss": 0.22127701424890095,
+            "train_mae": 0.4496709497438537,
+            "val_loss": 0.22019103707538712,
+            "val_mae": 0.44705376194583046
+          },
+          {
+            "epoch": 5,
+            "train_loss": 0.21979875831554332,
+            "train_mae": 0.4460307438340452,
+            "val_loss": 0.22131593235664898,
+            "val_mae": 0.4523047051495976
+          },
+          {
+            "epoch": 6,
+            "train_loss": 0.2206925019207928,
+            "train_mae": 0.445336164906621,
+            "val_loss": 0.2285919338464737,
+            "val_mae": 0.46363816493087345
+          },
+          {
+            "epoch": 7,
+            "train_loss": 0.219281494203541,
+            "train_mae": 0.4435726890547408,
+            "val_loss": 0.22604891368084484,
+            "val_mae": 0.4596591144800186
+          },
+          {
+            "epoch": 8,
+            "train_loss": 0.22029962613143855,
+            "train_mae": 0.4443726177430815,
+            "val_loss": 0.2272083448867003,
+            "val_mae": 0.46544571303659016
+          },
+          {
+            "epoch": 9,
+            "train_loss": 0.21906735825662813,
+            "train_mae": 0.4437396035840114,
+            "val_loss": 0.22081316841973198,
+            "val_mae": 0.4450816214084625
+          },
+          {
+            "epoch": 10,
+            "train_loss": 0.21938255863885084,
+            "train_mae": 0.4417599487221903,
+            "val_loss": 0.22027436561054653,
+            "val_mae": 0.4419582428203689
+          }
+        ],
+        "best_val_loss": 0.22019103707538712,
+        "final_train_mae": 0.4417599487221903,
+        "final_val_mae": 0.4419582428203689,
+        "model_name": "microsoft/kosmos-2-patch14-224",
+        "num_epochs": 10,
+        "batch_size": 4,
+        "augmentation_factor": 10,
+        "total_episodes": 720,
+        "completion_date": "2025-08-21T08:19:30.528472"
+      }
+    },
+    {
+      "path": "Robo+/Mobile_VLA/simple_models_original_results/simple_clip/best_simple_clip_epoch_2.pth",
+      "action_head_type": "MLP",
+      "action_dim": 2,
+      "has_lstm": false,
+      "has_mlp": true,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 1733.2508068084717,
+      "mae": "N/A",
+      "val_loss": 0.4291062734052424,
+      "train_loss": 0.44258516601536185,
+      "epoch": 2,
+      "training_history": {
+        "model_name": "Simple CLIP",
+        "train_losses": [
+          0.45944445621420593,
+          0.44258516601536185,
+          0.43646401202846546
+        ],
+        "val_losses": [
+          0.42782208994088444,
+          0.4291062734052424,
+          0.4247421973793089
+        ],
+        "val_maes": [
+          0.4537676900257299,
+          0.45116785589467595,
+          0.48643886185262675
+        ],
+        "best_mae": 0.45116785589467595,
+        "final_epoch": 3
+      }
+    },
+    {
+      "path": "Robo+/Mobile_VLA/simple_models_original_results/clip_with_lstm/best_clip_with_lstm_epoch_1.pth",
+      "action_head_type": "LSTM",
+      "action_dim": 2,
+      "has_lstm": true,
+      "has_mlp": false,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 1791.8488550186157,
+      "mae": "N/A",
+      "val_loss": 0.4268584957311827,
+      "train_loss": 0.439933333678148,
+      "epoch": 1,
+      "training_history": {
+        "model_name": "CLIP with LSTM",
+        "train_losses": [
+          0.439933333678148,
+          0.4299645891246374,
+          0.4287936930224173
+        ],
+        "val_losses": [
+          0.4268584957311827,
+          0.4245226348485844,
+          0.42241955473789095
+        ],
+        "val_maes": [
+          0.4556265633070358,
+          0.5064460804892911,
+          0.4779303134131579
+        ],
+        "best_mae": 0.4556265633070358,
+        "final_epoch": 3
+      }
+    },
+    {
+      "path": "Robo+/Mobile_VLA/original_clip_augmented_results/best_original_clip_augmented_epoch_2.pth",
+      "action_head_type": "MLP",
+      "action_dim": 2,
+      "has_lstm": false,
+      "has_mlp": true,
+      "has_gpt2": false,
+      "has_discrete": false,
+      "model_size_mb": 1733.269208908081,
+      "mae": "N/A",
+      "val_loss": 0.7062813510198468,
+      "train_loss": 0.7061667872493279,
+      "epoch": 2,
+      "training_history": {
+        "train_losses": [
+          0.7169100926670153,
+          0.7061667872493279,
+          0.7080586153462696
+        ],
+        "val_losses": [
+          0.712105288451687,
+          0.7062813510198468,
+          0.7111488280036016
+        ],
+        "val_maes": [
+          0.6855004286370527,
+          0.6723373223556045,
+          0.6759820035969217
+        ],
+        "best_mae": 0.6723373223556045,
+        "final_epoch": 3
+      }
+    }
+  ],
+  "action_head_groups": {
+    "LSTM": [
+      {
+        "path": "enhanced_kosmos2_clip_hybrid_results/best_enhanced_kosmos2_clip_hybrid.pth",
+        "action_head_type": "LSTM",
+        "action_dim": 3,
+        "has_lstm": true,
+        "has_mlp": false,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 6980.716816902161,
+        "mae": "N/A",
+        "val_loss": "N/A",
+        "train_loss": "N/A",
+        "epoch": 1,
+        "training_history": [
+          {
+            "epoch": 1,
+            "train_loss": 0.8109910624294445,
+            "train_mae": 0.7161738749208122,
+            "val_loss": 0.2982463724911213,
+            "val_mae": 0.43740369752049446,
+            "lr": 9.999999999999996e-05
+          },
+          {
+            "epoch": 2,
+            "train_loss": 0.4926825304483545,
+            "train_mae": 0.5442818953045483,
+            "val_loss": 0.30390235781669617,
+            "val_mae": 0.46444011852145195,
+            "lr": 9.997557473810375e-05
+          }
+        ]
+      },
+      {
+        "path": "enhanced_kosmos2_clip_hybrid_with_normalization_results/best_enhanced_kosmos2_clip_hybrid_with_mobile_normalization.pth",
+        "action_head_type": "LSTM",
+        "action_dim": 3,
+        "has_lstm": true,
+        "has_mlp": false,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 7150.257008552551,
+        "mae": "N/A",
+        "val_loss": "N/A",
+        "train_loss": "N/A",
+        "epoch": 3,
+        "training_history": {
+          "train_loss": [
+            0.41631064216295877,
+            0.20317158090571563,
+            0.3222881498436133,
+            0.26681420554717383,
+            0.2215208305666844
+          ],
+          "train_mae": [
+            0.4431423008441925,
+            0.2743293449282646,
+            0.34979140758514404,
+            0.3262813995281855,
+            0.28653910060723625
+          ],
+          "val_loss": [
+            0.32561712339520454,
+            0.36503653787076473,
+            0.37575479596853256,
+            0.247421660926193,
+            0.3149050213396549
+          ],
+          "val_mae": [
+            0.4202507361769676,
+            0.35286181792616844,
+            0.4054607227444649,
+            0.29353979602456093,
+            0.34496673941612244
+          ],
+          "learning_rate": [
+            9.045084971874738e-05,
+            6.545084971874737e-05,
+            3.454915028125263e-05,
+            9.549150281252631e-06,
+            0.0
+          ]
+        }
+      },
+      {
+        "path": "Robo+/Mobile_VLA/simple_models_original_results/clip_with_lstm/best_clip_with_lstm_epoch_1.pth",
+        "action_head_type": "LSTM",
+        "action_dim": 2,
+        "has_lstm": true,
+        "has_mlp": false,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 1791.8488550186157,
+        "mae": "N/A",
+        "val_loss": 0.4268584957311827,
+        "train_loss": 0.439933333678148,
+        "epoch": 1,
+        "training_history": {
+          "model_name": "CLIP with LSTM",
+          "train_losses": [
+            0.439933333678148,
+            0.4299645891246374,
+            0.4287936930224173
+          ],
+          "val_losses": [
+            0.4268584957311827,
+            0.4245226348485844,
+            0.42241955473789095
+          ],
+          "val_maes": [
+            0.4556265633070358,
+            0.5064460804892911,
+            0.4779303134131579
+          ],
+          "best_mae": 0.4556265633070358,
+          "final_epoch": 3
+        }
+      }
+    ],
+    "MLP": [
+      {
+        "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_3.pt",
+        "action_head_type": "MLP",
+        "action_dim": "Unknown",
+        "has_lstm": false,
+        "has_mlp": true,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 6369.920712471008,
+        "mae": "N/A",
+        "val_loss": "N/A",
+        "train_loss": "N/A",
+        "epoch": 3,
+        "training_history": {
+          "training_history": [
+            {
+              "epoch": 1,
+              "train_loss": 0.23628541878941986,
+              "train_mae": 0.4635088449964921,
+              "val_loss": 0.2623060420155525,
+              "val_mae": 0.49135664519336486
+            },
+            {
+              "epoch": 2,
+              "train_loss": 0.22346285999649101,
+              "train_mae": 0.45177708690365154,
+              "val_loss": 0.22491053864359856,
+              "val_mae": 0.461019034186999
+            },
+            {
+              "epoch": 3,
+              "train_loss": 0.22125266937332022,
+              "train_mae": 0.4489887555440267,
+              "val_loss": 0.22085118335154322,
+              "val_mae": 0.44668153093920815
+            },
+            {
+              "epoch": 4,
+              "train_loss": 0.22127701424890095,
+              "train_mae": 0.4496709497438537,
+              "val_loss": 0.22019103707538712,
+              "val_mae": 0.44705376194583046
+            },
+            {
+              "epoch": 5,
+              "train_loss": 0.21979875831554332,
+              "train_mae": 0.4460307438340452,
+              "val_loss": 0.22131593235664898,
+              "val_mae": 0.4523047051495976
+            },
+            {
+              "epoch": 6,
+              "train_loss": 0.2206925019207928,
+              "train_mae": 0.445336164906621,
+              "val_loss": 0.2285919338464737,
+              "val_mae": 0.46363816493087345
+            },
+            {
+              "epoch": 7,
+              "train_loss": 0.219281494203541,
+              "train_mae": 0.4435726890547408,
+              "val_loss": 0.22604891368084484,
+              "val_mae": 0.4596591144800186
+            },
+            {
+              "epoch": 8,
+              "train_loss": 0.22029962613143855,
+              "train_mae": 0.4443726177430815,
+              "val_loss": 0.2272083448867003,
+              "val_mae": 0.46544571303659016
+            },
+            {
+              "epoch": 9,
+              "train_loss": 0.21906735825662813,
+              "train_mae": 0.4437396035840114,
+              "val_loss": 0.22081316841973198,
+              "val_mae": 0.4450816214084625
+            },
+            {
+              "epoch": 10,
+              "train_loss": 0.21938255863885084,
+              "train_mae": 0.4417599487221903,
+              "val_loss": 0.22027436561054653,
+              "val_mae": 0.4419582428203689
+            }
+          ],
+          "best_val_loss": 0.22019103707538712,
+          "final_train_mae": 0.4417599487221903,
+          "final_val_mae": 0.4419582428203689,
+          "model_name": "microsoft/kosmos-2-patch14-224",
+          "num_epochs": 10,
+          "batch_size": 4,
+          "augmentation_factor": 10,
+          "total_episodes": 720,
+          "completion_date": "2025-08-21T08:19:30.528472"
+        }
+      },
+      {
+        "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_2.pt",
+        "action_head_type": "MLP",
+        "action_dim": "Unknown",
+        "has_lstm": false,
+        "has_mlp": true,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 6369.920712471008,
+        "mae": "N/A",
+        "val_loss": "N/A",
+        "train_loss": "N/A",
+        "epoch": 2,
+        "training_history": {
+          "training_history": [
+            {
+              "epoch": 1,
+              "train_loss": 0.23628541878941986,
+              "train_mae": 0.4635088449964921,
+              "val_loss": 0.2623060420155525,
+              "val_mae": 0.49135664519336486
+            },
+            {
+              "epoch": 2,
+              "train_loss": 0.22346285999649101,
+              "train_mae": 0.45177708690365154,
+              "val_loss": 0.22491053864359856,
+              "val_mae": 0.461019034186999
+            },
+            {
+              "epoch": 3,
+              "train_loss": 0.22125266937332022,
+              "train_mae": 0.4489887555440267,
+              "val_loss": 0.22085118335154322,
+              "val_mae": 0.44668153093920815
+            },
+            {
+              "epoch": 4,
+              "train_loss": 0.22127701424890095,
+              "train_mae": 0.4496709497438537,
+              "val_loss": 0.22019103707538712,
+              "val_mae": 0.44705376194583046
+            },
+            {
+              "epoch": 5,
+              "train_loss": 0.21979875831554332,
+              "train_mae": 0.4460307438340452,
+              "val_loss": 0.22131593235664898,
+              "val_mae": 0.4523047051495976
+            },
+            {
+              "epoch": 6,
+              "train_loss": 0.2206925019207928,
+              "train_mae": 0.445336164906621,
+              "val_loss": 0.2285919338464737,
+              "val_mae": 0.46363816493087345
+            },
+            {
+              "epoch": 7,
+              "train_loss": 0.219281494203541,
+              "train_mae": 0.4435726890547408,
+              "val_loss": 0.22604891368084484,
+              "val_mae": 0.4596591144800186
+            },
+            {
+              "epoch": 8,
+              "train_loss": 0.22029962613143855,
+              "train_mae": 0.4443726177430815,
+              "val_loss": 0.2272083448867003,
+              "val_mae": 0.46544571303659016
+            },
+            {
+              "epoch": 9,
+              "train_loss": 0.21906735825662813,
+              "train_mae": 0.4437396035840114,
+              "val_loss": 0.22081316841973198,
+              "val_mae": 0.4450816214084625
+            },
+            {
+              "epoch": 10,
+              "train_loss": 0.21938255863885084,
+              "train_mae": 0.4417599487221903,
+              "val_loss": 0.22027436561054653,
+              "val_mae": 0.4419582428203689
+            }
+          ],
+          "best_val_loss": 0.22019103707538712,
+          "final_train_mae": 0.4417599487221903,
+          "final_val_mae": 0.4419582428203689,
+          "model_name": "microsoft/kosmos-2-patch14-224",
+          "num_epochs": 10,
+          "batch_size": 4,
+          "augmentation_factor": 10,
+          "total_episodes": 720,
+          "completion_date": "2025-08-21T08:19:30.528472"
+        }
+      },
+      {
+        "path": "Robo+/Mobile_VLA/results/mobile_vla_epoch_1.pt",
+        "action_head_type": "MLP",
+        "action_dim": "Unknown",
+        "has_lstm": false,
+        "has_mlp": true,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 6369.920712471008,
+        "mae": "N/A",
+        "val_loss": "N/A",
+        "train_loss": "N/A",
+        "epoch": 1,
+        "training_history": {
+          "training_history": [
+            {
+              "epoch": 1,
+              "train_loss": 0.23628541878941986,
+              "train_mae": 0.4635088449964921,
+              "val_loss": 0.2623060420155525,
+              "val_mae": 0.49135664519336486
+            },
+            {
+              "epoch": 2,
+              "train_loss": 0.22346285999649101,
+              "train_mae": 0.45177708690365154,
+              "val_loss": 0.22491053864359856,
+              "val_mae": 0.461019034186999
+            },
+            {
+              "epoch": 3,
+              "train_loss": 0.22125266937332022,
+              "train_mae": 0.4489887555440267,
+              "val_loss": 0.22085118335154322,
+              "val_mae": 0.44668153093920815
+            },
+            {
+              "epoch": 4,
+              "train_loss": 0.22127701424890095,
+              "train_mae": 0.4496709497438537,
+              "val_loss": 0.22019103707538712,
+              "val_mae": 0.44705376194583046
+            },
+            {
+              "epoch": 5,
+              "train_loss": 0.21979875831554332,
+              "train_mae": 0.4460307438340452,
+              "val_loss": 0.22131593235664898,
+              "val_mae": 0.4523047051495976
+            },
+            {
+              "epoch": 6,
+              "train_loss": 0.2206925019207928,
+              "train_mae": 0.445336164906621,
+              "val_loss": 0.2285919338464737,
+              "val_mae": 0.46363816493087345
+            },
+            {
+              "epoch": 7,
+              "train_loss": 0.219281494203541,
+              "train_mae": 0.4435726890547408,
+              "val_loss": 0.22604891368084484,
+              "val_mae": 0.4596591144800186
+            },
+            {
+              "epoch": 8,
+              "train_loss": 0.22029962613143855,
+              "train_mae": 0.4443726177430815,
+              "val_loss": 0.2272083448867003,
+              "val_mae": 0.46544571303659016
+            },
+            {
+              "epoch": 9,
+              "train_loss": 0.21906735825662813,
+              "train_mae": 0.4437396035840114,
+              "val_loss": 0.22081316841973198,
+              "val_mae": 0.4450816214084625
+            },
+            {
+              "epoch": 10,
+              "train_loss": 0.21938255863885084,
+              "train_mae": 0.4417599487221903,
+              "val_loss": 0.22027436561054653,
+              "val_mae": 0.4419582428203689
+            }
+          ],
+          "best_val_loss": 0.22019103707538712,
+          "final_train_mae": 0.4417599487221903,
+          "final_val_mae": 0.4419582428203689,
+          "model_name": "microsoft/kosmos-2-patch14-224",
+          "num_epochs": 10,
+          "batch_size": 4,
+          "augmentation_factor": 10,
+          "total_episodes": 720,
+          "completion_date": "2025-08-21T08:19:30.528472"
+        }
+      },
+      {
+        "path": "Robo+/Mobile_VLA/simple_models_original_results/simple_clip/best_simple_clip_epoch_2.pth",
+        "action_head_type": "MLP",
+        "action_dim": 2,
+        "has_lstm": false,
+        "has_mlp": true,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 1733.2508068084717,
+        "mae": "N/A",
+        "val_loss": 0.4291062734052424,
+        "train_loss": 0.44258516601536185,
+        "epoch": 2,
+        "training_history": {
+          "model_name": "Simple CLIP",
+          "train_losses": [
+            0.45944445621420593,
+            0.44258516601536185,
+            0.43646401202846546
+          ],
+          "val_losses": [
+            0.42782208994088444,
+            0.4291062734052424,
+            0.4247421973793089
+          ],
+          "val_maes": [
+            0.4537676900257299,
+            0.45116785589467595,
+            0.48643886185262675
+          ],
+          "best_mae": 0.45116785589467595,
+          "final_epoch": 3
+        }
+      },
+      {
+        "path": "Robo+/Mobile_VLA/original_clip_augmented_results/best_original_clip_augmented_epoch_2.pth",
+        "action_head_type": "MLP",
+        "action_dim": 2,
+        "has_lstm": false,
+        "has_mlp": true,
+        "has_gpt2": false,
+        "has_discrete": false,
+        "model_size_mb": 1733.269208908081,
+        "mae": "N/A",
+        "val_loss": 0.7062813510198468,
+        "train_loss": 0.7061667872493279,
+        "epoch": 2,
+        "training_history": {
+          "train_losses": [
+            0.7169100926670153,
+            0.7061667872493279,
+            0.7080586153462696
+          ],
+          "val_losses": [
+            0.712105288451687,
+            0.7062813510198468,
+            0.7111488280036016
+          ],
+          "val_maes": [
+            0.6855004286370527,
+            0.6723373223556045,
+            0.6759820035969217
+          ],
+          "best_mae": 0.6723373223556045,
+          "final_epoch": 3
+        }
+      }
+    ]
+  }
+}
