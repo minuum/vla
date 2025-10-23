@@ -26,18 +26,50 @@ class USBCameraServiceServer(Node):
             self.get_logger().info('🎨 가상 카메라 모드로 전환 (USB 카메라 시뮬레이션)')
 
         try:
-            self.srv = self.create_service(GetImage, 'get_usb_image_service', self.get_image_callback)
-            self.reset_srv = self.create_service(Empty, 'reset_usb_camera_service', self.reset_camera_callback)
-            self.get_logger().info('✅ get_usb_image_service 서비스 서버 준비 완료!')
-            self.get_logger().info('✅ reset_usb_camera_service 서비스 서버 준비 완료!')
+            self.srv = self.create_service(GetImage, 'get_image_service', self.get_image_callback)
+            self.reset_srv = self.create_service(Empty, 'reset_camera_service', self.reset_camera_callback)
+            self.get_logger().info('✅ get_image_service 서비스 서버 준비 완료!')
+            self.get_logger().info('✅ reset_camera_service 서비스 서버 준비 완료!')
             self.get_logger().info('⏳ USB 카메라 이미지 요청 대기 중...')
         except Exception as e:
             self.get_logger().error(f"❌ USB 카메라 서비스 서버 시작 실패: {e}. 'colcon build' 후 'source install/setup.bash'를 다시 실행했는지, 그리고 패키지 구조가 올바른지 확인하세요.")
             rclpy.shutdown()
 
     def init_camera(self):
-        """USB 카메라를 초기화합니다."""
-        # USB 카메라 0번부터 시도
+        """카메라를 초기화합니다. Jetson CSI 카메라를 우선 시도하고, 실패하면 USB 카메라를 시도합니다."""
+        try:
+            # 1. Jetson CSI 카메라 시도
+            self.get_logger().info('📷 Jetson CSI 카메라 시도 중...')
+            gst_str = (
+                "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=640, height=480, "
+                "format=NV12, framerate=30/1 ! nvvidconv ! video/x-raw, format=BGRx ! "
+                "videoconvert ! video/x-raw, format=BGR ! appsink drop=true max-buffers=1"
+            )
+            self.cap = cv2.VideoCapture(gst_str, cv2.CAP_GSTREAMER)
+            
+            if self.cap.isOpened():
+                # Jetson 카메라 웜업
+                self.get_logger().info('🔥 Jetson CSI 카메라 웜업 중...')
+                for i in range(5):
+                    ret, _ = self.cap.read()
+                    if not ret:
+                        self.get_logger().warn(f'웜업 프레임 {i+1}/5 읽기 실패')
+                    else:
+                        self.get_logger().info(f'웜업 프레임 {i+1}/5 완료')
+                
+                self.get_logger().info('✅ Jetson CSI 카메라 연결 성공!')
+                self.camera_type = "Jetson CSI"
+                self.failed_reads = 0
+                return True
+            else:
+                self.cap.release()
+                self.get_logger().warn('⚠️ Jetson CSI 카메라 연결 실패')
+        except Exception as e:
+            self.get_logger().warn(f'⚠️ Jetson CSI 카메라 초기화 실패: {e}')
+            if self.cap:
+                self.cap.release()
+        
+        # 2. USB 카메라 시도
         for camera_id in range(4):  # 0, 1, 2, 3번 카메라 시도
             self.get_logger().info(f'📷 USB 카메라 {camera_id} 시도 중...')
             
@@ -61,15 +93,17 @@ class USBCameraServiceServer(Node):
                         self.get_logger().info(f'웜업 프레임 {i+1}/5 완료')
                 
                 self.get_logger().info(f'✅ USB 카메라 {camera_id} 연결 성공!')
+                self.camera_type = f"USB {camera_id}"
                 self.failed_reads = 0
                 return True
             else:
                 self.cap.release()
                 self.get_logger().warn(f'⚠️ USB 카메라 {camera_id} 연결 실패')
         
-        # 모든 USB 카메라 연결 실패
-        self.get_logger().error('❌ 모든 USB 카메라 연결 실패')
+        # 모든 카메라 연결 실패
+        self.get_logger().error('❌ 모든 카메라 연결 실패')
         self.cap = None
+        self.camera_type = "가상 카메라"
         return False
 
     def reset_camera_callback(self, request, response):
@@ -113,7 +147,7 @@ class USBCameraServiceServer(Node):
     def get_fresh_frame(self):
         """버퍼를 플러시하고 최신 프레임을 가져옵니다."""
         if self.cap is None:
-            return self.generate_virtual_frame(), "가상 USB 카메라"
+            return self.generate_virtual_frame(), "가상 카메라"
             
         with self.buffer_lock:
             # 버퍼 플러시: 빠르게 여러 프레임을 읽어서 버림
@@ -125,23 +159,25 @@ class USBCameraServiceServer(Node):
             ret, captured_frame = self.cap.read()
             if not ret:
                 self.failed_reads += 1
-                self.get_logger().warn(f'⚠️ USB 카메라 최신 프레임 읽기 실패 ({self.failed_reads}/5)')
+                self.get_logger().warn(f'⚠️ 카메라 최신 프레임 읽기 실패 ({self.failed_reads}/5)')
                 
                 if self.failed_reads >= 5:
-                    self.get_logger().error('❌ USB 카메라 하드웨어 문제 감지 - 가상 카메라로 전환')
+                    self.get_logger().error('❌ 카메라 하드웨어 문제 감지 - 가상 카메라로 전환')
                     if self.cap.isOpened():
                         self.cap.release()
                     self.cap = None
                     self.failed_reads = 0
-                    return self.generate_virtual_frame(), "가상 USB 카메라 (자동 전환)"
+                    return self.generate_virtual_frame(), "가상 카메라 (자동 전환)"
                 else:
                     return None, "읽기 실패"
             else:
                 self.failed_reads = 0
-                # USB 카메라는 회전이 필요 없을 수 있음 (필요시 주석 해제)
-                # frame = cv2.rotate(captured_frame, cv2.ROTATE_180)
-                frame = captured_frame
-                return frame, "실제 USB 카메라"
+                # Jetson CSI 카메라는 180도 회전 필요
+                if hasattr(self, 'camera_type') and self.camera_type == "Jetson CSI":
+                    frame = cv2.rotate(captured_frame, cv2.ROTATE_180)
+                else:
+                    frame = captured_frame
+                return frame, f"실제 {self.camera_type}"
 
     def get_image_callback(self, request, response):
         frame, camera_type = self.get_fresh_frame()
