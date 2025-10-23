@@ -1,0 +1,191 @@
+# =============================================================================
+# 🚀 Mobile VLA RoboVLMs Docker 환경 - CUDA 12.2 호환 버전
+# 호스트 시스템 (CUDA 12.2, Python 3.10, Jetpack 6.0)에 맞춘 버전
+# =============================================================================
+
+# 베이스 이미지: 기존 검증된 이미지 사용
+FROM nvcr.io/nvidia/l4t-pytorch:r35.2.1-pth2.0-py3
+
+# 메타데이터
+LABEL maintainer="Mobile VLA RoboVLMs Team"
+LABEL description="Mobile VLA RoboVLMs System - CUDA 12.2 Compatible"
+LABEL version="1.0-cuda12"
+LABEL base="nvcr.io/nvidia/l4t-pytorch:r35.2.1-pth2.0-py3"
+
+# 사용자 설정
+USER root
+
+# 환경 변수 설정 (CUDA 12.2 호환)
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANGUAGE=en_US:en
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+ENV CUDA_HOME=/usr/local/cuda
+ENV NVCC_PATH=/usr/local/cuda/bin/nvcc
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV CUDAARCHS=87
+ENV CUDA_ARCHITECTURES=87
+ENV PATH="/root/.local/bin:/root/.cargo/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV PYTHONUNBUFFERED=1
+ENV RMW_IMPLEMENTATION=rmw_cyclonedx_cpp
+ENV HF_HOME=/root/.cache/huggingface
+
+# Jetson 전용 환경 설정
+ENV TAR_INDEX_URL=http://jetson.webredirect.org:8000/jp6/cu122
+
+# Mobile VLA RoboVLMs 전용 환경 변수
+ENV ROS_DOMAIN_ID=42
+ENV ROS_LOCALHOST_ONLY=0
+ENV MOBILE_VLA_DATA_DIR=/workspace/vla/mobile_vla_dataset
+ENV MOBILE_VLA_LOG_LEVEL=INFO
+ENV HUGGING_FACE_HUB_TOKEN=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
+
+# 1. 시스템 패키지 업데이트 및 기본 도구 설치
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libhdf5-serial-dev hdf5-tools libhdf5-dev \
+        curl gnupg lsb-release \
+        git vim nano htop tree \
+        build-essential cmake pkg-config \
+        # GStreamer (CSI 카메라용)
+        libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+        libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+        gstreamer1.0-libav gstreamer1.0-tools \
+        # 오디오 지원
+        libasound2-dev portaudio19-dev \
+        # 추가 유틸리티
+        openssh-client rsync \
+        python3-pip \
+        build-essential \
+        python3-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 2. OpenCV 확인 (베이스 이미지의 NVIDIA 최적화 OpenCV 사용)
+RUN python3 -c "import cv2; print(f'OpenCV version: {cv2.__version__}'); print('✅ NVIDIA optimized OpenCV is available')" || echo "OpenCV will be installed via pip if needed"
+
+# 3. ROS 2 Foxy 설치 (Ubuntu 20.04 호환)
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu focal main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        # X11/Qt 라이브러리
+        libxcb-randr0-dev libxcb-xtest0-dev libxcb-xinerama0-dev \
+        libxcb-shape0-dev libxcb-xkb-dev libqt5x11extras5 \
+        libxkbcommon-x11-0 libgl1-mesa-glx \
+        # ROS 2 Foxy 패키지 (Ubuntu 20.04용)
+        ros-foxy-desktop \
+        ros-dev-tools \
+        python3-colcon-common-extensions \
+        python3-rosdep \
+        ros-foxy-cv-bridge \
+        # Mobile VLA용 추가 ROS2 패키지
+        ros-foxy-image-transport \
+        ros-foxy-camera-info-manager \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 4. rosdep 초기화
+RUN rosdep init || true && rosdep update || true
+
+# 5. Python 패키지 설치
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir \
+        Pillow \
+        numpy \
+        requests \
+        pyserial \
+        opencv-python \
+    && rm -rf /root/.cache/pip
+
+# 6. Transformers 및 관련 라이브러리 설치
+RUN pip3 install --no-cache-dir \
+        transformers==4.35.0 \
+        tokenizers==0.14.0 \
+        accelerate==0.24.0 \
+        huggingface_hub==0.16.4 \
+    && rm -rf /root/.cache/pip
+
+# 7. CUDA 12.2 호환 PyTorch 설치 (Jetson용)
+RUN pip3 uninstall torch torchvision torchaudio -y && \
+    pip3 install --no-cache-dir \
+        torch==2.1.0 \
+        torchvision==0.16.0 \
+        torchaudio==2.1.0 \
+        --index-url https://download.pytorch.org/whl/cu121 \
+    && rm -rf /root/.cache/pip
+
+# 8. PyTorch CUDA 테스트 스크립트 추가
+COPY pytorch_cuda_test.py /usr/local/bin/pytorch_cuda_test.py
+RUN chmod +x /usr/local/bin/pytorch_cuda_test.py
+
+# 9. 작업공간 디렉토리 생성
+RUN mkdir -p /workspace/vla \
+    && mkdir -p /workspace/vla/ROS_action \
+    && mkdir -p /workspace/vla/mobile_vla_dataset \
+    && mkdir -p /workspace/vla/.cache/huggingface \
+    && mkdir -p /workspace/vla/logs \
+    && chmod -R 777 /workspace/vla
+
+# 10. .bashrc 설정
+RUN echo "" >> /root/.bashrc && \
+    echo "# =============================================================================" >> /root/.bashrc && \
+    echo "# 🚀 Mobile VLA RoboVLMs Docker 환경 - CUDA 12.2 Compatible" >> /root/.bashrc && \
+    echo "# =============================================================================" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
+    echo "# ROS 2 Foxy environment setup" >> /root/.bashrc && \
+    echo "source /opt/ros/foxy/setup.bash" >> /root/.bashrc && \
+    echo "export ROS_DOMAIN_ID=42" >> /root/.bashrc && \
+    echo "export ROS_LOCALHOST_ONLY=0" >> /root/.bashrc && \
+    echo "export HUGGING_FACE_HUB_TOKEN=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" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
+    echo "# ROS_action 워크스페이스 자동 소싱 (존재할 경우)" >> /root/.bashrc && \
+    echo "if [ -f \"/workspace/vla/ROS_action/install/setup.bash\" ]; then" >> /root/.bashrc && \
+    echo "    source /workspace/vla/ROS_action/install/setup.bash" >> /root/.bashrc && \
+    echo "fi" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
+    echo "# PyTorch & CUDA Test Alias" >> /root/.bashrc && \
+    echo "alias torch_cuda_test='python3 /usr/local/bin/pytorch_cuda_test.py'" >> /root/.bashrc && \
+    echo "alias cuda-test='python3 -c \"import torch; print(f\\\"PyTorch: {torch.__version__}\\\"); print(f\\\"CUDA Available: {torch.cuda.is_available()}\\\"); print(f\\\"CUDA Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \\\"N/A\\\"}\\\")\"'" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
+    echo "# Mobile VLA RoboVLMs 전용 alias" >> /root/.bashrc && \
+    echo "alias vla-build='cd /workspace/vla/ROS_action && colcon build'" >> /root/.bashrc && \
+    echo "alias vla-source='source /opt/ros/foxy/setup.bash && source /workspace/vla/ROS_action/install/setup.bash'" >> /root/.bashrc && \
+    echo "alias vla-camera='ros2 run camera_pub camera_publisher_continuous'" >> /root/.bashrc && \
+    echo "alias vla-collect='cd /workspace/vla && python mobile_vla_data_collector.py'" >> /root/.bashrc && \
+    echo "alias mobile-vla-test='cd /workspace/vla && python kosmos_camera_test.py'" >> /root/.bashrc && \
+    echo "alias run-mobile-vla='cd /workspace/vla && python launch_mobile_vla_system.py'" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
+    echo "# RoboVLMs 시스템 실행 alias" >> /root/.bashrc && \
+    echo "alias robovlms-system='cd /workspace/vla/ROS_action && source /opt/ros/foxy/setup.bash && colcon build --packages-select mobile_vla_package && source install/setup.bash && ros2 launch mobile_vla_package robovlms_system.launch.py'" >> /root/.bashrc && \
+    echo "alias robovlms-inference='cd /workspace/vla/ROS_action && source /opt/ros/foxy/setup.bash && python3 src/mobile_vla_package/mobile_vla_package/robovlms_inference.py'" >> /root/.bashrc && \
+    echo "alias robovlms-test='cd /workspace/vla && python3 -c \"import torch; from transformers import AutoModel, AutoProcessor; print(\\\"Testing RoboVLMs model...\\\"); print(\\\"✅ RoboVLMs environment ready (model will be downloaded at runtime)\\\")\"'" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
+    echo "# 환영 메시지" >> /root/.bashrc && \
+    echo "echo \"🚀 Mobile VLA RoboVLMs Docker 환경 - CUDA 12.2 Compatible\"" >> /root/.bashrc && \
+    echo "echo \"📋 사용 가능한 명령어:\"" >> /root/.bashrc && \
+    echo "echo \"   vla-build     : ROS2 워크스페이스 빌드\"" >> /root/.bashrc && \
+    echo "echo \"   vla-source    : ROS2 환경 소싱\"" >> /root/.bashrc && \
+    echo "echo \"   vla-camera    : CSI 카메라 실행\"" >> /root/.bashrc && \
+    echo "echo \"   vla-collect   : 데이터 수집\"" >> /root/.bashrc && \
+    echo "echo \"   cuda-test     : CUDA 테스트\"" >> /root/.bashrc && \
+    echo "echo \"   robovlms-test : RoboVLMs 모델 테스트\"" >> /root/.bashrc && \
+    echo "echo \"   robovlms-system: RoboVLMs 시스템 실행\"" >> /root/.bashrc && \
+    echo "echo \"   robovlms-inference: RoboVLMs 추론 노드\"" >> /root/.bashrc && \
+    echo "echo \"\"" >> /root/.bashrc && \
+    echo "echo \"🎯 현재 환경: ROS2 Foxy + PyTorch + Transformers + OpenCV\"" >> /root/.bashrc && \
+    echo "echo \"📊 모델: Kosmos2 + CLIP Hybrid (런타임 다운로드)\"" >> /root/.bashrc && \
+    echo "echo \"🔧 CUDA: $(python3 -c 'import torch; print(torch.cuda.is_available())' 2>/dev/null || echo 'Unknown')\"" >> /root/.bashrc && \
+    echo "echo \"\"" >> /root/.bashrc
+
+# 11. 작업 디렉토리 설정
+WORKDIR /workspace/vla
+
+# 12. 포트 노출
+EXPOSE 11311
+EXPOSE 8080
+
+# 13. 기본 명령어 설정
+CMD ["/bin/bash"]

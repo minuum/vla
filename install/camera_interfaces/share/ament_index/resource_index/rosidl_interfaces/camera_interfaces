@@ -1,4 +1,0 @@
-srv/GetImage.idl
-srv/GetImage.srv
-srv/GetImage_Request.msg
-srv/GetImage_Response.msg
