@@ -14,7 +14,7 @@
   "cap_loss_ratio": 0.0,
   "fwd_loss_ratio": 0,
   "seed": 123,
-  "batch_size": 4,
+  "batch_size": 2,
   "num_workers": 4,
   "optimizer": "adamw",
   "learning_rate": 1e-5,
@@ -94,8 +94,8 @@
   },
   "trainer": {
     "accelerator": "gpu",
-    "strategy": "auto",
-    "precision": "bf16-mixed",
+    "strategy": "deepspeed_stage_2",
+    "precision": "bf16",
     "logger": ["tensorboard"],
     "gradient_clip_val": 1.0,
     "use_distributed_sampler": false,
@@ -104,7 +104,7 @@
     "val_check_interval": 0.5,
     "check_val_every_n_epoch": 1,
     "max_steps": -1,
-    "accumulate_grad_batches": 1,
+    "accumulate_grad_batches": 4,
     "enable_checkpointing": true,
     "default_root_dir": "runs/mobile_vla"
   },
