@@ -1,0 +1,63 @@
+{
+  "best_val_mae": 0.0,
+  "training_time": 57.638927936553955,
+  "model_info": {
+    "total_parameters": 1825466628,
+    "trainable_parameters": 1825466628,
+    "model_size_mb": 6963.602554321289,
+    "vision_resampler_tokens": 64,
+    "action_dim": 2,
+    "mobile_optimized": true,
+    "use_clip_normalization": true,
+    "normalization_type": "mobile",
+    "use_claw_matrix": true,
+    "claw_matrix_type": "mobile"
+  },
+  "args": {
+    "data_dir": "/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset",
+    "epochs": 5,
+    "batch_size": 4,
+    "learning_rate": 0.0001,
+    "save_dir": "checkpoints_claw_matrix",
+    "normalization_type": "mobile",
+    "claw_matrix_type": "mobile",
+    "device": "auto"
+  },
+  "history": {
+    "train_loss": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "train_mae": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "val_loss": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "val_mae": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "learning_rates": [
+      0.0001,
+      9.045084971874738e-05,
+      6.545084971874737e-05,
+      3.454915028125263e-05,
+      9.549150281252631e-06
+    ]
+  }
+}
