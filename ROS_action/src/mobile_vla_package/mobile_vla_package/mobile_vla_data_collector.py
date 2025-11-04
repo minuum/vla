@@ -2,6 +2,7 @@
 import rclpy
 from rclpy.node import Node
 import sys, tty, termios
+import os
 import time
 import numpy as np
 import cv2
@@ -12,6 +13,11 @@ from typing import Dict, List
 import threading
 import json
 from collections import defaultdict
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from geometry_msgs.msg import Twist
@@ -54,37 +60,49 @@ class MobileVLADataCollector(Node):
         self.action_chunk_size = 8
         
         # RoboVLMs 일관성을 위한 18스텝 고정
-        self.fixed_episode_length = 18   # RoboVLMs 표준 길이
+        # RoboVLMs 설정: window_size=8, fwd_pred_next_n=10 → 총 18프레임 필요
+        self.fixed_episode_length = 18   # RoboVLMs 표준 길이 (window_size + fwd_pred_next_n)
         
-        # 분류 및 모니터링 설정
+        # 데이터셋 분류 설정 (통계 모니터링용, 수집 목표와는 별개)
+        # 실제 수집 목표는 18프레임 기준으로 설정됨
         self.categories = {
-            "short": {"min": 1, "max": 10, "target": 50, "description": "짧은 에피소드"},
-            "medium": {"min": 11, "max": 25, "target": 100, "description": "중간 에피소드"},  
-            "long": {"min": 26, "max": 50, "target": 30, "description": "긴 에피소드"},
-            "extra_long": {"min": 51, "max": float('inf'), "target": 10, "description": "매우 긴 에피소드"}
+            "short": {"min": 1, "max": 10, "target": 100, "description": "짧은 에피소드"},
+            "medium": {"min": 11, "max": 25, "target": 700, "description": "중간 에피소드"},  
+            "long": {"min": 26, "max": 50, "target": 150, "description": "긴 에피소드"},
+            "extra_long": {"min": 51, "max": float('inf'), "target": 50, "description": "매우 긴 에피소드"}
         }
         
-        # 8가지 컵 도달 시나리오 목표 설정 (현실적 타협점: 총 80개)
+        # 시간대별 수집 계획 (총 1000개 목표, 24시간 전체 커버)
+        # 24시간을 4가지 시간대로 균등 분할
+        self.time_period_targets = {
+            "dawn": {"target": 200, "description": "새벽 (00:00-06:00)", "hour_range": (0, 6)},
+            "morning": {"target": 200, "description": "아침 (06:00-12:00)", "hour_range": (6, 12)},
+            "evening": {"target": 300, "description": "저녁 (12:00-18:00)", "hour_range": (12, 18)},
+            "night": {"target": 300, "description": "밤 (18:00-24:00)", "hour_range": (18, 24)}
+        }
+        self.time_period_stats = defaultdict(int)  # 시간대별 통계
+        
+        # 4가지 탄산음료 페트병 도달 시나리오 목표 설정 (총 1000개 목표)
+        # 시나리오별 목표: 각 250개 (1000개 ÷ 4개 시나리오)
+        # 배치 타입(vert/hori)은 메타데이터로만 기록, 학습에는 영향 없음
         self.cup_scenarios = {
-            "1box_vert_left": {"target": 10, "description": "1박스-세로-왼쪽경로", "key": "1"},
-            "1box_vert_right": {"target": 10, "description": "1박스-세로-오른쪽경로", "key": "2"},
-            "1box_hori_left": {"target": 10, "description": "1박스-가로-왼쪽경로", "key": "3"},
-            "1box_hori_right": {"target": 10, "description": "1박스-가로-오른쪽경로", "key": "4"},
-            "2box_vert_left": {"target": 10, "description": "2박스-세로-왼쪽경로", "key": "5"},
-            "2box_vert_right": {"target": 10, "description": "2박스-세로-오른쪽경로", "key": "6"},
-            "2box_hori_left": {"target": 10, "description": "2박스-가로-왼쪽경로", "key": "7"},
-            "2box_hori_right": {"target": 10, "description": "2박스-가로-오른쪽경로", "key": "8"}
+            "1box_left": {"target": 250, "description": "1박스-왼쪽경로", "key": "1"},
+            "1box_right": {"target": 250, "description": "1박스-오른쪽경로", "key": "2"},
+            "2box_left": {"target": 250, "description": "2박스-왼쪽경로", "key": "3"},
+            "2box_right": {"target": 250, "description": "2박스-오른쪽경로", "key": "4"}
         }
         
-        # 장애물(박스) 위치 단계 (3단계, 각 시나리오당 10개)
-        # 세로 배치: 로봇-장애물 거리 기준 / 가로 배치: 좌우 치우침 기준
-        # label: 안내용 텍스트, hint: 콘솔 힌트, samples_per_scenario: 권장 샘플 수
+        # 장애물 배치 타입 기본값 설정 (학습에 불필요하지만 호환성을 위해 기본값 사용)
+        self.default_layout_type = "hori"  # 기본값: 가로 배치
+        
+        # 장애물(박스) 위치 단계 (3단계)
+        # label: 안내용 텍스트, hint: 콘솔 힌트
         self.distance_levels = {
-            "close":   {"label": "세로: 로봇과 가까움 / 가로: 좌측 치우침",   "hint": "로봇 바로 앞 or 왼쪽에 더 가까운 장애물",
+            "close":   {"label": "로봇과 가까운 위치",   "hint": "로봇 바로 앞에 가까운 장애물",
                          "samples_per_scenario": 3},
-            "medium":  {"label": "세로: 중간 거리 / 가로: 중앙 근처",          "hint": "장애물이 중앙 라인에 가깝게 배치",
+            "medium":  {"label": "중간 거리",          "hint": "장애물이 중간 거리에 배치",
                          "samples_per_scenario": 4},
-            "far":     {"label": "세로: 로봇과 멀음 / 가로: 우측 치우침",     "hint": "로봇에서 멀리 or 오른쪽에 더 가까운 장애물",
+            "far":     {"label": "로봇과 먼 위치",     "hint": "로봇에서 멀리 배치된 장애물",
                          "samples_per_scenario": 3}
         }
         
@@ -93,31 +111,32 @@ class MobileVLADataCollector(Node):
         # 패턴×거리(위치) 진행 통계: scenario -> pattern -> distance -> count
         self.pattern_distance_stats: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
-        # 시나리오당 목표(패턴/위치 분배) - Exception 제거, Variant로 병합
-        # 세로(vert) 기본: Core 6, Variant 4 → 거리: Core(2/3/1), Variant(1/1/2)
-        self.pattern_targets = {"core": 6, "variant": 4}
+        # 시나리오당 목표(패턴/위치 분배) - 통합된 목표 (가로/세로 구분 없음)
+        # 시나리오당 250개 목표를 패턴/거리별로 분배
+        # Core: 150개 (60%), Variant: 100개 (40%)
+        # 거리 분배: Core(50/75/25), Variant(25/25/50)
+        self.pattern_targets = {"core": 150, "variant": 100}
         self.distance_targets_per_pattern = {
-            "core": {"close": 2, "medium": 3, "far": 1},
-            "variant": {"close": 1, "medium": 1, "far": 2},
-        }
-
-        # 가로(수평) 시나리오 전용 오버라이드 목표 (Exception 없음)
-        self.hori_pattern_targets_override = {"core": 7, "variant": 3}
-        self.hori_distance_targets_override = {
-            "core": {"close": 2, "medium": 3, "far": 2},
-            "variant": {"close": 1, "medium": 1, "far": 1},
+            "core": {"close": 50, "medium": 75, "far": 25},
+            "variant": {"close": 25, "medium": 25, "far": 50},
         }
         
-        # 시나리오/패턴/거리 선택 모드 및 상태
+        # 시나리오/패턴/거리 선택 모드 및 상태 (배치 타입 제거로 단순화)
         self.scenario_selection_mode = False
         self.pattern_selection_mode = False
         self.distance_selection_mode = False
+        self.repeat_count_mode = False  # 반복 횟수 입력 모드
+        self.repeat_count_input = ""  # 입력 중인 숫자 문자열
         self.selected_scenario = None
         self.selected_pattern_type = None
         self.selected_distance_level = None
+        self.current_repeat_index = 0  # 현재 반복 인덱스 (0이면 아직 시작 안함)
+        self.target_repeat_count = 1  # 목표 반복 횟수
+        self.is_repeat_measurement_active = False  # 반복 측정 활성 상태
+        self.waiting_for_next_repeat = False  # 다음 반복 측정을 위한 시작 위치 세팅 대기 중
 
         # 핵심 패턴(표준) 관리
-        # key: 시나리오 또는 시나리오__패턴__거리 (예: "1box_vert_left__core__medium")
+        # key: 시나리오 또는 시나리오__패턴__거리 (예: "1box_left__core__medium")
         self.core_patterns: Dict[str, List[str]] = {}
         self.core_guidance_active: bool = False
         self.core_guidance_index: int = 0
@@ -166,16 +185,33 @@ class MobileVLADataCollector(Node):
 
 
         self.cv_bridge = CvBridge()
-        self.data_dir = Path("mobile_vla_dataset")
-        self.data_dir.mkdir(exist_ok=True)
+        
+        # 데이터 디렉토리 경로 설정 (환경변수 우선, 없으면 홈 디렉토리 기준)
+        data_dir_env = os.environ.get('VLA_DATASET_DIR', None)
+        if data_dir_env:
+            self.data_dir = Path(data_dir_env).expanduser().resolve()
+        else:
+            # 홈 디렉토리 기준 절대 경로 사용 (현재 작업 디렉토리 문제 방지)
+            home_dir = Path.home()
+            self.data_dir = home_dir / "vla" / "ROS_action" / "install" / "mobile_vla_dataset"
+        
+        # 부모 디렉토리까지 생성 (parents=True)
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            self.get_logger().info(f"📁 데이터 디렉토리: {self.data_dir}")
+        except Exception as e:
+            self.get_logger().error(f"❌ 데이터 디렉토리 생성 실패: {e}")
+            raise
         
         # 진행상황 저장 파일 (data_dir 정의 후)
         self.progress_file = self.data_dir / "scenario_progress.json"
+        self.time_period_file = self.data_dir / "time_period_stats.json"
         self.core_pattern_file = self.data_dir / "core_patterns.json"
         
         # 데이터셋 통계 로드
         self.load_dataset_stats()
         self.load_scenario_progress()
+        self.load_time_period_stats()
         self.load_core_patterns()
         
         self.get_logger().info("🤖 Mobile VLA Data Collector 준비 완료!")
@@ -184,11 +220,16 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   R/T: 회전, 스페이스바: 정지")
         self.get_logger().info("   F/G: 속도 조절, N: 새 에피소드 시작")
         self.get_logger().info("   M: 에피소드 종료, P: 현재 진행 상황 확인")
-        self.get_logger().info("🎯 수집 단계: N → 시나리오(1-8) → 패턴(C/V) → 장애물 위치(J/K/L)")
-        self.get_logger().info("🎯 컵 도달 시나리오 선택 (RoboVLMs 표준):")
-        self.get_logger().info("   📦 8개 시나리오 × 10개 샘플 × 18스텝 고정 (패턴: Core/Variant)")
-        self.get_logger().info("   💡 총 목표: 80개 (기존 120개에서 33% 단축)")
-        self.get_logger().info("   🔬 거리 분포: 근거리(3) + 중거리(4) + 원거리(3)")
+        self.get_logger().info("   V: H5 파일 검증 및 추출 (최신 파일 또는 선택)")
+        self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 장애물 위치(J/K/L)")
+        self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 (총 1000개 목표):")
+        self.get_logger().info("   📦 4개 시나리오 × 250개 샘플 × 18프레임 고정 (RoboVLMs 기준: window=8 + pred_next=10)")
+        self.get_logger().info("   🎯 수집 목표: 18프레임 기준 (RoboVLMs 학습에 최적화)")
+        self.get_logger().info("   💡 총 목표: 1000개 (시나리오당 250개)")
+        self.get_logger().info("   🌅 시간대 분포: 새벽(200) + 아침(200) + 저녁(300) + 밤(300)")
+        self.get_logger().info("   🔬 패턴 분포: Core(150) + Variant(100) / 시나리오")
+        self.get_logger().info("   📊 카테고리 분류: 데이터셋 통계 모니터링용 (수집 목표와는 별개)")
+        self.get_logger().info("   ✨ 단순화: 배치 타입 선택 단계 제거 (학습에 불필요)")
         self.get_logger().info("   Ctrl+C: 프로그램 종료")
         
         self.get_logger().info("⏳ 키보드 입력 대기 중...")
@@ -215,24 +256,41 @@ class MobileVLADataCollector(Node):
         elif key == 'n':
             if self.collecting:
                 self.stop_episode()
-            self.show_scenario_selection()
+            # 반복 측정이 활성화되어 있고 다음 측정을 기다리는 중이면 다음 측정 시작
+            elif self.is_repeat_measurement_active and self.waiting_for_next_repeat:
+                if self.current_repeat_index < self.target_repeat_count:
+                    self.waiting_for_next_repeat = False
+                    self.start_next_repeat_measurement()
+                else:
+                    # 모든 반복 완료
+                    self.get_logger().info(f"🎉 모든 반복 측정 완료! ({self.target_repeat_count}회)")
+                    self.is_repeat_measurement_active = False
+                    self.current_repeat_index = 0
+                    self.waiting_for_next_repeat = False
+                    self.show_scenario_selection()
+            else:
+                # 일반 모드: 시나리오 선택
+                self.show_scenario_selection()
         elif key == 'm':
             if self.collecting:
                 self.stop_episode()
         elif key == 'p':
             self.resync_and_show_progress()
-        elif key in ['1', '2', '3', '4', '5', '6', '7', '8']:
+        elif key == 'v':
+            if self.collecting:
+                self.get_logger().warn("⚠️ 수집 중에는 H5 파일 검증을 할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
+            else:
+                self.show_h5_verification_menu()
+        elif key in ['1', '2', '3', '4']:
             if self.scenario_selection_mode:
-                # 시나리오 선택 모드에서 숫자키 입력
+                # 시나리오 선택 모드에서 숫자키 입력 (4개 시나리오로 축소)
                 scenario_map = {
-                    '1': "1box_vert_left", '2': "1box_vert_right",
-                    '3': "1box_hori_left", '4': "1box_hori_right", 
-                    '5': "2box_vert_left", '6': "2box_vert_right",
-                    '7': "2box_hori_left", '8': "2box_hori_right"
+                    '1': "1box_left", '2': "1box_right",
+                    '3': "2box_left", '4': "2box_right"
                 }
                 self.selected_scenario = scenario_map[key]
                 self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
-                self.show_pattern_selection()  # 패턴 선택 모드로 전환
+                self.show_pattern_selection()  # 패턴 선택 모드로 전환 (배치 타입 단계 제거)
             else:
                 self.get_logger().info("⚠️ 먼저 'N' 키를 눌러 에피소드 시작을 해주세요.")
         elif key in ['c', 'v']:
@@ -257,11 +315,11 @@ class MobileVLADataCollector(Node):
                 distance_map = {'j': 'close', 'k': 'medium', 'l': 'far'}
                 self.selected_distance_level = distance_map[key]
                 self.distance_selection_mode = False
-                self.start_episode_with_pattern_and_distance(
-                    self.selected_scenario,
-                    self.selected_pattern_type,
-                    self.selected_distance_level
-                )
+                # 반복 횟수 입력 모드로 전환
+                self.show_repeat_count_selection()
+            elif self.repeat_count_mode:
+                # 반복 횟수 입력 모드에서는 거리 선택 키는 무시
+                pass
         elif key == 'f':
             if ROBOT_AVAILABLE:
                 self.throttle = max(10, self.throttle - 10)
@@ -270,11 +328,55 @@ class MobileVLADataCollector(Node):
             if ROBOT_AVAILABLE:
                 self.throttle = min(100, self.throttle + 10)
                 self.get_logger().info(f'속도: {self.throttle}%')
+        elif key == '\r' or key == '\n':  # Enter 키
+            if self.repeat_count_mode:
+                # 반복 횟수 입력 완료
+                if self.repeat_count_input == "":
+                    # 빈 입력이면 1회로 설정
+                    self.target_repeat_count = 1
+                else:
+                    try:
+                        self.target_repeat_count = int(self.repeat_count_input)
+                        if self.target_repeat_count <= 0:
+                            self.get_logger().warn("⚠️ 반복 횟수는 1 이상이어야 합니다. 1회로 설정합니다.")
+                            self.target_repeat_count = 1
+                        elif self.target_repeat_count > 100:
+                            self.get_logger().warn("⚠️ 반복 횟수는 100 이하여야 합니다. 100회로 제한합니다.")
+                            self.target_repeat_count = 100
+                    except ValueError:
+                        self.get_logger().warn("⚠️ 잘못된 입력입니다. 1회로 설정합니다.")
+                        self.target_repeat_count = 1
+                
+                self.repeat_count_mode = False
+                self.repeat_count_input = ""
+                self.current_repeat_index = 0
+                self.is_repeat_measurement_active = True
+                
+                # 첫 번째 측정 시작
+                self.start_next_repeat_measurement()
+        elif key.isdigit():
+            if self.repeat_count_mode:
+                # 숫자 입력 (최대 3자리)
+                if len(self.repeat_count_input) < 3:
+                    self.repeat_count_input += key
+                    self.get_logger().info(f"📝 입력된 횟수: {self.repeat_count_input} (Enter로 확인)")
+                else:
+                    self.get_logger().warn("⚠️ 최대 3자리까지 입력 가능합니다.")
+            elif self.scenario_selection_mode or self.pattern_selection_mode or self.distance_selection_mode:
+                # 선택 모드 중에는 숫자 입력 무시
+                pass
         elif key in self.WASD_TO_CONTINUOUS:
-            if self.scenario_selection_mode or self.pattern_selection_mode:
+            if self.scenario_selection_mode or self.pattern_selection_mode or self.distance_selection_mode:
                 self.scenario_selection_mode = False
                 self.pattern_selection_mode = False
+                self.distance_selection_mode = False
                 self.get_logger().info("🚫 선택이 취소되었습니다.")
+                return
+            elif self.repeat_count_mode:
+                # 반복 횟수 입력 모드에서는 이동 키로 입력 취소
+                self.repeat_count_mode = False
+                self.repeat_count_input = ""
+                self.get_logger().info("🚫 반복 횟수 입력이 취소되었습니다.")
                 return
                 
             action = self.WASD_TO_CONTINUOUS[key]
@@ -282,21 +384,24 @@ class MobileVLADataCollector(Node):
             if self.collecting:
                 self.current_episode_keys.append(key)
             
+            # 이전 타이머 취소 및 정지 처리 (중복 호출 방지)
             if self.movement_timer and self.movement_timer.is_alive():
                 self.movement_timer.cancel()
+                # 이미 정지 상태가 아니면 정지 신호 전송 (데이터 수집 없이)
                 if self.current_action != self.STOP_ACTION: 
-                    self.stop_movement_internal(collect_data=False)  # 이전 액션 중단시 데이터 수집 안함 
+                    self.current_action = self.STOP_ACTION.copy()
+                    self.publish_cmd_vel(self.STOP_ACTION)
 
+            # 새 액션 시작
             self.current_action = action.copy()
             self.publish_cmd_vel(action)
-            self.get_logger().info(f"🔴 {'수집중' if self.collecting else '대기중'} | Key: {key.upper()} → Action: ({action['linear_x']:+.1f}, {action['linear_y']:+.1f}, {action['angular_z']:+.1f})")
 
             if self.collecting:
                 self.collect_data_point_with_action("start_action", action)
 
+            # 새 타이머 시작 (로그 간소화)
             self.movement_timer = threading.Timer(0.3, self.stop_movement_timed)
             self.movement_timer.start()
-            self.get_logger().info(f"🚀 움직임 시작: 0.3초 타이머 설정됨 (타이머 ID: {id(self.movement_timer)})")
             
         elif key == ' ':
             self.stop_movement_internal(collect_data=True) 
@@ -304,7 +409,9 @@ class MobileVLADataCollector(Node):
 
     def stop_movement_timed(self):
         """Stop function called by the timer - NO data collection for auto-stop"""
-        self.get_logger().info(f"⏰ 타이머 호출: 0.3초 후 자동 정지 (타이머 ID: {id(threading.current_thread())})")
+        # 타이머가 이미 취소되었거나 현재 정지 상태면 리턴 (중복 호출 방지)
+        if self.current_action == self.STOP_ACTION:
+            return
         self.stop_movement_internal(collect_data=False)
 
     def stop_movement_internal(self, collect_data: bool):
@@ -312,15 +419,13 @@ class MobileVLADataCollector(Node):
         Internal function to stop robot movement and collect data if needed.
         collect_data: If True, collects data at the time of stopping.
         """
-        self.get_logger().info(f"🔧 stop_movement_internal 호출: collect_data={collect_data}, current_action={self.current_action}")
-        
-        if not collect_data and self.current_action == self.STOP_ACTION:
-            self.get_logger().info("🔧 이미 정지 상태이므로 리턴")
+        # 이미 정지 상태면 리턴 (중복 호출 방지)
+        if self.current_action == self.STOP_ACTION:
             return
 
         self.current_action = self.STOP_ACTION.copy()
         self.publish_cmd_vel(self.STOP_ACTION)
-        self.get_logger().info("🛑 움직임 완료")
+        # 로그 간소화: 정지 완료 로그 제거
 
         if self.collecting and collect_data:
             self.collect_data_point_with_action("stop_action", self.STOP_ACTION)
@@ -362,7 +467,7 @@ class MobileVLADataCollector(Node):
                     response = future.result()
                     if response.image.data:
                         cv_image = self.cv_bridge.imgmsg_to_cv2(response.image, "bgr8")
-                        self.get_logger().info("✅ 서비스로부터 이미지 수신 완료!")
+                        # 로그 간소화: 이미지 수신 성공 로그 제거
                         return cv_image
                     else:
                         self.get_logger().warn(f"⚠️ 빈 이미지 수신 (시도 {attempt+1}/{max_retries})")
@@ -422,44 +527,31 @@ class MobileVLADataCollector(Node):
         }
         self.episode_data.append(frame_data)
         
-        # 액션 내용 로깅
-        action_desc = []
-        if abs(action['linear_x']) > 0.1:
-            action_desc.append(f"전진{action['linear_x']:+.1f}")
-        if abs(action['linear_y']) > 0.1:
-            action_desc.append(f"횡이동{action['linear_y']:+.1f}")
-        if abs(action['angular_z']) > 0.1:
-            action_desc.append(f"회전{action['angular_z']:+.1f}")
-        if not action_desc:
-            action_desc.append("정지")
-            
-        # 핵심 패턴 가이드 표시 (요구 형식)
+        # 간소화된 로그: 현재 수집 개수와 남은 개수만 표시
+        current_count = len(self.episode_data)
+        total_target = self.fixed_episode_length
+        remaining = max(0, total_target - current_count)
+        
+        # 핵심 패턴 불일치 감지 (로그 없이 내부 통계만 업데이트)
         if self.core_guidance_active and action_event_type == "start_action":
-            # 시나리오 추론: 선택 메뉴를 지나 시작했을 때 selected_scenario가 None일 수 있음
             scenario_for_guide = self.selected_scenario or self.extract_scenario_from_episode_name(self.episode_name)
             pattern_for_guide = self.selected_pattern_type or self.extract_pattern_from_episode_name(self.episode_name)
             distance_for_guide = self.selected_distance_level or self.extract_distance_from_episode_name(self.episode_name)
             planned_seq = self._get_planned_core_keys_18(scenario_for_guide, pattern_for_guide, distance_for_guide)
-            planned_display = ", ".join([k.upper() for k in planned_seq]) if planned_seq else "(표준 녹화 중)"
             current_key = self._infer_key_from_action(action)
-            # 전체 18스텝 기준으로 남은 스텝 계산 (표준 없으면 18 기준)
-            total_steps = self.fixed_episode_length
-            remaining = max(0, total_steps - len(self.current_episode_keys))
-            # 요청 포맷으로 두 줄 출력 + 다음 눌러야 하는 액션
-            next_key = None
+            
+            # 불일치 감지 (Core일 때만, 로그 없이 통계만 업데이트)
             if planned_seq and len(self.current_episode_keys) < self.fixed_episode_length:
-                next_key = planned_seq[len(self.current_episode_keys)].upper()
-            self.get_logger().info(f"🧭 [1..{self.fixed_episode_length}] 선행 액션(참고 core): [{planned_display}]")
-            # 불일치 감지 (Core일 때만)
-            mismatch = False
-            if planned_seq and next_key and pattern_for_guide == 'core':
-                mismatch = (current_key != next_key)
-                if mismatch:
-                    self.core_mismatch_count += 1
-            status = "✅" if not mismatch else "⚠️"
-            self.get_logger().info(f"{status} ⌨️ [현재 액션 -> 다음]: [{current_key}] -> [{next_key if next_key else '-'}] | 남은({remaining})")
-
-        self.get_logger().info(f"💾 {action_event_type} 액션[{', '.join(action_desc)}] 데이터 수집: {len(self.episode_data)}개")
+                next_key = planned_seq[len(self.current_episode_keys)]
+                if planned_seq and next_key and pattern_for_guide == 'core':
+                    if current_key != next_key:
+                        self.core_mismatch_count += 1
+        
+        # 간소화된 로그 출력
+        if remaining > 0:
+            self.get_logger().info(f"📊 수집 진행: {current_count}/{total_target} (남은: {remaining})")
+        else:
+            self.get_logger().info(f"✅ 수집 완료: {current_count}/{total_target}")
 
     def get_key(self) -> str:
         """Reads key input from the terminal"""
@@ -565,7 +657,15 @@ class MobileVLADataCollector(Node):
         self.collecting = True
         self.episode_start_time = time.time()
         
+        # 에피소드 시작 시점의 시간대 자동 분류
+        start_timestamp = datetime.now()
+        start_time_period = self.classify_time_period(start_timestamp)
+        start_time_str = start_timestamp.strftime("%H:%M:%S")
+        period_info = self.time_period_targets.get(start_time_period, {})
+        period_desc = period_info.get('description', start_time_period)
+        
         self.get_logger().info(f"🎬 에피소드 시작: {self.episode_name}")
+        self.get_logger().info(f"⏰ 시작 시간: {start_time_str} → 시간대: {period_desc} ({start_time_period})")
         self.get_logger().info(f"🔍 수집 상태: collecting={self.collecting}, 초기이미지크기={initial_image.shape}")
         
         # 에피소드 시작 시점의 이미지를 첫 번째 데이터 포인트로 수집
@@ -635,6 +735,18 @@ class MobileVLADataCollector(Node):
         category = self.classify_by_frames(num_frames)
         self.dataset_stats[category] += 1
         
+        # 시간대별 통계 업데이트 (에피소드 종료 시점의 시간 기준)
+        current_timestamp = datetime.now()
+        current_time_period = self.classify_time_period(current_timestamp)
+        self.time_period_stats[current_time_period] += 1
+        self.save_time_period_stats()
+        
+        # 시간대 분류 정보 로그
+        current_time_str = current_timestamp.strftime("%H:%M:%S")
+        period_info = self.time_period_targets.get(current_time_period, {})
+        period_desc = period_info.get('description', current_time_period)
+        self.get_logger().info(f"⏰ 수집 시간: {current_time_str} → 시간대: {period_desc} ({current_time_period})")
+        
         # 시나리오별 통계 업데이트 (에피소드명에서 시나리오 추출)
         if scenario:
             self.scenario_stats[scenario] += 1
@@ -645,12 +757,23 @@ class MobileVLADataCollector(Node):
             if pattern and distance:
                 self.pattern_distance_stats[scenario][pattern][distance] += 1
         
-        # 프레임 18개 데이터 특별 표시
-        frame_18_indicator = "🎯 [18프레임!]" if num_frames == 18 else ""
+        # 프레임 18개 데이터 특별 표시 (RoboVLMs 기준 목표)
+        if num_frames == 18:
+            frame_18_indicator = "🎯 [18프레임 목표 달성!]"
+        else:
+            frame_18_indicator = f"⚠️ [{num_frames}프레임] (목표: 18프레임)"
         scenario_indicator = f" 🎯[{scenario}]" if scenario else ""
+        time_period_info = self.time_period_targets.get(current_time_period, {})
+        time_period_desc = time_period_info.get('description', current_time_period) if current_time_period else ""
+        time_period_indicator = f" 🌅[{time_period_desc}]" if time_period_desc else ""
         
-        self.get_logger().info(f"✅ 에피소드 완료: {total_duration:.1f}초, 총 프레임 수: {num_frames}개{frame_18_indicator}{scenario_indicator}")
+        self.get_logger().info(f"✅ 에피소드 완료: {total_duration:.1f}초, 총 프레임 수: {num_frames}개 {frame_18_indicator}{scenario_indicator}{time_period_indicator}")
         self.get_logger().info(f"📂 카테고리: {category} ({self.categories[category]['description']})")
+        if time_period_desc:
+            time_period_current = self.time_period_stats[current_time_period]
+            time_period_target = time_period_info.get('target', 0)
+            time_period_progress = self.create_progress_bar(time_period_current, time_period_target, width=10)
+            self.get_logger().info(f"🌅 시간대: {time_period_desc} {time_period_progress} ({time_period_current}/{time_period_target})")
         self.get_logger().info(f"💾 저장됨: {save_path}")
         if self.core_guidance_active:
             self.get_logger().info(f"🧪 핵심 가이드 일치 여부: 불일치 {self.core_mismatch_count}회")
@@ -660,6 +783,9 @@ class MobileVLADataCollector(Node):
         if scenario:
             self.show_scenario_progress(scenario)
             self.show_pattern_distance_table(scenario)
+
+        # 반복 측정이 활성화되어 있으면 다음 측정 확인 및 진행
+        self.check_and_continue_repeat_measurement()
 
         self.publish_cmd_vel(self.STOP_ACTION)
 
@@ -686,11 +812,22 @@ class MobileVLADataCollector(Node):
 
         self.get_logger().info(f"📊 생성된 데이터: 이미지 {images.shape}, 액션 {actions.shape}, 이벤트 타입 {action_event_types.shape}")
 
+        # 현재 시간대 자동 분류 (에피소드 종료 시점 기준)
+        current_timestamp = datetime.now()
+        current_time_period = self.classify_time_period(current_timestamp)
+        
         with h5py.File(save_path, 'w') as f:
             f.attrs['episode_name'] = episode_name
             f.attrs['total_duration'] = total_duration
             f.attrs['num_frames'] = images.shape[0]
             f.attrs['action_chunk_size'] = self.action_chunk_size
+            # 배치 타입 메타데이터 추가 (기본값으로 자동 설정)
+            f.attrs['obstacle_layout_type'] = self.default_layout_type  # 기본값: "hori"
+            # 시간대 메타데이터 추가 (자동 분류된 시간대)
+            f.attrs['time_period'] = current_time_period  # "day", "night", "dawn"
+            f.attrs['collection_datetime'] = current_timestamp.isoformat()  # ISO 형식 저장
+            f.attrs['collection_hour'] = current_timestamp.hour
+            f.attrs['collection_minute'] = current_timestamp.minute
 
             f.create_dataset('images', data=images, compression='gzip')
             f.create_dataset('actions', data=actions, compression='gzip')
@@ -749,6 +886,8 @@ class MobileVLADataCollector(Node):
         """전체 진행 상황 표시"""
         self.get_logger().info("=" * 50)
         self.get_logger().info("📊 현재 데이터셋 진행 상황")
+        self.get_logger().info("📌 수집 목표: 18프레임 기준 (RoboVLMs: window=8 + pred_next=10)")
+        self.get_logger().info("📊 카테고리 분류: 데이터셋 통계 모니터링용 (수집 목표와는 별개)")
         self.get_logger().info("=" * 50)
         
         total_current = 0
@@ -787,11 +926,34 @@ class MobileVLADataCollector(Node):
         
         self.get_logger().info("-" * 50)
         self.get_logger().info(f"🎯 전체: {overall_progress} ({overall_percentage:.1f}%)")
-        self.get_logger().info(f"🎯 프레임 18개 데이터: {frame_18_count}개 발견!")
+        self.get_logger().info(f"🎯 18프레임 목표 데이터: {frame_18_count}개 발견! (RoboVLMs 기준)")
+        
+        # 시간대별 진행 상황 표시
+        self.get_logger().info("-" * 50)
+        self.get_logger().info("🌅 시간대별 진행 상황:")
+        
+        total_time_period_current = 0
+        total_time_period_target = 0
+        
+        for period_key, period_config in self.time_period_targets.items():
+            current = self.time_period_stats[period_key]
+            target = period_config["target"]
+            total_time_period_current += current
+            total_time_period_target += target
+            percentage = (current / target * 100) if target > 0 else 0
+            progress_bar = self.create_progress_bar(current, target)
+            status_emoji = "✅" if current >= target else "⏳"
+            
+            self.get_logger().info(f"{status_emoji} {period_config['description']}: {progress_bar} ({percentage:.1f}%)")
+        
+        # 시간대별 전체 진행률
+        time_period_overall_percentage = (total_time_period_current / total_time_period_target * 100) if total_time_period_target > 0 else 0
+        time_period_overall_progress = self.create_progress_bar(total_time_period_current, total_time_period_target, width=25)
+        self.get_logger().info(f"   🌅 시간대별 전체: {time_period_overall_progress} ({time_period_overall_percentage:.1f}%)")
         
         # 시나리오별 진행 상황도 표시
         self.get_logger().info("-" * 50)
-        self.get_logger().info("🎯 컵 도달 시나리오별 진행 상황:")
+        self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오별 진행 상황:")
         
         total_completed = 0
         total_target = 0
@@ -863,17 +1025,13 @@ class MobileVLADataCollector(Node):
         self.start_episode(scenario_episode_name)
         
     def get_wasd_example(self, scenario_id: str) -> str:
-        """시나리오별 WASD 경로 예시 (하이브리드 전략)"""
-        # 핵심 패턴 (60% - 6개 샘플)
+        """시나리오별 WASD 경로 예시 (4개 시나리오 통합)"""
+        # 핵심 패턴 (4개 시나리오)
         core_patterns = {
-            "1box_vert_left": "W W W → A A → W W → D D",
-            "1box_vert_right": "W W → D D → W W W → A A", 
-            "1box_hori_left": "W → A A A → W W → D D D",
-            "1box_hori_right": "W W → D → W W → A",
-            "2box_vert_left": "W W → A A A → W W → D D D",
-            "2box_vert_right": "W → D D D → W W W → A A A",
-            "2box_hori_left": "W → A A A A → W W → D D D D",
-            "2box_hori_right": "W W → D D → W W → A A"
+            "1box_left": "W W W → A A → W W → D D",
+            "1box_right": "W W → D D → W W W → A A", 
+            "2box_left": "W W → A A A → W W → D D D",
+            "2box_right": "W → D D D → W W W → A A A"
         }
         
         # 변형 패턴 예시
@@ -883,10 +1041,23 @@ class MobileVLADataCollector(Node):
         return f"📍 핵심: {core_pattern}\n   🔄 {variant_info}"
         
     def extract_scenario_from_episode_name(self, episode_name: str) -> str:
-        """에피소드명에서 시나리오 추출"""
+        """에피소드명에서 시나리오 추출 (기존 형식 호환: vert/hori 포함된 형식도 처리)"""
+        # 먼저 새로운 형식(4개 시나리오) 확인
         for scenario in self.cup_scenarios.keys():
             if scenario in episode_name:
                 return scenario
+        
+        # 기존 형식 호환: 1box_vert_left → 1box_left로 변환
+        old_to_new = {
+            "1box_vert_left": "1box_left", "1box_hori_left": "1box_left",
+            "1box_vert_right": "1box_right", "1box_hori_right": "1box_right",
+            "2box_vert_left": "2box_left", "2box_hori_left": "2box_left",
+            "2box_vert_right": "2box_right", "2box_hori_right": "2box_right"
+        }
+        for old_id, new_id in old_to_new.items():
+            if old_id in episode_name:
+                return new_id
+        
         return None
 
     def extract_pattern_from_episode_name(self, episode_name: str) -> str:
@@ -908,10 +1079,9 @@ class MobileVLADataCollector(Node):
         if scenario not in self.cup_scenarios:
             return
         counts = self.pattern_distance_stats[scenario]
-        # 가로 시나리오인지 판별
-        is_hori = ("_hori_" in scenario)
-        pattern_targets = self.hori_pattern_targets_override if is_hori else self.pattern_targets
-        dist_targets = self.hori_distance_targets_override if is_hori else self.distance_targets_per_pattern
+        # 통합된 목표 사용 (가로/세로 구분 없음)
+        pattern_targets = self.pattern_targets
+        dist_targets = self.distance_targets_per_pattern
         # 표 헤더
         header = "패턴/위치  Close  Medium  Far   소계 (목표)"
         rows = []
@@ -1025,31 +1195,104 @@ class MobileVLADataCollector(Node):
         except Exception as e:
             self.get_logger().warn(f"⚠️ 시나리오 진행상황 저장 실패: {e}")
             
+    def classify_time_period(self, timestamp: datetime = None) -> str:
+        """
+        현재 시간을 기반으로 시간대 자동 분류 (24시간 전체 커버)
+        새벽/아침/저녁/밤 4가지로 분류
+        
+        Args:
+            timestamp: 분류할 시간 (None이면 현재 시간 사용)
+        
+        Returns:
+            "dawn", "morning", "evening", "night" 중 하나
+        """
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        current_hour = timestamp.hour
+        current_time_str = timestamp.strftime("%H:%M")
+        
+        # 24시간을 4가지 시간대로 균등 분할
+        # 새벽: 00:00-06:00 (0 <= hour < 6)
+        if 0 <= current_hour < 6:
+            self.get_logger().debug(f"⏰ 현재 시간: {current_time_str} → 시간대: 새벽 (dawn)")
+            return "dawn"
+        # 아침: 06:00-12:00 (6 <= hour < 12)
+        elif 6 <= current_hour < 12:
+            self.get_logger().debug(f"⏰ 현재 시간: {current_time_str} → 시간대: 아침 (morning)")
+            return "morning"
+        # 저녁: 12:00-18:00 (12 <= hour < 18)
+        elif 12 <= current_hour < 18:
+            self.get_logger().debug(f"⏰ 현재 시간: {current_time_str} → 시간대: 저녁 (evening)")
+            return "evening"
+        # 밤: 18:00-24:00 (18 <= hour < 24)
+        else:  # 18 <= hour < 24
+            self.get_logger().debug(f"⏰ 현재 시간: {current_time_str} → 시간대: 밤 (night)")
+            return "night"
+    
+    def load_time_period_stats(self):
+        """저장된 시간대별 통계 로드"""
+        try:
+            if self.time_period_file.exists():
+                with open(self.time_period_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.time_period_stats = defaultdict(int, data.get('time_period_stats', {}))
+                self.get_logger().info(f"📊 시간대별 통계 로드 완료: {dict(self.time_period_stats)}")
+            else:
+                self.time_period_stats = defaultdict(int)
+                self.get_logger().info("📊 새로운 시간대별 통계 시작")
+        except Exception as e:
+            self.get_logger().warn(f"⚠️ 시간대별 통계 로드 실패: {e}")
+            self.time_period_stats = defaultdict(int)
+    
+    def save_time_period_stats(self):
+        """시간대별 통계 저장"""
+        try:
+            data = {
+                "last_updated": datetime.now().isoformat(),
+                "time_period_stats": dict(self.time_period_stats),
+                "total_completed": sum(self.time_period_stats.values()),
+                "total_target": sum(config["target"] for config in self.time_period_targets.values())
+            }
+            
+            with open(self.time_period_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                
+        except Exception as e:
+            self.get_logger().warn(f"⚠️ 시간대별 통계 저장 실패: {e}")
+            
     def show_scenario_selection(self):
-        """8가지 시나리오 선택 메뉴 표시"""
+        """4가지 시나리오 선택 메뉴 표시 (가로/세로 통합)"""
         self.scenario_selection_mode = True
         
-        self.get_logger().info("🎯 컵 도달 시나리오 선택")
+        self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 선택")
         self.get_logger().info("=" * 60)
         self.get_logger().info("📋 환경을 설정한 후 원하는 시나리오 번호를 누르세요:")
         self.get_logger().info("")
         
-        # 시나리오별 상세 정보 표시
+        # 시나리오별 상세 정보 표시 (4개로 축소)
         scenario_details = [
-            {"key": "1", "id": "1box_vert_left", "env": "📦 박스 1개 세로 배치", "path": "W W W → A A → W W → D D"},
-            {"key": "2", "id": "1box_vert_right", "env": "📦 박스 1개 세로 배치", "path": "W W → D D → W W W → A A"},
-            {"key": "3", "id": "1box_hori_left", "env": "📦 박스 1개 가로 배치", "path": "W → A A A → W W → D D D"},
-            {"key": "4", "id": "1box_hori_right", "env": "📦 박스 1개 가로 배치", "path": "W W → D → W W → A"},
-            {"key": "5", "id": "2box_vert_left", "env": "📦📦 박스 2개 세로 배치", "path": "W W → A A A → W W → D D D"},
-            {"key": "6", "id": "2box_vert_right", "env": "📦📦 박스 2개 세로 배치", "path": "W → D D D → W W W → A A A"},
-            {"key": "7", "id": "2box_hori_left", "env": "📦📦 박스 2개 가로 배치", "path": "W → A A A A → W W → D D D D"},
-            {"key": "8", "id": "2box_hori_right", "env": "📦📦 박스 2개 가로 배치", "path": "W W → D D → W W → A A"}
+            {"key": "1", "id": "1box_left", "path": "W W W → A A → W W → D D"},
+            {"key": "2", "id": "1box_right", "path": "W W → D D → W W W → A A"},
+            {"key": "3", "id": "2box_left", "path": "W W → A A A → W W → D D D"},
+            {"key": "4", "id": "2box_right", "path": "W → D D D → W W W → A A A"}
         ]
         
         for scenario in scenario_details:
             scenario_id = scenario["id"]
             description = self.cup_scenarios[scenario_id]["description"]
-            current = self.scenario_stats[scenario_id]
+            # 기존 통계는 vert/hori 포함 형식도 집계하도록 호환 처리
+            current = self.scenario_stats.get(scenario_id, 0)
+            # 기존 형식(vert/hori 포함)도 카운트
+            for layout in ["vert", "hori"]:
+                old_id = f"{scenario_id.replace('_left', '_vert_left').replace('_right', '_vert_right')}"
+                if "_left" in scenario_id:
+                    old_id = old_id.replace("_vert_left", f"_{layout}_left")
+                elif "_right" in scenario_id:
+                    old_id = old_id.replace("_vert_right", f"_{layout}_right")
+                if old_id in self.scenario_stats:
+                    current += self.scenario_stats[old_id]
+            
             target = self.cup_scenarios[scenario_id]["target"]
             remaining = max(0, target - current)
             progress_bar = self.create_progress_bar(current, target, width=10)
@@ -1057,11 +1300,7 @@ class MobileVLADataCollector(Node):
             status_emoji = "✅" if current >= target else "⏳"
             
             self.get_logger().info(f"{status_emoji} {scenario['key']}키: {description}")
-            self.get_logger().info(f"   🏗️ {scenario['env']}")
-            self.get_logger().info(f"   🎮 {scenario['path']}")
-            # 가로 시나리오면 X(예외) 안내를 숨기고 목표 분배 요약을 덧붙임
-            if "_hori_" in scenario_id:
-                self.get_logger().info("   🎯 목표(가로): Core=7(2/3/2), Variant=3(1/1/1), Exception=0")
+            self.get_logger().info(f"   🎮 예시 경로: {scenario['path']}")
             self.get_logger().info(f"   📊 {progress_bar} ({current}/{target}) - {remaining}개 남음")
             self.get_logger().info("")
         
@@ -1074,8 +1313,8 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("🏁 전체 진행률:")
         self.get_logger().info(f"   {overall_progress} ({total_completed}/{total_target}) {overall_percentage:.1f}%")
         self.get_logger().info("")
-        self.get_logger().info("✨ 1-8번 중 원하는 시나리오를 선택하세요!")
-        self.get_logger().info("💡 환경 설정 후 숫자키를 누르면 에피소드가 시작됩니다.")
+        self.get_logger().info("✨ 1-4번 중 원하는 시나리오를 선택하세요!")
+        self.get_logger().info("💡 환경 설정 후 숫자키를 누르면 배치 타입 선택으로 넘어갑니다.")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
 
     def resync_scenario_progress(self):
@@ -1085,6 +1324,7 @@ class MobileVLADataCollector(Node):
         # 시나리오 통계 초기화
         self.scenario_stats = defaultdict(int)
         self.pattern_distance_stats = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        self.time_period_stats = defaultdict(int)  # 시간대별 통계도 초기화
         combo_files = defaultdict(list)  # (scenario, pattern, distance) -> List[Path]
         
         # 데이터 디렉토리에서 모든 H5 파일 스캔
@@ -1108,6 +1348,25 @@ class MobileVLADataCollector(Node):
                         if pattern and distance:
                             self.pattern_distance_stats[scenario][pattern][distance] += 1
                             combo_files[(scenario, pattern, distance)].append(h5_file)
+                        # 시간대별 통계도 복원 (저장된 메타데이터에서)
+                        try:
+                            with h5py.File(h5_file, 'r') as f:
+                                time_period = f.attrs.get('time_period', None)
+                                if time_period and time_period in self.time_period_targets:
+                                    self.time_period_stats[time_period] += 1
+                                elif not time_period:
+                                    # 시간대 정보가 없으면 파일명의 타임스탬프에서 추정
+                                    try:
+                                        # episode_20251030_132725_... 형식에서 시간 추출
+                                        datetime_str = stem.split('_')[1] + '_' + stem.split('_')[2]
+                                        file_timestamp = datetime.strptime(datetime_str, '%Y%m%d_%H%M%S')
+                                        estimated_period = self.classify_time_period(file_timestamp)
+                                        self.time_period_stats[estimated_period] += 1
+                                        self.get_logger().debug(f"📅 {h5_file.name}: 시간대 추정 → {estimated_period}")
+                                    except:
+                                        pass  # 추정 실패해도 계속 진행
+                        except:
+                            pass  # 시간대 정보가 없어도 계속 진행
                         scenario_matched += 1
                         self.get_logger().info(f"✅ {h5_file.name} → {scenario}")
                     else:
@@ -1128,10 +1387,19 @@ class MobileVLADataCollector(Node):
         
         # 새로운 진행상황 저장
         self.save_scenario_progress()
+        self.save_time_period_stats()
         
         # 동기화 결과 요약
         total_found = sum(self.scenario_stats.values())
         self.get_logger().info(f"✅ 동기화 완료! 총 {total_found}개의 시나리오 에피소드 발견")
+        
+        # 시간대별 통계 요약
+        if any(self.time_period_stats.values()):
+            self.get_logger().info("🌅 시간대별 통계:")
+            for period_key, period_config in self.time_period_targets.items():
+                count = self.time_period_stats[period_key]
+                if count > 0:
+                    self.get_logger().info(f"   {period_config['description']}: {count}개")
         
         for scenario_id, count in self.scenario_stats.items():
             if count > 0:
@@ -1203,8 +1471,10 @@ class MobileVLADataCollector(Node):
         """H5 파일 재스캔 후 진행률 표시"""
         self.resync_scenario_progress()
         self.load_dataset_stats()  # 전체 데이터셋 통계도 다시 로드
+        self.load_time_period_stats()  # 시간대별 통계도 다시 로드
         self.show_progress_status()
         
+
     def show_pattern_selection(self):
         """패턴 타입 선택 메뉴 표시"""
         self.pattern_selection_mode = True
@@ -1224,7 +1494,7 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   💡 위 순서를 참고하여 정확히 따라하세요!")
         self.get_logger().info("")
         
-        self.get_logger().info("🔄 V키: 변형 패턴 (Variant) - 3개 수집 목표")
+        self.get_logger().info("🔄 V키: 변형 패턴 (Variant) - 4개 수집 목표")
         self.get_logger().info("   🎮 핵심 패턴의 타이밍이나 순서를 조금 변경")
         self.get_logger().info("   💡 창의적으로 변형하여 움직이세요!")
         self.get_logger().info("")
@@ -1237,8 +1507,19 @@ class MobileVLADataCollector(Node):
         self.distance_selection_mode = True
         levels = self.distance_levels
         
+        # 선택된 시나리오와 패턴 정보 표시
+        scenario_config = self.cup_scenarios.get(self.selected_scenario, {})
+        pattern_names = {
+            "core": "핵심 패턴 (Core)",
+            "variant": "변형 패턴 (Variant)"
+        }
+        pattern_display = pattern_names.get(self.selected_pattern_type, self.selected_pattern_type)
+        
         self.get_logger().info("🎯 장애물 위치 선택")
         self.get_logger().info("=" * 50)
+        self.get_logger().info(f"📦 선택된 시나리오: {scenario_config.get('description', self.selected_scenario)}")
+        self.get_logger().info(f"📋 선택된 패턴: {pattern_display}")
+        self.get_logger().info("")
         self.get_logger().info("J키: CLOSE")
         self.get_logger().info(f"   📍 {levels['close']['label']}")
         self.get_logger().info(f"   💡 {levels['close']['hint']}")
@@ -1254,6 +1535,70 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("✨ J/K/L 중 장애물 위치를 선택하세요!")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
         
+    def show_repeat_count_selection(self):
+        """반복 횟수 입력 메뉴 표시"""
+        self.repeat_count_mode = True
+        self.repeat_count_input = ""
+        
+        # 선택된 정보 표시
+        scenario_config = self.cup_scenarios.get(self.selected_scenario, {})
+        pattern_names = {
+            "core": "핵심 패턴 (Core)",
+            "variant": "변형 패턴 (Variant)"
+        }
+        distance_names = {
+            "close": "CLOSE (가까운 위치)",
+            "medium": "MEDIUM (중간 거리)",
+            "far": "FAR (먼 위치)"
+        }
+        
+        self.get_logger().info("🔄 반복 횟수 입력")
+        self.get_logger().info("=" * 50)
+        self.get_logger().info(f"📦 시나리오: {scenario_config.get('description', self.selected_scenario)}")
+        self.get_logger().info(f"📋 패턴: {pattern_names.get(self.selected_pattern_type, self.selected_pattern_type)}")
+        self.get_logger().info(f"📍 거리: {distance_names.get(self.selected_distance_level, self.selected_distance_level)}")
+        self.get_logger().info("")
+        self.get_logger().info("✨ 반복 횟수를 입력하세요:")
+        self.get_logger().info("   Enter: 1회 측정 (기본값)")
+        self.get_logger().info("   숫자 입력 후 Enter: 해당 횟수만큼 반복 측정 (최대 100회)")
+        self.get_logger().info("   예: '5' 입력 후 Enter → 5회 반복")
+        self.get_logger().info("")
+        self.get_logger().info("🚫 취소하려면 WASD 키를 누르세요.")
+        
+    def start_next_repeat_measurement(self):
+        """다음 반복 측정 시작 (상태 머신 방식)"""
+        if not self.is_repeat_measurement_active:
+            return
+        
+        self.current_repeat_index += 1
+        self.get_logger().info(f"📊 [{self.current_repeat_index}/{self.target_repeat_count}] 측정 시작...")
+        
+        # 에피소드 시작
+        self.start_episode_with_pattern_and_distance(
+            self.selected_scenario,
+            self.selected_pattern_type,
+            self.selected_distance_level
+        )
+    
+    def check_and_continue_repeat_measurement(self):
+        """에피소드 완료 후 다음 반복 측정 확인 및 대기 상태로 전환"""
+        if not self.is_repeat_measurement_active:
+            return
+        
+        # 현재 반복이 완료되었는지 확인
+        if self.current_repeat_index < self.target_repeat_count:
+            # 다음 측정을 위한 시작 위치 세팅 대기 상태로 전환
+            self.waiting_for_next_repeat = True
+            remaining = self.target_repeat_count - self.current_repeat_index
+            self.get_logger().info(f"✅ [{self.current_repeat_index}/{self.target_repeat_count}] 완료.")
+            self.get_logger().info(f"📍 시작 위치로 로봇을 이동시킨 후 'N' 키를 눌러 다음 측정을 시작하세요. (남은: {remaining}회)")
+        else:
+            # 모든 반복 완료
+            self.get_logger().info(f"🎉 모든 반복 측정 완료! ({self.target_repeat_count}회)")
+            self.is_repeat_measurement_active = False
+            self.current_repeat_index = 0
+            self.waiting_for_next_repeat = False
+        
     def _combined_key(self, scenario_id: str, pattern_type: str | None, distance_level: str | None) -> str:
         parts = [scenario_id]
         if pattern_type:
@@ -1268,12 +1613,21 @@ class MobileVLADataCollector(Node):
         if pattern_type and distance_level:
             combo = self._combined_key(scenario_id, pattern_type, distance_level)
             if combo in self.core_patterns and self.core_patterns[combo]:
-                return " ".join([k.upper() for k in self.core_patterns[combo]])
+                keys = self._normalize_to_18_keys(self.core_patterns[combo])
+                return " ".join([k.upper() for k in keys])
         # 2) 시나리오 단독 키 (과거 호환)
         if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
-            return " ".join([k.upper() for k in self.core_patterns[scenario_id]])
-        # 3) 초기 기본 가이드(없을 때만 사용)
+            keys = self._normalize_to_18_keys(self.core_patterns[scenario_id])
+            return " ".join([k.upper() for k in keys])
+        # 3) 초기 기본 가이드(없을 때만 사용) - 4개 시나리오로 통합
         default_guides = {
+            "1box_left": "W W W → A A → W W → D D",
+            "1box_right": "W W → D D → W W W → A A", 
+            "2box_left": "W W → A A A → W W → D D D",
+            "2box_right": "W → D D D → W W W → A A A"
+        }
+        # 기존 형식 호환 (vert/hori 포함)
+        old_format_guides = {
             "1box_vert_left": "W W W → A A → W W → D D",
             "1box_vert_right": "W W → D D → W W W → A A", 
             "1box_hori_left": "W → A A A → W W → D D D",
@@ -1283,7 +1637,7 @@ class MobileVLADataCollector(Node):
             "2box_hori_left": "W → A A A A → W W → D D D D",
             "2box_hori_right": "W W → D D → W W → A A"
         }
-        return default_guides.get(scenario_id, "W → A/D → W → ...")
+        return default_guides.get(scenario_id) or old_format_guides.get(scenario_id, "W → A/D → W → ...")
         
     def start_episode_with_pattern(self, scenario_id: str, pattern_type: str):
         """패턴 타입을 지정하여 에피소드 시작 (거리 선택 전)"""
@@ -1324,7 +1678,7 @@ class MobileVLADataCollector(Node):
         self.start_episode(pattern_episode_name)
 
     def start_episode_with_pattern_and_distance(self, scenario_id: str, pattern_type: str, distance_level: str):
-        """패턴 + 거리 정보를 포함하여 에피소드 시작"""
+        """패턴 + 거리 정보를 포함하여 에피소드 시작 (배치 타입 제거로 단순화)"""
         config = self.cup_scenarios[scenario_id]
         levels = self.distance_levels
         if distance_level not in levels:
@@ -1332,9 +1686,15 @@ class MobileVLADataCollector(Node):
             distance_level = 'medium'
         label = levels[distance_level]['label']
         
-        # 이름에 거리 태그 포함
+        # 에피소드명 생성 (배치 타입은 기본값으로 자동 설정)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        episode_name = f"episode_{timestamp}_{scenario_id}_{pattern_type}_{distance_level}"
+        # 기존 형식 호환: episode_..._{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}
+        # 기본값으로 가로(hori) 배치 사용
+        num_box = scenario_id.split("_")[0]  # "1box" or "2box"
+        direction = scenario_id.split("_")[1]  # "left" or "right"
+        layout_type = self.default_layout_type  # 기본값: "hori"
+        episode_name = f"episode_{timestamp}_{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}"
+        
         # 현재 선택 상태를 저장해서 종료 시 통계 업데이트에 사용
         self.selected_scenario = scenario_id
         self.selected_pattern_type = pattern_type
@@ -1351,7 +1711,7 @@ class MobileVLADataCollector(Node):
             guide = self.get_core_pattern_guide(scenario_id, pattern_type="core", distance_level=distance_level)
             # 거리별로 W 길이 참고 안내
             self.get_logger().info(f"🎮 가이드 순서: {guide}")
-            self.get_logger().info("💡 위치별 조정: 세로-가까움/W 줄임, 세로-멀음/W 늘림, 가로-좌/우 치우침 맞춰 A/D 비율 조정")
+            self.get_logger().info("💡 위치별 조정: 가까움/W 줄임, 멀음/W 늘림")
             # 핵심 패턴 가이드/녹화 플래그
             self.core_guidance_active = True
             self.core_guidance_index = 0
@@ -1375,6 +1735,274 @@ class MobileVLADataCollector(Node):
         
         self.start_episode(episode_name)
         
+    def show_h5_verification_menu(self):
+        """H5 파일 검증 및 추출 메뉴 표시"""
+        self.get_logger().info("=" * 60)
+        self.get_logger().info("📋 H5 파일 검증 및 추출")
+        self.get_logger().info("=" * 60)
+        
+        # 최신 파일 목록 표시
+        h5_files = sorted(self.data_dir.glob("*.h5"), key=lambda x: x.stat().st_mtime, reverse=True)
+        
+        if not h5_files:
+            self.get_logger().info("❌ H5 파일이 없습니다.")
+            return
+        
+        self.get_logger().info(f"📁 최근 수집된 파일 (최대 10개):")
+        for i, h5_file in enumerate(h5_files[:10], 1):
+            file_size_mb = h5_file.stat().st_size / (1024*1024)
+            self.get_logger().info(f"   {i}. {h5_file.name} ({file_size_mb:.2f} MB)")
+        
+        self.get_logger().info("")
+        self.get_logger().info("✨ 최신 파일 검증: Enter 키")
+        self.get_logger().info("✨ 파일 번호 선택: 1-10 숫자 키")
+        self.get_logger().info("🚫 취소: 다른 키")
+        
+        # 키 입력 대기
+        key = self.get_key()
+        
+        if key == '\r' or key == '\n':
+            # 최신 파일 검증
+            target_file = h5_files[0]
+            self.verify_and_extract_h5_file(target_file)
+        elif key.isdigit() and 1 <= int(key) <= min(10, len(h5_files)):
+            # 선택한 파일 검증
+            file_index = int(key) - 1
+            target_file = h5_files[file_index]
+            self.verify_and_extract_h5_file(target_file)
+        else:
+            self.get_logger().info("🚫 취소되었습니다.")
+    
+    def verify_and_extract_h5_file(self, file_path: Path):
+        """H5 파일 검증 및 추출 옵션 제공"""
+        self.get_logger().info(f"📁 선택된 파일: {file_path.name}")
+        self.get_logger().info("=" * 60)
+        
+        # 파일 정보 확인
+        self.check_h5_file(file_path)
+        
+        self.get_logger().info("")
+        self.get_logger().info("✨ 추출 옵션:")
+        self.get_logger().info("   1: 이미지 추출 (PNG)")
+        self.get_logger().info("   2: CSV 추출 (액션 데이터)")
+        self.get_logger().info("   3: JSON 추출 (전체 데이터)")
+        self.get_logger().info("   4: 모든 추출 (이미지 + CSV + JSON)")
+        self.get_logger().info("   Enter: 정보만 확인 (추출 없음)")
+        self.get_logger().info("🚫 취소: 다른 키")
+        
+        key = self.get_key()
+        
+        if key == '1':
+            output_dir = file_path.parent / file_path.stem
+            self.extract_images_from_h5(file_path, output_dir)
+        elif key == '2':
+            if not PANDAS_AVAILABLE:
+                self.get_logger().warn("⚠️ pandas가 설치되어 있지 않습니다. CSV 추출을 사용할 수 없습니다.")
+            else:
+                self.export_h5_to_csv(file_path)
+        elif key == '3':
+            self.export_h5_to_json(file_path)
+        elif key == '4':
+            output_dir = file_path.parent / file_path.stem
+            self.extract_images_from_h5(file_path, output_dir)
+            if PANDAS_AVAILABLE:
+                self.export_h5_to_csv(file_path)
+            else:
+                self.get_logger().warn("⚠️ pandas가 설치되어 있지 않아 CSV 추출을 건너뜁니다.")
+            self.export_h5_to_json(file_path)
+            self.get_logger().info("✅ 모든 추출 완료!")
+        elif key == '\r' or key == '\n':
+            self.get_logger().info("✅ 파일 정보 확인 완료.")
+        else:
+            self.get_logger().info("🚫 취소되었습니다.")
+    
+    def check_h5_file(self, file_path: Path):
+        """HDF5 파일의 메타데이터와 데이터 구조를 출력합니다."""
+        if not file_path.is_file():
+            self.get_logger().error(f"❌ 파일이 존재하지 않습니다: {file_path}")
+            return
+        
+        try:
+            with h5py.File(file_path, 'r') as f:
+                file_size_mb = file_path.stat().st_size / (1024*1024)
+                self.get_logger().info(f"📁 파일: {file_path.name}")
+                self.get_logger().info(f"💾 크기: {file_size_mb:.2f} MB")
+                self.get_logger().info("=" * 60)
+                
+                self.get_logger().info("📋 메타데이터:")
+                for key, value in f.attrs.items():
+                    if isinstance(value, (np.integer, np.floating)):
+                        self.get_logger().info(f"   {key}: {value}")
+                    elif isinstance(value, bytes):
+                        try:
+                            self.get_logger().info(f"   {key}: {value.decode('utf-8')}")
+                        except:
+                            self.get_logger().info(f"   {key}: {value}")
+                    else:
+                        self.get_logger().info(f"   {key}: {value}")
+                
+                self.get_logger().info("")
+                self.get_logger().info("📦 데이터 구조:")
+                for name, dset in f.items():
+                    self.get_logger().info(f"   📄 {name}: {dset.shape} {dset.dtype}")
+                
+                if 'action_chunks' not in f:
+                    self.get_logger().info("💡 정보: Action Chunks 데이터가 없습니다 (이미지 추출에는 영향 없음)")
+        
+        except Exception as e:
+            self.get_logger().error(f"❌ HDF5 파일을 읽는 중 오류 발생: {e}")
+    
+    def extract_images_from_h5(self, file_path: Path, output_dir: Path):
+        """HDF5 파일에서 이미지를 추출하여 PNG 파일로 저장합니다."""
+        if not file_path.is_file():
+            self.get_logger().error(f"❌ 파일이 존재하지 않습니다: {file_path}")
+            return
+        
+        try:
+            output_dir.mkdir(exist_ok=True)
+            self.get_logger().info(f"🖼️  'images' 데이터셋을 '{output_dir}' 폴더에 추출합니다...")
+            
+            with h5py.File(file_path, 'r') as f:
+                if 'images' not in f:
+                    self.get_logger().error("'images' 데이터셋을 찾을 수 없습니다.")
+                    return
+                
+                images = f['images']
+                num_images = images.shape[0]
+                
+                for i in range(num_images):
+                    img_bgr = images[i]
+                    save_path = output_dir / f"frame_{i:04d}.png"
+                    cv2.imwrite(str(save_path), img_bgr)
+                    if (i + 1) % 5 == 0 or i == num_images - 1:
+                        self.get_logger().info(f"   -> 저장 중... {i+1}/{num_images}")
+                
+                self.get_logger().info(f"✅ 이미지 추출 완료! {num_images}개 프레임 저장됨")
+        
+        except Exception as e:
+            self.get_logger().error(f"❌ 이미지 추출 중 오류 발생: {e}")
+    
+    def save_single_image_from_h5(self, file_path: Path, index: int):
+        """HDF5 파일에서 특정 인덱스의 이미지를 파일로 저장합니다."""
+        if not file_path.is_file():
+            self.get_logger().error(f"❌ 파일이 존재하지 않습니다: {file_path}")
+            return
+        
+        try:
+            with h5py.File(file_path, 'r') as f:
+                if 'images' not in f:
+                    self.get_logger().error("'images' 데이터셋을 찾을 수 없습니다.")
+                    return
+                
+                images = f['images']
+                if not (0 <= index < images.shape[0]):
+                    self.get_logger().error(f"❌ 인덱스 오류: 0에서 {images.shape[0]-1} 사이의 값을 입력하세요.")
+                    return
+                
+                img_bgr = images[index]
+                save_path = file_path.parent / f"viewed_{file_path.stem}_frame_{index}.png"
+                cv2.imwrite(str(save_path), img_bgr)
+                self.get_logger().info(f"🖼️  프레임 {index}번 이미지를 '{save_path}' 파일로 저장했습니다.")
+        
+        except Exception as e:
+            self.get_logger().error(f"❌ 이미지를 저장하는 중 오류 발생: {e}")
+    
+    def export_h5_to_csv(self, file_path: Path, output_path: Path = None):
+        """HDF5 데이터를 CSV 파일로 추출합니다."""
+        if not PANDAS_AVAILABLE:
+            self.get_logger().error("❌ pandas가 설치되어 있지 않습니다.")
+            return
+        
+        if not file_path.is_file():
+            self.get_logger().error(f"❌ 파일이 존재하지 않습니다: {file_path}")
+            return
+        
+        try:
+            with h5py.File(file_path, 'r') as f:
+                metadata = dict(f.attrs)
+                actions = f['actions'][:]
+                action_event_types = f['action_event_types'][:]
+                
+                data = []
+                for i in range(len(actions)):
+                    row = {
+                        'frame_index': i,
+                        'action_x': actions[i][0],
+                        'action_y': actions[i][1], 
+                        'action_z': actions[i][2],
+                        'event_type': action_event_types[i].decode('utf-8') if isinstance(action_event_types[i], bytes) else str(action_event_types[i]),
+                        'episode_name': metadata.get('episode_name', ''),
+                        'total_duration': metadata.get('total_duration', 0),
+                        'action_chunk_size': metadata.get('action_chunk_size', 0)
+                    }
+                    data.append(row)
+                
+                df = pd.DataFrame(data)
+                
+                if output_path is None:
+                    output_path = file_path.parent / f"{file_path.stem}_data.csv"
+                
+                df.to_csv(output_path, index=False)
+                self.get_logger().info(f"📊 CSV 파일 저장 완료: {output_path}")
+                self.get_logger().info(f"   총 {len(data)}개 프레임 데이터 추출")
+        
+        except Exception as e:
+            self.get_logger().error(f"❌ CSV 추출 중 오류 발생: {e}")
+    
+    def export_h5_to_json(self, file_path: Path, output_path: Path = None):
+        """HDF5 데이터를 JSON 파일로 추출합니다."""
+        if not file_path.is_file():
+            self.get_logger().error(f"❌ 파일이 존재하지 않습니다: {file_path}")
+            return
+        
+        try:
+            with h5py.File(file_path, 'r') as f:
+                metadata = {}
+                for key, value in f.attrs.items():
+                    if isinstance(value, (np.integer, np.floating)):
+                        metadata[key] = value.item()
+                    elif isinstance(value, bytes):
+                        try:
+                            metadata[key] = value.decode('utf-8')
+                        except:
+                            metadata[key] = str(value)
+                    else:
+                        metadata[key] = value
+                
+                data = {
+                    "file_name": file_path.name,
+                    "file_size_mb": float(file_path.stat().st_size / (1024*1024)),
+                    "metadata": metadata,
+                    "frames": []
+                }
+                
+                actions = f['actions'][:]
+                action_event_types = f['action_event_types'][:]
+                
+                for i in range(len(actions)):
+                    frame_data = {
+                        "frame_index": i,
+                        "action": {
+                            "x": float(actions[i][0]),
+                            "y": float(actions[i][1]), 
+                            "z": float(actions[i][2])
+                        },
+                        "event_type": action_event_types[i].decode('utf-8') if isinstance(action_event_types[i], bytes) else str(action_event_types[i]),
+                        "image_file": f"frame_{i:04d}.png"
+                    }
+                    data["frames"].append(frame_data)
+                
+                if output_path is None:
+                    output_path = file_path.parent / f"{file_path.stem}_data.json"
+                
+                with open(output_path, 'w', encoding='utf-8') as json_file:
+                    json.dump(data, json_file, indent=2, ensure_ascii=False)
+                
+                self.get_logger().info(f"📄 JSON 파일 저장 완료: {output_path}")
+                self.get_logger().info(f"   총 {len(data['frames'])}개 프레임 데이터 추출")
+        
+        except Exception as e:
+            self.get_logger().error(f"❌ JSON 추출 중 오류 발생: {e}")
 
 
 def main(args=None):
