@@ -186,14 +186,98 @@ class MobileVLADataCollector(Node):
 
         self.cv_bridge = CvBridge()
         
-        # 데이터 디렉토리 경로 설정 (환경변수 우선, 없으면 홈 디렉토리 기준)
+        # 데이터 디렉토리 경로 설정 (환경변수 우선, 없으면 ROS_action 아래 별도 폴더 사용)
+        # install/log/build 삭제 시 데이터가 보존되도록 ROS_action 바로 아래에 저장 (절대 경로 사용)
+        # 현재 작업 디렉토리에 의존하지 않도록 절대 경로만 사용
         data_dir_env = os.environ.get('VLA_DATASET_DIR', None)
         if data_dir_env:
+            # 환경변수 사용 시 절대 경로로 확실히 변환
             self.data_dir = Path(data_dir_env).expanduser().resolve()
         else:
-            # 홈 디렉토리 기준 절대 경로 사용 (현재 작업 디렉토리 문제 방지)
-            home_dir = Path.home()
-            self.data_dir = home_dir / "vla" / "ROS_action" / "install" / "mobile_vla_dataset"
+            # ROS_action 바로 아래에 저장 (rm -rf install/log/build 시 데이터 보존)
+            # 절대 경로로 ROS_action 찾기 (상대 경로 문제 방지, getcwd() 에러 방지)
+            ros_action_dir = None
+            
+            # 방법 1: 현재 파일 위치에서 찾기 (절대 경로 사용, getcwd() 의존 없음)
+            try:
+                # __file__이 상대 경로일 수 있으므로 절대 경로로 확실히 변환
+                current_file_abs = os.path.abspath(os.path.expanduser(__file__))
+                current_file = Path(current_file_abs).resolve()
+                # src/mobile_vla_package/mobile_vla_package/mobile_vla_data_collector.py
+                # -> ROS_action/src/mobile_vla_package/mobile_vla_package/mobile_vla_data_collector.py
+                candidate = current_file.parent.parent.parent.parent
+                if candidate.exists() and candidate.is_absolute() and candidate.name == "ROS_action":
+                    ros_action_dir = candidate
+            except (OSError, ValueError, AttributeError) as e:
+                self.get_logger().warn(f"⚠️ 현재 파일 위치에서 ROS_action 찾기 실패: {e}")
+            
+            # 방법 2: 홈 디렉토리 기준으로 찾기 (절대 경로)
+            if ros_action_dir is None or not ros_action_dir.exists():
+                try:
+                    candidate = Path.home().resolve() / "vla" / "ROS_action"
+                    if candidate.exists() and candidate.is_absolute():
+                        ros_action_dir = candidate
+                except (OSError, ValueError) as e:
+                    self.get_logger().warn(f"⚠️ 홈 디렉토리 기준으로 ROS_action 찾기 실패: {e}")
+            
+            # 방법 3: 절대 경로 직접 지정 (getcwd() 의존 없음)
+            if ros_action_dir is None or not ros_action_dir.exists():
+                candidate = Path("/home/soda/vla/ROS_action")
+                if candidate.exists() and candidate.is_absolute():
+                    ros_action_dir = candidate
+            
+            if ros_action_dir is None or not ros_action_dir.exists():
+                raise RuntimeError(f"❌ ROS_action 디렉토리를 찾을 수 없습니다. 환경변수 VLA_DATASET_DIR을 설정하거나, 올바른 위치에 설치하세요.")
+            
+            # ROS_action 바로 아래에 저장 (절대 경로 사용, resolve()로 확실히 절대 경로 보장)
+            self.data_dir = ros_action_dir.resolve() / "mobile_vla_dataset"
+            # 한 번 더 resolve()하여 절대 경로 확실히 보장
+            self.data_dir = self.data_dir.resolve()
+            
+            # 기존 install/mobile_vla_dataset 경로 호환성: 데이터 마이그레이션 (절대 경로 사용)
+            old_data_dir = ros_action_dir.resolve() / "install" / "mobile_vla_dataset"
+            if old_data_dir.exists():
+                if not self.data_dir.exists():
+                    # 새 위치가 없으면 전체 폴더 이동
+                    self.get_logger().info(f"🔄 기존 데이터 마이그레이션: {old_data_dir} → {self.data_dir}")
+                    try:
+                        import shutil
+                        shutil.move(str(old_data_dir), str(self.data_dir))
+                        self.get_logger().info(f"✅ 데이터 마이그레이션 완료: {self.data_dir}")
+                    except Exception as e:
+                        self.get_logger().warn(f"⚠️ 데이터 마이그레이션 실패: {e}. 새 위치를 사용합니다.")
+                else:
+                    # 둘 다 있으면 기존 위치의 파일들을 새 위치로 병합
+                    old_h5_files = list(old_data_dir.glob("*.h5"))
+                    old_json_files = list(old_data_dir.glob("*.json"))
+                    if old_h5_files or old_json_files:
+                        self.get_logger().info(f"🔄 기존 위치 데이터 병합: {old_data_dir} → {self.data_dir}")
+                        try:
+                            import shutil
+                            moved_count = 0
+                            for f in old_h5_files + old_json_files:
+                                dest = self.data_dir / f.name
+                                if not dest.exists():
+                                    shutil.move(str(f), str(dest))
+                                    moved_count += 1
+                                else:
+                                    self.get_logger().debug(f"   파일 건너뜀 (이미 존재): {f.name}")
+                            if moved_count > 0:
+                                self.get_logger().info(f"✅ {moved_count}개 파일 병합 완료")
+                            # 병합 후 빈 폴더면 삭제 시도
+                            try:
+                                if not any(old_data_dir.iterdir()):
+                                    old_data_dir.rmdir()
+                                    self.get_logger().info(f"🗑️ 빈 기존 폴더 삭제: {old_data_dir}")
+                            except:
+                                pass
+                        except Exception as e:
+                            self.get_logger().warn(f"⚠️ 데이터 병합 실패: {e}. 기존 위치 파일은 그대로 유지됩니다.")
+            
+            # install 경로 사용 방지 확인 (절대 경로로 확인)
+            if str(self.data_dir).endswith("/install/mobile_vla_dataset") or "install/mobile_vla_dataset" in str(self.data_dir):
+                self.get_logger().error(f"❌ 잘못된 경로: install 안에 저장되지 않도록 설정되었습니다!")
+                raise RuntimeError(f"❌ 데이터 디렉토리가 install 안에 있으면 안 됩니다: {self.data_dir}")
         
         # 부모 디렉토리까지 생성 (parents=True)
         try:
@@ -221,6 +305,7 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   F/G: 속도 조절, N: 새 에피소드 시작")
         self.get_logger().info("   M: 에피소드 종료, P: 현재 진행 상황 확인")
         self.get_logger().info("   V: H5 파일 검증 및 추출 (최신 파일 또는 선택)")
+        self.get_logger().info("   X: 리셋 (첫 화면으로 돌아가기, 수집 중에도 가능)")
         self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 장애물 위치(J/K/L)")
         self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 (총 1000개 목표):")
         self.get_logger().info("   📦 4개 시나리오 × 250개 샘플 × 18프레임 고정 (RoboVLMs 기준: window=8 + pred_next=10)")
@@ -281,6 +366,9 @@ class MobileVLADataCollector(Node):
                 self.get_logger().warn("⚠️ 수집 중에는 H5 파일 검증을 할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
             else:
                 self.show_h5_verification_menu()
+        elif key == 'x':
+            # 리셋 기능: 모든 상태 초기화하고 첫 화면으로 돌아가기
+            self.reset_to_initial_state()
         elif key in ['1', '2', '3', '4']:
             if self.scenario_selection_mode:
                 # 시나리오 선택 모드에서 숫자키 입력 (4개 시나리오로 축소)
@@ -330,10 +418,15 @@ class MobileVLADataCollector(Node):
                 self.get_logger().info(f'속도: {self.throttle}%')
         elif key == '\r' or key == '\n':  # Enter 키
             if self.repeat_count_mode:
+                # 입력 줄 완료 표시
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                
                 # 반복 횟수 입력 완료
                 if self.repeat_count_input == "":
                     # 빈 입력이면 1회로 설정
                     self.target_repeat_count = 1
+                    self.get_logger().info("📝 입력된 횟수: 1 (기본값)")
                 else:
                     try:
                         self.target_repeat_count = int(self.repeat_count_input)
@@ -343,6 +436,8 @@ class MobileVLADataCollector(Node):
                         elif self.target_repeat_count > 100:
                             self.get_logger().warn("⚠️ 반복 횟수는 100 이하여야 합니다. 100회로 제한합니다.")
                             self.target_repeat_count = 100
+                        else:
+                            self.get_logger().info(f"📝 입력된 횟수: {self.target_repeat_count}")
                     except ValueError:
                         self.get_logger().warn("⚠️ 잘못된 입력입니다. 1회로 설정합니다.")
                         self.target_repeat_count = 1
@@ -354,14 +449,27 @@ class MobileVLADataCollector(Node):
                 
                 # 첫 번째 측정 시작
                 self.start_next_repeat_measurement()
+        elif key == '\x7f' or key == '\b' or key == '\x08':  # 백스페이스 키
+            if self.repeat_count_mode:
+                if len(self.repeat_count_input) > 0:
+                    # 마지막 문자 삭제
+                    self.repeat_count_input = self.repeat_count_input[:-1]
+                    # 화면 업데이트: 현재 줄을 지우고 다시 표시
+                    sys.stdout.write('\r' + ' ' * 50)  # 줄 지우기
+                    sys.stdout.write('\r📝 반복 횟수: ' + self.repeat_count_input)
+                    sys.stdout.flush()
         elif key.isdigit():
             if self.repeat_count_mode:
                 # 숫자 입력 (최대 3자리)
                 if len(self.repeat_count_input) < 3:
                     self.repeat_count_input += key
-                    self.get_logger().info(f"📝 입력된 횟수: {self.repeat_count_input} (Enter로 확인)")
+                    # 현재 줄을 업데이트 (커서가 깜빡이는 효과)
+                    sys.stdout.write('\r📝 반복 횟수: ' + self.repeat_count_input)
+                    sys.stdout.flush()
                 else:
-                    self.get_logger().warn("⚠️ 최대 3자리까지 입력 가능합니다.")
+                    # 최대 자리수 초과 시 경고음 효과 (화면에 표시)
+                    sys.stdout.write('\a')  # 벨 문자
+                    sys.stdout.flush()
             elif self.scenario_selection_mode or self.pattern_selection_mode or self.distance_selection_mode:
                 # 선택 모드 중에는 숫자 입력 무시
                 pass
@@ -374,6 +482,8 @@ class MobileVLADataCollector(Node):
                 return
             elif self.repeat_count_mode:
                 # 반복 횟수 입력 모드에서는 이동 키로 입력 취소
+                sys.stdout.write("\n")  # 입력 줄 완료
+                sys.stdout.flush()
                 self.repeat_count_mode = False
                 self.repeat_count_input = ""
                 self.get_logger().info("🚫 반복 횟수 입력이 취소되었습니다.")
@@ -384,22 +494,42 @@ class MobileVLADataCollector(Node):
             if self.collecting:
                 self.current_episode_keys.append(key)
             
-            # 이전 타이머 취소 및 정지 처리 (중복 호출 방지)
+            # 🔴 이전 타이머 취소 및 강제 정지 처리 (ROS 버퍼 문제 방지)
+            # 타이머가 실행 중이면 먼저 취소하여 중복 정지 명령 방지
             if self.movement_timer and self.movement_timer.is_alive():
                 self.movement_timer.cancel()
-                # 이미 정지 상태가 아니면 정지 신호 전송 (데이터 수집 없이)
-                if self.current_action != self.STOP_ACTION: 
-                    self.current_action = self.STOP_ACTION.copy()
+                self.movement_timer = None  # 참조 제거로 메모리 누수 방지
+            
+            # 🔴 현재 액션 상태 확인 및 강제 정지 처리
+            # 현재 정지 상태가 아니거나, 수집 중이 아니면 반드시 정지 상태로 만들어야 함
+            if self.current_action != self.STOP_ACTION:
+                self.current_action = self.STOP_ACTION.copy()
+                # 여러 번 발행하여 ROS 버퍼와 하드웨어에 확실히 전달
+                for _ in range(3):
                     self.publish_cmd_vel(self.STOP_ACTION)
+                    time.sleep(0.02)  # 각 신호 사이 딜레이 (버퍼 플러시)
+                
+                # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보)
+                # 첫 번째 키 입력 시 특히 중요 (에피소드 시작 직후)
+                if self.collecting and len(self.episode_data) <= 1:
+                    # 첫 번째 또는 두 번째 데이터 포인트일 때 더 긴 대기
+                    time.sleep(0.08)  # 첫 동작 전 더 긴 안정화 시간
+                else:
+                    time.sleep(0.05)  # 일반적인 경우
+            else:
+                # 이미 정지 상태여도 한 번 더 정지 신호 전송 (안전장치)
+                self.publish_cmd_vel(self.STOP_ACTION)
+                time.sleep(0.03)  # 짧은 안정화 대기
 
-            # 새 액션 시작
+            # 🔴 새 액션 시작 (정지 상태 확인 후)
             self.current_action = action.copy()
             self.publish_cmd_vel(action)
 
             if self.collecting:
                 self.collect_data_point_with_action("start_action", action)
 
-            # 새 타이머 시작 (로그 간소화)
+            # 🔴 새 타이머 시작 (타이머 객체 생성 및 시작)
+            # 기존 타이머는 이미 취소되었으므로 새로 생성
             self.movement_timer = threading.Timer(0.3, self.stop_movement_timed)
             self.movement_timer.start()
             
@@ -409,23 +539,40 @@ class MobileVLADataCollector(Node):
 
     def stop_movement_timed(self):
         """Stop function called by the timer - NO data collection for auto-stop"""
+        # 🔴 타이머 콜백 실행 시 안전성 체크 강화
         # 타이머가 이미 취소되었거나 현재 정지 상태면 리턴 (중복 호출 방지)
         if self.current_action == self.STOP_ACTION:
             return
+        
+        # 🔴 타이머가 취소되었는지 확인 (타이머 객체가 여전히 유효한지)
+        if self.movement_timer and not self.movement_timer.is_alive():
+            # 타이머가 이미 취소되었으면 리턴
+            return
+        
+        # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행
         self.stop_movement_internal(collect_data=False)
+        # 추가로 여러 번 정지 신호 발행 (ROS 버퍼 보장)
+        for _ in range(2):
+            self.publish_cmd_vel(self.STOP_ACTION)
+            time.sleep(0.01)
 
     def stop_movement_internal(self, collect_data: bool):
         """
         Internal function to stop robot movement and collect data if needed.
         collect_data: If True, collects data at the time of stopping.
         """
-        # 이미 정지 상태면 리턴 (중복 호출 방지)
+        # 🔴 이미 정지 상태면 리턴 (중복 호출 방지)
         if self.current_action == self.STOP_ACTION:
             return
 
         self.current_action = self.STOP_ACTION.copy()
-        self.publish_cmd_vel(self.STOP_ACTION)
-        # 로그 간소화: 정지 완료 로그 제거
+        # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행 (더 강화)
+        for _ in range(3):
+            self.publish_cmd_vel(self.STOP_ACTION)
+            time.sleep(0.02)  # 각 신호 사이 딜레이 (버퍼 플러시)
+        
+        # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보)
+        time.sleep(0.03)
 
         if self.collecting and collect_data:
             self.collect_data_point_with_action("stop_action", self.STOP_ACTION)
@@ -532,7 +679,8 @@ class MobileVLADataCollector(Node):
         total_target = self.fixed_episode_length
         remaining = max(0, total_target - current_count)
         
-        # 핵심 패턴 불일치 감지 (로그 없이 내부 통계만 업데이트)
+        # 핵심 패턴 불일치 감지 및 다음 키 가져오기
+        next_key_hint = None
         if self.core_guidance_active and action_event_type == "start_action":
             scenario_for_guide = self.selected_scenario or self.extract_scenario_from_episode_name(self.episode_name)
             pattern_for_guide = self.selected_pattern_type or self.extract_pattern_from_episode_name(self.episode_name)
@@ -547,9 +695,31 @@ class MobileVLADataCollector(Node):
                     if current_key != next_key:
                         self.core_mismatch_count += 1
         
-        # 간소화된 로그 출력
+        # 핵심 패턴 가이드가 활성화되어 있으면 다음 키 표시 (마지막 키까지 포함)
+        if self.core_guidance_active and current_count < total_target:
+            scenario_for_guide = self.selected_scenario or self.extract_scenario_from_episode_name(self.episode_name)
+            pattern_for_guide = self.selected_pattern_type or self.extract_pattern_from_episode_name(self.episode_name)
+            distance_for_guide = self.selected_distance_level or self.extract_distance_from_episode_name(self.episode_name)
+            planned_seq = self._get_planned_core_keys_18(scenario_for_guide, pattern_for_guide, distance_for_guide)
+            
+            # 다음 키 계산: 현재 수집된 프레임 수를 기준으로 (episode_start는 인덱스 0, 첫 start_action은 인덱스 1)
+            # 다음에 눌러야 할 키는 current_count 번째 키 (0-based이므로 current_count - 1이 현재 완료된 것)
+            if planned_seq and current_count > 0:
+                next_key_index = current_count  # 다음에 눌러야 할 키 인덱스
+                if next_key_index < len(planned_seq):
+                    next_key = planned_seq[next_key_index]
+                    # SPACE는 ' '로 표시, 나머지는 대문자로 표시
+                    if next_key == 'SPACE':
+                        next_key_hint = ' '
+                    else:
+                        next_key_hint = next_key.upper()
+        
+        # 간소화된 로그 출력 (마지막 키 힌트도 포함)
         if remaining > 0:
-            self.get_logger().info(f"📊 수집 진행: {current_count}/{total_target} (남은: {remaining})")
+            if next_key_hint:
+                self.get_logger().info(f"📊 수집 진행: {current_count}/{total_target} (남은: {remaining}) (다음 키: {next_key_hint})")
+            else:
+                self.get_logger().info(f"📊 수집 진행: {current_count}/{total_target} (남은: {remaining})")
         else:
             self.get_logger().info(f"✅ 수집 완료: {current_count}/{total_target}")
 
@@ -654,6 +824,25 @@ class MobileVLADataCollector(Node):
             self.get_logger().error("❌ 에피소드 시작을 위한 첫 이미지를 가져오지 못했습니다. 서비스 서버(카메라 노드)를 확인하세요.")
             return
 
+        # 🔴 에피소드 시작 전 로봇 완전 정지 보장 (중요!)
+        # 이전에 움직이고 있었을 수 있으므로 반드시 정지 상태로 초기화
+        self.get_logger().info("🛑 에피소드 시작 전 로봇 정지 상태 확인 중...")
+        
+        # 기존 타이머가 있으면 취소
+        if self.movement_timer and self.movement_timer.is_alive():
+            self.movement_timer.cancel()
+            self.movement_timer = None
+        
+        # 현재 액션을 STOP_ACTION으로 설정하고 강제 정지 신호 전송
+        self.current_action = self.STOP_ACTION.copy()
+        # 여러 번 정지 신호 전송하여 ROS 버퍼와 하드웨어에 확실히 전달
+        for _ in range(3):
+            self.publish_cmd_vel(self.STOP_ACTION)
+            time.sleep(0.02)  # 각 신호 사이 짧은 딜레이
+        
+        # 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보)
+        time.sleep(0.05)
+        
         self.collecting = True
         self.episode_start_time = time.time()
         
@@ -789,9 +978,73 @@ class MobileVLADataCollector(Node):
 
         self.publish_cmd_vel(self.STOP_ACTION)
 
+    def reset_to_initial_state(self):
+        """모든 상태를 초기화하고 첫 화면으로 리셋"""
+        self.get_logger().info("🔄 리셋 중...")
+        
+        # 수집 중이면 에피소드 취소 (저장하지 않음)
+        if self.collecting:
+            self.get_logger().info("⚠️ 수집 중인 에피소드를 취소합니다 (저장하지 않음)")
+            if self.movement_timer and self.movement_timer.is_alive():
+                self.movement_timer.cancel()
+            self.stop_movement_internal(collect_data=False)
+            self.collecting = False
+            self.episode_data = []
+            self.episode_name = ""
+            self.episode_start_time = None
+        
+        # 반복 횟수 입력 모드 중이면 취소
+        if self.repeat_count_mode:
+            sys.stdout.write("\n")  # 입력 줄 완료
+            sys.stdout.flush()
+            self.repeat_count_mode = False
+            self.repeat_count_input = ""
+        
+        # 모든 선택 상태 초기화
+        self.scenario_selection_mode = False
+        self.pattern_selection_mode = False
+        self.distance_selection_mode = False
+        self.selected_scenario = None
+        self.selected_pattern_type = None
+        self.selected_distance_level = None
+        
+        # 반복 측정 상태 초기화
+        self.is_repeat_measurement_active = False
+        self.waiting_for_next_repeat = False
+        self.current_repeat_index = 0
+        self.target_repeat_count = 1
+        
+        # 핵심 패턴 가이드 상태 초기화
+        self.core_guidance_active = False
+        self.core_guidance_index = 0
+        self.record_core_pattern = False
+        self.current_episode_keys = []
+        self.core_mismatch_count = 0
+        
+        # 로봇 정지
+        self.stop_movement_internal(collect_data=False)
+        self.publish_cmd_vel(self.STOP_ACTION)
+        
+        self.get_logger().info("✅ 리셋 완료! 첫 화면으로 돌아갑니다.")
+        self.get_logger().info("")
+        
+        # 첫 화면(시나리오 선택 메뉴) 표시
+        self.show_scenario_selection()
+
     def save_episode_data(self, episode_data: List[Dict], episode_name: str, total_duration: float) -> Path:
         """Saves collected episode data to an HDF5 file"""
-        save_path = self.data_dir / f"{episode_name}.h5"
+        # 절대 경로로 확실히 변환 (현재 작업 디렉토리 의존 제거)
+        data_dir_abs = Path(self.data_dir).resolve()
+        save_path = data_dir_abs / f"{episode_name}.h5"
+        # 저장 경로도 절대 경로로 확실히 변환
+        save_path = save_path.resolve()
+        
+        # 데이터 디렉토리 존재 확인 및 생성 (절대 경로 사용)
+        try:
+            data_dir_abs.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            self.get_logger().error(f"❌ 데이터 디렉토리 생성 실패 ({data_dir_abs}): {e}")
+            raise
         
         if not episode_data:
             self.get_logger().warn("⚠️ 저장할 프레임이 없습니다. 파일을 생성하지 않습니다.")
@@ -845,7 +1098,9 @@ class MobileVLADataCollector(Node):
     def load_dataset_stats(self):
         """기존 데이터셋 통계 로드"""
         try:
-            h5_files = list(self.data_dir.glob("*.h5"))
+            # 절대 경로로 확실히 변환 (현재 작업 디렉토리 의존 제거)
+            data_dir_abs = Path(self.data_dir).resolve()
+            h5_files = list(data_dir_abs.glob("*.h5"))
             self.dataset_stats = defaultdict(int)
             
             for h5_file in h5_files:
@@ -894,8 +1149,9 @@ class MobileVLADataCollector(Node):
         total_target = 0
         frame_18_count = 0
         
-        # 프레임 18개 데이터 별도 카운트
-        for h5_file in self.data_dir.glob("*.h5"):
+        # 프레임 18개 데이터 별도 카운트 (절대 경로 사용)
+        data_dir_abs = Path(self.data_dir).resolve()
+        for h5_file in data_dir_abs.glob("*.h5"):
             try:
                 with h5py.File(h5_file, 'r') as f:
                     num_frames = f.attrs.get('num_frames', 0)
@@ -1138,8 +1394,10 @@ class MobileVLADataCollector(Node):
     def load_scenario_progress(self):
         """저장된 시나리오 진행상황 로드"""
         try:
-            if self.progress_file.exists():
-                with open(self.progress_file, 'r', encoding='utf-8') as f:
+            # 절대 경로로 확실히 변환 (현재 작업 디렉토리 의존 제거)
+            progress_file_abs = Path(self.progress_file).resolve()
+            if progress_file_abs.exists():
+                with open(progress_file_abs, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     self.scenario_stats = defaultdict(int, data.get('scenario_stats', {}))
                 self.get_logger().info(f"📊 시나리오 진행상황 로드 완료: {dict(self.scenario_stats)}")
@@ -1153,8 +1411,10 @@ class MobileVLADataCollector(Node):
     def load_core_patterns(self):
         """핵심 패턴(표준) 파일 로드"""
         try:
-            if self.core_pattern_file.exists():
-                with open(self.core_pattern_file, 'r', encoding='utf-8') as f:
+            # 절대 경로로 확실히 변환 (현재 작업 디렉토리 의존 제거)
+            core_pattern_file_abs = Path(self.core_pattern_file).resolve()
+            if core_pattern_file_abs.exists():
+                with open(core_pattern_file_abs, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     # 값은 키 시퀀스 리스트
                     loaded = {k: list(v) for k, v in data.items()}
@@ -1174,7 +1434,11 @@ class MobileVLADataCollector(Node):
     def save_core_patterns(self):
         """핵심 패턴(표준) 파일 저장"""
         try:
-            with open(self.core_pattern_file, 'w', encoding='utf-8') as f:
+            # 절대 경로로 확실히 변환 (현재 작업 디렉토리 의존 제거)
+            core_pattern_file_abs = Path(self.core_pattern_file).resolve()
+            # 부모 디렉토리 생성
+            core_pattern_file_abs.parent.mkdir(parents=True, exist_ok=True)
+            with open(core_pattern_file_abs, 'w', encoding='utf-8') as f:
                 json.dump(self.core_patterns, f, indent=2, ensure_ascii=False)
         except Exception as e:
             self.get_logger().warn(f"⚠️ 핵심 패턴 저장 실패: {e}")
@@ -1189,7 +1453,11 @@ class MobileVLADataCollector(Node):
                 "total_target": sum(config["target"] for config in self.cup_scenarios.values())
             }
             
-            with open(self.progress_file, 'w', encoding='utf-8') as f:
+            # 절대 경로로 확실히 변환 (현재 작업 디렉토리 의존 제거)
+            progress_file_abs = Path(self.progress_file).resolve()
+            # 부모 디렉토리 생성
+            progress_file_abs.parent.mkdir(parents=True, exist_ok=True)
+            with open(progress_file_abs, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 
         except Exception as e:
@@ -1255,7 +1523,11 @@ class MobileVLADataCollector(Node):
                 "total_target": sum(config["target"] for config in self.time_period_targets.values())
             }
             
-            with open(self.time_period_file, 'w', encoding='utf-8') as f:
+            # 절대 경로로 확실히 변환 (현재 작업 디렉토리 의존 제거)
+            time_period_file_abs = Path(self.time_period_file).resolve()
+            # 부모 디렉토리 생성
+            time_period_file_abs.parent.mkdir(parents=True, exist_ok=True)
+            with open(time_period_file_abs, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 
         except Exception as e:
@@ -1327,9 +1599,10 @@ class MobileVLADataCollector(Node):
         self.time_period_stats = defaultdict(int)  # 시간대별 통계도 초기화
         combo_files = defaultdict(list)  # (scenario, pattern, distance) -> List[Path]
         
-        # 데이터 디렉토리에서 모든 H5 파일 스캔
-        if self.data_dir.exists():
-            h5_files = list(self.data_dir.glob("*.h5"))
+        # 데이터 디렉토리에서 모든 H5 파일 스캔 (절대 경로 사용)
+        data_dir_abs = Path(self.data_dir).resolve()
+        if data_dir_abs.exists():
+            h5_files = list(data_dir_abs.glob("*.h5"))
             self.get_logger().info(f"📁 {len(h5_files)}개의 H5 파일을 발견했습니다.")
             
             scenario_matched = 0
@@ -1564,6 +1837,9 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   예: '5' 입력 후 Enter → 5회 반복")
         self.get_logger().info("")
         self.get_logger().info("🚫 취소하려면 WASD 키를 누르세요.")
+        # 입력 프롬프트 표시 (커서 깜빡임을 위한)
+        sys.stdout.write("📝 반복 횟수: ")
+        sys.stdout.flush()
         
     def start_next_repeat_measurement(self):
         """다음 반복 측정 시작 (상태 머신 방식)"""
@@ -1741,8 +2017,9 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("📋 H5 파일 검증 및 추출")
         self.get_logger().info("=" * 60)
         
-        # 최신 파일 목록 표시
-        h5_files = sorted(self.data_dir.glob("*.h5"), key=lambda x: x.stat().st_mtime, reverse=True)
+        # 최신 파일 목록 표시 (절대 경로 사용)
+        data_dir_abs = Path(self.data_dir).resolve()
+        h5_files = sorted(data_dir_abs.glob("*.h5"), key=lambda x: x.stat().st_mtime, reverse=True)
         
         if not h5_files:
             self.get_logger().info("❌ H5 파일이 없습니다.")
@@ -2006,16 +2283,36 @@ class MobileVLADataCollector(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    collector = MobileVLADataCollector()
+    # ROS2 초기화
     try:
+        rclpy.init(args=args)
+    except Exception as e:
+        # 이미 초기화되었거나 다른 문제
+        print(f"⚠️ ROS2 초기화 경고: {e}")
+    
+    collector = None
+    try:
+        collector = MobileVLADataCollector()
         rclpy.spin(collector)
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        print(f"❌ 실행 중 오류 발생: {e}")
     finally:
-        collector.stop_episode() 
-        collector.destroy_node()
-        rclpy.shutdown()
+        # 정리 작업
+        try:
+            if collector:
+                collector.stop_episode()
+                collector.destroy_node()
+        except Exception as e:
+            print(f"⚠️ 노드 정리 중 경고: {e}")
+        
+        # ROS2 종료 (중복 호출 방지)
+        try:
+            rclpy.shutdown()
+        except Exception as e:
+            # 이미 종료되었거나 다른 문제 (무시)
+            pass
 
 if __name__ == '__main__':
     main()
