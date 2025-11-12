@@ -127,6 +127,8 @@ class MobileVLADataCollector(Node):
         self.distance_selection_mode = False
         self.repeat_count_mode = False  # 반복 횟수 입력 모드
         self.repeat_count_input = ""  # 입력 중인 숫자 문자열
+        self.guide_edit_mode = False  # 가이드 편집 모드
+        self.guide_edit_keys = []  # 편집 중인 가이드 키 시퀀스
         self.selected_scenario = None
         self.selected_pattern_type = None
         self.selected_distance_level = None
@@ -147,6 +149,19 @@ class MobileVLADataCollector(Node):
 
         self.current_action = self.STOP_ACTION.copy()
         self.movement_timer = None
+        # 명령 발행 추적용 변수
+        self.command_counter = 0  # 명령 발행 카운터
+        self.last_command_time = None  # 마지막 명령 발행 시간
+        self.last_command_action = None  # 마지막 발행된 액션
+        self.verbose_logging = False  # 상세 로깅 활성화 플래그
+        # 자동 복귀 관련 변수
+        self.auto_return_active = False  # 자동 복귀 모드 활성화 플래그
+        self.return_thread = None  # 복귀 스레드
+        # 자동 측정 관련 변수
+        self.auto_measurement_active = False  # 자동 측정 모드 활성화 플래그
+        self.auto_measurement_thread = None  # 자동 측정 스레드
+        self.auto_measurement_queue = []  # 자동 측정할 태스크 큐
+        self.auto_measurement_mode = False  # 자동 측정 모드 플래그 (선택 중)
 
         if ROBOT_AVAILABLE:
             self.driver = Driving()
@@ -306,6 +321,9 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   M: 에피소드 종료, P: 현재 진행 상황 확인")
         self.get_logger().info("   V: H5 파일 검증 및 추출 (최신 파일 또는 선택)")
         self.get_logger().info("   X: 리셋 (첫 화면으로 돌아가기, 수집 중에도 가능)")
+        self.get_logger().info("   B: 자동 복귀 (에피소드 종료 후 시작 위치로 복귀)")
+        self.get_logger().info("   A: 자동 측정 (가이드 기반 자동 측정)")
+        self.get_logger().info("   T: 측정 태스크 표 보기")
         self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 장애물 위치(J/K/L)")
         self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 (총 1000개 목표):")
         self.get_logger().info("   📦 4개 시나리오 × 250개 샘플 × 18프레임 고정 (RoboVLMs 기준: window=8 + pred_next=10)")
@@ -345,13 +363,32 @@ class MobileVLADataCollector(Node):
             elif self.is_repeat_measurement_active and self.waiting_for_next_repeat:
                 if self.current_repeat_index < self.target_repeat_count:
                     self.waiting_for_next_repeat = False
-                    self.start_next_repeat_measurement()
+                    if self.auto_measurement_mode:
+                        # 자동 측정 모드: 다음 측정 시작
+                        # 인덱스 증가 (execute_auto_measurement에서도 확인하지만 여기서 먼저 증가)
+                        self.current_repeat_index += 1
+                        scenario_id = self.selected_scenario
+                        pattern_type = self.selected_pattern_type
+                        distance_level = self.selected_distance_level
+                        
+                        # 자동 측정을 별도 스레드에서 실행
+                        self.auto_measurement_active = True
+                        self.auto_measurement_thread = threading.Thread(
+                            target=self.execute_auto_measurement,
+                            args=(scenario_id, pattern_type, distance_level)
+                        )
+                        self.auto_measurement_thread.daemon = True
+                        self.auto_measurement_thread.start()
+                    else:
+                        # 일반 모드: 수동 측정 시작
+                        self.start_next_repeat_measurement()
                 else:
                     # 모든 반복 완료
                     self.get_logger().info(f"🎉 모든 반복 측정 완료! ({self.target_repeat_count}회)")
                     self.is_repeat_measurement_active = False
                     self.current_repeat_index = 0
                     self.waiting_for_next_repeat = False
+                    self.auto_measurement_mode = False
                     self.show_scenario_selection()
             else:
                 # 일반 모드: 시나리오 선택
@@ -367,8 +404,38 @@ class MobileVLADataCollector(Node):
             else:
                 self.show_h5_verification_menu()
         elif key == 'x':
-            # 리셋 기능: 모든 상태 초기화하고 첫 화면으로 돌아가기
-            self.reset_to_initial_state()
+            if self.guide_edit_mode:
+                # 가이드 편집 취소
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                self.guide_edit_mode = False
+                self.guide_edit_keys = []
+                self.get_logger().info("🚫 가이드 편집이 취소되었습니다. 기존 가이드를 유지합니다.")
+                # 반복 횟수 입력 모드로 돌아가기
+                self.show_repeat_count_selection()
+            else:
+                # 리셋 기능: 모든 상태 초기화하고 첫 화면으로 돌아가기
+                self.reset_to_initial_state()
+        elif key == 'b':
+            # 자동 복귀 기능: 에피소드 종료 후 시작 위치로 복귀
+            if self.collecting:
+                self.get_logger().warn("⚠️ 수집 중에는 자동 복귀를 할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
+            elif self.auto_return_active:
+                # 복귀 중단
+                self.get_logger().info("🛑 자동 복귀를 중단합니다...")
+                self.auto_return_active = False
+                # 정지 신호 전송
+                self.current_action = self.STOP_ACTION.copy()
+                for _ in range(3):
+                    self.publish_cmd_vel(self.STOP_ACTION, source="auto_return_cancel")
+                    time.sleep(0.02)
+            elif len(self.episode_data) == 0:
+                self.get_logger().warn("⚠️ 복귀할 경로가 없습니다. 먼저 에피소드를 수집하세요.")
+            else:
+                self.start_auto_return()
+        elif key == 't':
+            # 측정 태스크 표 보기
+            self.show_measurement_task_table()
         elif key in ['1', '2', '3', '4']:
             if self.scenario_selection_mode:
                 # 시나리오 선택 모드에서 숫자키 입력 (4개 시나리오로 축소)
@@ -378,7 +445,12 @@ class MobileVLADataCollector(Node):
                 }
                 self.selected_scenario = scenario_map[key]
                 self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
-                self.show_pattern_selection()  # 패턴 선택 모드로 전환 (배치 타입 단계 제거)
+                if self.auto_measurement_mode:
+                    # 자동 측정 모드: 패턴 선택으로 바로 이동
+                    self.show_pattern_selection()
+                else:
+                    # 일반 모드: 패턴 선택으로 전환
+                    self.show_pattern_selection()
             else:
                 self.get_logger().info("⚠️ 먼저 'N' 키를 눌러 에피소드 시작을 해주세요.")
         elif key in ['c', 'v']:
@@ -391,7 +463,18 @@ class MobileVLADataCollector(Node):
                 pattern_type = pattern_map[key]
                 self.pattern_selection_mode = False  # 패턴 선택 모드 해제
                 self.selected_pattern_type = pattern_type
-                self.show_distance_selection()  # 거리 선택 모드로 전환
+                
+                if self.auto_measurement_mode:
+                    # 자동 측정 모드: 핵심 패턴만 지원
+                    if pattern_type == "variant":
+                        self.get_logger().warn("⚠️ 자동 측정은 핵심 패턴(Core)만 지원합니다. 'C' 키를 눌러주세요.")
+                        self.show_pattern_selection()  # 다시 패턴 선택
+                    else:
+                        # 핵심 패턴 선택 시 거리 선택으로 전환
+                        self.show_distance_selection()
+                else:
+                    # 일반 모드: 거리 선택으로 전환
+                    self.show_distance_selection()
             else:
                 # 패턴 선택 모드가 아닐 때는 일반 대각선 움직임으로 처리
                 if key == 'c':
@@ -403,8 +486,13 @@ class MobileVLADataCollector(Node):
                 distance_map = {'j': 'close', 'k': 'medium', 'l': 'far'}
                 self.selected_distance_level = distance_map[key]
                 self.distance_selection_mode = False
-                # 반복 횟수 입력 모드로 전환
-                self.show_repeat_count_selection()
+                
+                if self.auto_measurement_mode:
+                    # 자동 측정 모드: 반복 횟수 입력 모드로 전환
+                    self.show_repeat_count_selection()
+                else:
+                    # 일반 모드: 반복 횟수 입력 모드로 전환
+                    self.show_repeat_count_selection()
             elif self.repeat_count_mode:
                 # 반복 횟수 입력 모드에서는 거리 선택 키는 무시
                 pass
@@ -413,11 +501,43 @@ class MobileVLADataCollector(Node):
                 self.throttle = max(10, self.throttle - 10)
                 self.get_logger().info(f'속도: {self.throttle}%')
         elif key == 'g':
-            if ROBOT_AVAILABLE:
+            if self.guide_edit_mode:
+                # 가이드 편집 모드에서는 G 키를 대각선 이동으로 처리하지 않음
+                pass
+            elif ROBOT_AVAILABLE:
                 self.throttle = min(100, self.throttle + 10)
                 self.get_logger().info(f'속도: {self.throttle}%')
+        elif key == 'h':
+            # 가이드 편집 모드 진입 (핵심 패턴이고 반복 횟수 입력 모드일 때만)
+            if self.selected_pattern_type == "core" and self.repeat_count_mode:
+                # 반복 횟수 입력 모드 취소
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                self.repeat_count_mode = False
+                self.repeat_count_input = ""
+                # 가이드 편집 모드 진입
+                self.show_guide_edit_menu()
+            elif self.guide_edit_mode:
+                # 가이드 편집 모드에서는 H 키를 이동 키로 처리하지 않음
+                pass
+            else:
+                # 다른 상황에서는 무시
+                pass
         elif key == '\r' or key == '\n':  # Enter 키
-            if self.repeat_count_mode:
+            if self.guide_edit_mode:
+                # 가이드 편집 완료
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                
+                if self.save_edited_guide():
+                    # 가이드 저장 성공 시 반복 횟수 입력 모드로 돌아가기
+                    self.guide_edit_mode = False
+                    self.guide_edit_keys = []
+                    self.show_repeat_count_selection()
+                else:
+                    # 저장 실패 시 다시 편집 모드 유지
+                    self.show_guide_edit_menu()
+            elif self.repeat_count_mode:
                 # 입력 줄 완료 표시
                 sys.stdout.write("\n")
                 sys.stdout.flush()
@@ -448,9 +568,34 @@ class MobileVLADataCollector(Node):
                 self.is_repeat_measurement_active = True
                 
                 # 첫 번째 측정 시작
-                self.start_next_repeat_measurement()
+                if self.auto_measurement_mode:
+                    # 자동 측정 모드: 첫 번째 측정 시작 (인덱스는 execute_auto_measurement에서 증가)
+                    scenario_id = self.selected_scenario
+                    pattern_type = self.selected_pattern_type
+                    distance_level = self.selected_distance_level
+                    
+                    # 자동 측정을 별도 스레드에서 실행
+                    self.auto_measurement_active = True
+                    self.auto_measurement_thread = threading.Thread(
+                        target=self.execute_auto_measurement,
+                        args=(scenario_id, pattern_type, distance_level)
+                    )
+                    self.auto_measurement_thread.daemon = True
+                    self.auto_measurement_thread.start()
+                else:
+                    # 일반 모드: 수동 측정 시작
+                    self.start_next_repeat_measurement()
         elif key == '\x7f' or key == '\b' or key == '\x08':  # 백스페이스 키
-            if self.repeat_count_mode:
+            if self.guide_edit_mode:
+                if len(self.guide_edit_keys) > 0:
+                    # 마지막 키 삭제
+                    self.guide_edit_keys.pop()
+                    # 화면 업데이트
+                    guide_str = " ".join([k.upper() for k in self.guide_edit_keys])
+                    sys.stdout.write('\r' + ' ' * 80)  # 줄 지우기
+                    sys.stdout.write(f'\r📝 가이드 입력: {guide_str}')
+                    sys.stdout.flush()
+            elif self.repeat_count_mode:
                 if len(self.repeat_count_input) > 0:
                     # 마지막 문자 삭제
                     self.repeat_count_input = self.repeat_count_input[:-1]
@@ -459,7 +604,10 @@ class MobileVLADataCollector(Node):
                     sys.stdout.write('\r📝 반복 횟수: ' + self.repeat_count_input)
                     sys.stdout.flush()
         elif key.isdigit():
-            if self.repeat_count_mode:
+            if self.guide_edit_mode:
+                # 가이드 편집 모드에서는 숫자 입력 무시
+                pass
+            elif self.repeat_count_mode:
                 # 숫자 입력 (최대 3자리)
                 if len(self.repeat_count_input) < 3:
                     self.repeat_count_input += key
@@ -474,7 +622,27 @@ class MobileVLADataCollector(Node):
                 # 선택 모드 중에는 숫자 입력 무시
                 pass
         elif key in self.WASD_TO_CONTINUOUS:
-            if self.scenario_selection_mode or self.pattern_selection_mode or self.distance_selection_mode:
+            # 이동 키 처리 (가이드 편집 모드, 선택 모드, 반복 횟수 입력 모드 우선 처리)
+            if self.guide_edit_mode:
+                # 가이드 편집 모드: 키를 가이드에 추가
+                if len(self.guide_edit_keys) < 18:
+                    # 키를 소문자로 변환하여 저장 (SPACE는 그대로)
+                    if key == ' ':
+                        guide_key = 'SPACE'
+                    else:
+                        guide_key = key.lower()
+                    self.guide_edit_keys.append(guide_key)
+                    # 화면 업데이트
+                    guide_str = " ".join([k.upper() for k in self.guide_edit_keys])
+                    sys.stdout.write('\r' + ' ' * 80)  # 줄 지우기
+                    sys.stdout.write(f'\r📝 가이드 입력: {guide_str}')
+                    sys.stdout.flush()
+                else:
+                    # 최대 길이 도달
+                    sys.stdout.write('\a')  # 벨 문자
+                    sys.stdout.flush()
+                return
+            elif self.scenario_selection_mode or self.pattern_selection_mode or self.distance_selection_mode:
                 self.scenario_selection_mode = False
                 self.pattern_selection_mode = False
                 self.distance_selection_mode = False
@@ -488,6 +656,27 @@ class MobileVLADataCollector(Node):
                 self.repeat_count_input = ""
                 self.get_logger().info("🚫 반복 횟수 입력이 취소되었습니다.")
                 return
+            
+            # 일반 수집(N 키 루프) 중일 때는 A 키를 이동 키로 처리
+            # 가이드 편집 모드, 선택 모드, 반복 횟수 입력 모드가 아닐 때만 A 키 자동 측정 처리
+            if key == 'a' and not (self.collecting and not self.auto_measurement_mode):
+                # A 키이지만 일반 수집 중이 아닌 경우: 자동 측정 기능 처리
+                if self.collecting:
+                    self.get_logger().warn("⚠️ 수집 중에는 자동 측정을 시작할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
+                    return
+                elif self.auto_measurement_active:
+                    # 자동 측정 중단
+                    self.get_logger().info("🛑 자동 측정을 중단합니다...")
+                    self.auto_measurement_active = False
+                    # 정지 신호 전송
+                    self.current_action = self.STOP_ACTION.copy()
+                    for _ in range(3):
+                        self.publish_cmd_vel(self.STOP_ACTION, source="auto_measurement_cancel")
+                        time.sleep(0.02)
+                    return
+                else:
+                    self.show_auto_measurement_menu()
+                    return  # 자동 측정 메뉴를 표시했으므로 여기서 종료
                 
             action = self.WASD_TO_CONTINUOUS[key]
             # 현재 에피소드 키 기록 (핵심 패턴 녹화/가이드 용)
@@ -496,17 +685,48 @@ class MobileVLADataCollector(Node):
             
             # 🔴 이전 타이머 취소 및 강제 정지 처리 (ROS 버퍼 문제 방지)
             # 타이머가 실행 중이면 먼저 취소하여 중복 정지 명령 방지
-            if self.movement_timer and self.movement_timer.is_alive():
-                self.movement_timer.cancel()
-                self.movement_timer = None  # 참조 제거로 메모리 누수 방지
+            timer_was_active = False
+            timer_info = ""
+            if self.movement_timer is not None:
+                if self.movement_timer.is_alive():
+                    timer_was_active = True
+                    timer_info = f" | 기존 타이머 활성 상태: True (취소 예정)"
+                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: is_alive()=True, 취소 시작...")
+                    try:
+                        cancel_result = self.movement_timer.cancel()
+                        timer_info += f" | 취소 결과: {cancel_result}"
+                        self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 취소 시도: cancel()={cancel_result}")
+                    except Exception as e:
+                        timer_info += f" | 취소 실패: {e}"
+                        self.get_logger().error(f"❌ [키입력:{key.upper()}] 타이머 취소 중 오류: {e}")
+                    self.movement_timer = None  # 참조 제거로 메모리 누수 방지
+                else:
+                    timer_info = f" | 기존 타이머 활성 상태: False (이미 종료됨)"
+                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: is_alive()=False (이미 종료됨)")
+                    self.movement_timer = None
+            else:
+                timer_info = f" | 기존 타이머: None (없음)"
+                self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: None (타이머 없음)")
+            
+            if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50) or timer_was_active:
+                self.get_logger().info(f"⏱️  기존 타이머 처리 완료 (키 입력: {key.upper()}){timer_info}")
             
             # 🔴 현재 액션 상태 확인 및 강제 정지 처리
             # 현재 정지 상태가 아니거나, 수집 중이 아니면 반드시 정지 상태로 만들어야 함
-            if self.current_action != self.STOP_ACTION:
+            was_moving = (self.current_action != self.STOP_ACTION)
+            
+            if was_moving:
+                if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
+                    prev_action = self.current_action
+                    self.get_logger().info(
+                        f"🛑 강제 정지 시작 (이전 액션: lx={prev_action['linear_x']:.2f}, "
+                        f"ly={prev_action['linear_y']:.2f}, az={prev_action['angular_z']:.2f})"
+                    )
+                
                 self.current_action = self.STOP_ACTION.copy()
                 # 여러 번 발행하여 ROS 버퍼와 하드웨어에 확실히 전달
-                for _ in range(3):
-                    self.publish_cmd_vel(self.STOP_ACTION)
+                for i in range(3):
+                    self.publish_cmd_vel(self.STOP_ACTION, source=f"key_input_stop_{i+1}")
                     time.sleep(0.02)  # 각 신호 사이 딜레이 (버퍼 플러시)
                 
                 # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보)
@@ -516,87 +736,300 @@ class MobileVLADataCollector(Node):
                     time.sleep(0.08)  # 첫 동작 전 더 긴 안정화 시간
                 else:
                     time.sleep(0.05)  # 일반적인 경우
+                
+                if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
+                    self.get_logger().info(f"✅ 강제 정지 완료 (3회 발행, 안정화 대기 완료)")
             else:
                 # 이미 정지 상태여도 한 번 더 정지 신호 전송 (안전장치)
-                self.publish_cmd_vel(self.STOP_ACTION)
+                if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
+                    self.get_logger().info(f"🛑 이미 정지 상태, 추가 정지 신호 전송 (안전장치)")
+                self.publish_cmd_vel(self.STOP_ACTION, source="key_input_safety_stop")
                 time.sleep(0.03)  # 짧은 안정화 대기
 
             # 🔴 새 액션 시작 (정지 상태 확인 후)
+            if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
+                self.get_logger().info(
+                    f"▶️  새 액션 시작 (키: {key.upper()}, "
+                    f"lx={action['linear_x']:.2f}, ly={action['linear_y']:.2f}, az={action['angular_z']:.2f})"
+                )
+            
             self.current_action = action.copy()
-            self.publish_cmd_vel(action)
+            self.publish_cmd_vel(action, source=f"key_input_{key}")
 
             if self.collecting:
                 self.collect_data_point_with_action("start_action", action)
 
             # 🔴 새 타이머 시작 (타이머 객체 생성 및 시작)
             # 기존 타이머는 이미 취소되었으므로 새로 생성
-            self.movement_timer = threading.Timer(0.3, self.stop_movement_timed)
-            self.movement_timer.start()
+            timer_duration = 0.3
+            self.get_logger().info(f"🔍 [키입력:{key.upper()}] 새 타이머 생성 시작: duration={timer_duration}초")
+            try:
+                self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
+                self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 객체 생성 완료: {self.movement_timer}")
+                self.movement_timer.start()
+                self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 start() 호출 완료, is_alive()={self.movement_timer.is_alive()}")
+            except Exception as e:
+                self.get_logger().error(f"❌ [키입력:{key.upper()}] 타이머 생성/시작 중 오류: {e}")
+                import traceback
+                self.get_logger().error(f"❌ 트레이스백:\n{traceback.format_exc()}")
+            
+            if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
+                self.get_logger().info(f"⏱️  타이머 시작: {timer_duration}초 후 자동 정지 예약 (타이머 객체: {self.movement_timer}, is_alive: {self.movement_timer.is_alive() if self.movement_timer else 'N/A'})")
             
         elif key == ' ':
+            if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
+                self.get_logger().info("🛑 스페이스바: 수동 정지 명령")
             self.stop_movement_internal(collect_data=True) 
             self.get_logger().info("🛑 정지")
 
     def stop_movement_timed(self):
         """Stop function called by the timer - NO data collection for auto-stop"""
+        import threading
+        current_thread = threading.current_thread().name
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        
+        # 🔍 상세 디버깅 로그 (항상 출력)
+        self.get_logger().info(f"🔍 [타이머콜백] {timestamp} | Thread: {current_thread} | stop_movement_timed() 호출됨")
+        
+        # 상세 로깅 활성화 여부 확인
+        should_log_verbose = self.verbose_logging or (self.collecting and len(self.episode_data) >= 50)
+        
+        if should_log_verbose:
+            self.get_logger().info(
+                f"⏰ [TIMER] {timestamp} | Thread: {current_thread} | "
+                f"타이머 콜백 실행됨"
+            )
+        
         # 🔴 타이머 콜백 실행 시 안전성 체크 강화
         # 타이머가 이미 취소되었거나 현재 정지 상태면 리턴 (중복 호출 방지)
+        current_action_str = f"lx={self.current_action['linear_x']:.2f}, ly={self.current_action['linear_y']:.2f}, az={self.current_action['angular_z']:.2f}"
+        self.get_logger().info(f"🔍 [타이머콜백] 현재 액션 상태 확인: {current_action_str}")
+        
         if self.current_action == self.STOP_ACTION:
+            self.get_logger().info(f"🔍 [타이머콜백] ⏭️  이미 정지 상태, 타이머 콜백 스킵")
+            if should_log_verbose:
+                self.get_logger().info(f"   ⏭️  이미 정지 상태, 타이머 콜백 스킵")
             return
         
         # 🔴 타이머가 취소되었는지 확인 (타이머 객체가 여전히 유효한지)
+        timer_status = "None"
+        if self.movement_timer is not None:
+            is_alive = self.movement_timer.is_alive()
+            timer_status = f"is_alive()={is_alive}"
+            self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer={self.movement_timer}, {timer_status}")
+        else:
+            self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer=None")
+        
         if self.movement_timer and not self.movement_timer.is_alive():
             # 타이머가 이미 취소되었으면 리턴
+            self.get_logger().info(f"🔍 [타이머콜백] ⏭️  타이머가 이미 취소됨, 콜백 스킵")
+            if should_log_verbose:
+                self.get_logger().info(f"   ⏭️  타이머가 이미 취소됨, 콜백 스킵")
             return
+        
+        self.get_logger().info(f"🔍 [타이머콜백] stop_movement_internal() 호출 시작...")
+        
+        # 현재 액션 상태 로깅
+        if should_log_verbose:
+            current_action = self.current_action
+            self.get_logger().info(
+                f"   📊 현재 액션 상태: lx={current_action['linear_x']:.2f}, "
+                f"ly={current_action['linear_y']:.2f}, az={current_action['angular_z']:.2f}"
+            )
         
         # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행
         self.stop_movement_internal(collect_data=False)
+        self.get_logger().info(f"🔍 [타이머콜백] stop_movement_internal() 호출 완료, 추가 정지 신호 발행 시작...")
+        
         # 추가로 여러 번 정지 신호 발행 (ROS 버퍼 보장)
-        for _ in range(2):
-            self.publish_cmd_vel(self.STOP_ACTION)
+        for i in range(2):
+            self.get_logger().info(f"🔍 [타이머콜백] 추가 정지 신호 {i+1}/2 발행 중...")
+            self.publish_cmd_vel(self.STOP_ACTION, source=f"timer_extra_stop_{i+1}")
             time.sleep(0.01)
+        
+        self.get_logger().info(f"🔍 [타이머콜백] ✅ 타이머 기반 정지 완료 (총 5회 정지 명령 발행)")
+        if should_log_verbose:
+            self.get_logger().info(f"   ✅ 타이머 기반 정지 완료 (총 5회 정지 명령 발행)")
 
     def stop_movement_internal(self, collect_data: bool):
         """
         Internal function to stop robot movement and collect data if needed.
         collect_data: If True, collects data at the time of stopping.
         """
+        import threading
+        current_thread = threading.current_thread().name
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        should_log_verbose = self.verbose_logging or (self.collecting and len(self.episode_data) >= 50)
+        
+        # 🔍 상세 디버깅 로그 (항상 출력)
+        prev_action_str = f"lx={self.current_action['linear_x']:.2f}, ly={self.current_action['linear_y']:.2f}, az={self.current_action['angular_z']:.2f}"
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] {timestamp} | Thread: {current_thread} | 호출됨 | collect_data={collect_data} | 이전 액션: {prev_action_str}")
+        
         # 🔴 이미 정지 상태면 리턴 (중복 호출 방지)
         if self.current_action == self.STOP_ACTION:
+            self.get_logger().info(f"🔍 [STOP_INTERNAL] ⏭️  이미 정지 상태, 스킵")
+            if should_log_verbose:
+                self.get_logger().info(f"   ⏭️  stop_movement_internal: 이미 정지 상태, 스킵")
             return
 
+        prev_action = self.current_action.copy()
+        if should_log_verbose:
+            self.get_logger().info(
+                f"🛑 [STOP_INTERNAL] {timestamp} | Thread: {current_thread} | "
+                f"정지 시작 (이전: lx={prev_action['linear_x']:.2f}, "
+                f"ly={prev_action['linear_y']:.2f}, az={prev_action['angular_z']:.2f})"
+            )
+
         self.current_action = self.STOP_ACTION.copy()
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 시작 (3회)...")
+        
         # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행 (더 강화)
-        for _ in range(3):
-            self.publish_cmd_vel(self.STOP_ACTION)
+        for i in range(3):
+            self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 신호 {i+1}/3 발행 중...")
+            self.publish_cmd_vel(self.STOP_ACTION, source=f"stop_internal_{i+1}")
             time.sleep(0.02)  # 각 신호 사이 딜레이 (버퍼 플러시)
+        
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 완료 (3회)")
         
         # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보)
         time.sleep(0.03)
+        
+        if should_log_verbose:
+            self.get_logger().info(f"   ✅ stop_movement_internal 완료 (3회 발행, 안정화 대기 완료)")
 
         if self.collecting and collect_data:
             self.collect_data_point_with_action("stop_action", self.STOP_ACTION)
 
-    def publish_cmd_vel(self, action: Dict[str, float]):
-        """Publishes Twist message and controls the actual robot"""
+    def publish_cmd_vel(self, action: Dict[str, float], source: str = "unknown"):
+        """
+        Publishes Twist message and controls the actual robot
+        
+        Args:
+            action: 액션 딕셔너리
+            source: 명령 발행 소스 (디버깅용)
+        """
+        import threading
+        current_thread = threading.current_thread().name
+        
+        # 명령 발행 추적
+        current_time = time.time()
+        self.command_counter += 1
+        
+        # 🔍 조건 1: 명령을 늦게 받았는지 확인
+        time_since_last_command = None
+        if self.last_command_time is not None:
+            time_since_last_command = current_time - self.last_command_time
+        
+        # 🔍 조건 3: 다른 명령을 보고 멈췄는지 확인 (이전 명령과 비교)
+        # 비교는 저장하기 전에 수행해야 함
+        unexpected_command = False
+        if self.last_command_action is not None:
+            prev_action = self.last_command_action
+            # 이전 명령이 STOP이 아니었는데, 현재 명령이 다른 액션이면 예상치 못한 명령
+            prev_is_stop = (abs(prev_action["linear_x"]) < 0.01 and 
+                           abs(prev_action["linear_y"]) < 0.01 and 
+                           abs(prev_action["angular_z"]) < 0.01)
+            curr_is_stop = (abs(action["linear_x"]) < 0.01 and 
+                           abs(action["linear_y"]) < 0.01 and 
+                           abs(action["angular_z"]) < 0.01)
+            if not prev_is_stop and not curr_is_stop:
+                # 이전 액션과 현재 액션이 다르면 예상치 못한 명령
+                if (abs(prev_action["linear_x"] - action["linear_x"]) > 0.1 or
+                    abs(prev_action["linear_y"] - action["linear_y"]) > 0.1 or
+                    abs(prev_action["angular_z"] - action["angular_z"]) > 0.1):
+                    unexpected_command = True
+        
+        # 이제 현재 명령을 저장
+        self.last_command_time = current_time
+        self.last_command_action = action.copy()
+        
+        # 액션 타입 판별
+        is_stop = (abs(action["linear_x"]) < 0.01 and 
+                  abs(action["linear_y"]) < 0.01 and 
+                  abs(action["angular_z"]) < 0.01)
+        action_type = "STOP" if is_stop else "MOVE"
+        
+        # 상세 로깅 (50개 이상 데이터 수집 시 또는 verbose_logging 활성화 시)
+        should_log_verbose = self.verbose_logging or (self.collecting and len(self.episode_data) >= 50)
+        
+        if should_log_verbose:
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            
+            # 조건 1: 명령 간 시간 간격 로깅
+            time_info = ""
+            if time_since_last_command is not None:
+                time_info = f" | 이전 명령으로부터: {time_since_last_command*1000:.1f}ms"
+                if time_since_last_command > 0.5:  # 500ms 이상 지연
+                    time_info += " ⚠️ 지연 감지!"
+            
+            # 조건 3: 예상치 못한 명령 경고
+            unexpected_info = ""
+            if unexpected_command:
+                unexpected_info = " | ⚠️ 예상치 못한 명령 변경 감지!"
+            
+            self.get_logger().info(
+                f"📤 [CMD#{self.command_counter}] {timestamp}{time_info}{unexpected_info} | "
+                f"Source: {source} | Thread: {current_thread} | "
+                f"Type: {action_type} | "
+                f"Action: lx={action['linear_x']:.2f}, ly={action['linear_y']:.2f}, az={action['angular_z']:.2f}"
+            )
+        
         twist = Twist()
         twist.linear.x = float(action["linear_x"])
         twist.linear.y = float(action["linear_y"])
         twist.angular.z = float(action["angular_z"])
-        self.cmd_pub.publish(twist)
+        
+        # ROS 발행
+        ros_publish_success = False
+        ros_publish_time = None
+        try:
+            ros_publish_start = time.time()
+            self.cmd_pub.publish(twist)
+            ros_publish_time = time.time() - ros_publish_start
+            ros_publish_success = True
+            
+            if should_log_verbose:
+                self.get_logger().info(f"   ✅ ROS publish 성공 (토픽: /cmd_vel, 소요시간: {ros_publish_time*1000:.2f}ms)")
+        except Exception as e:
+            # 🔍 조건 2: 명령을 아예 무시했는지 확인 (ROS publish 실패)
+            self.get_logger().error(f"   ❌ ROS publish 실패: {e} | ⚠️ 명령 무시됨!")
+            return
 
+        # 하드웨어 제어 (ROBOT_AVAILABLE일 때)
+        hardware_success = False
         if ROBOT_AVAILABLE and self.driver:
-            if any(abs(v) > 0.1 for v in action.values()):
-                if abs(action["angular_z"]) > 0.1:
-                    spin_speed = int(action["angular_z"] * self.throttle)
-                    self.driver.spin(spin_speed)
-                elif abs(action["linear_x"]) > 0.1 or abs(action["linear_y"]) > 0.1:
-                    angle = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
-                    if angle < 0:
-                        angle += 360
-                    self.driver.move(int(angle), self.throttle)
-            else:
-                self.driver.stop()
+            try:
+                hw_start_time = time.time()
+                if any(abs(v) > 0.1 for v in action.values()):
+                    if abs(action["angular_z"]) > 0.1:
+                        spin_speed = int(action["angular_z"] * self.throttle)
+                        self.driver.spin(spin_speed)
+                        hardware_success = True
+                        hw_time = (time.time() - hw_start_time) * 1000
+                        if should_log_verbose:
+                            self.get_logger().info(f"   ✅ Hardware: spin({spin_speed}) (소요시간: {hw_time:.2f}ms)")
+                    elif abs(action["linear_x"]) > 0.1 or abs(action["linear_y"]) > 0.1:
+                        angle = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
+                        if angle < 0:
+                            angle += 360
+                        self.driver.move(int(angle), self.throttle)
+                        hardware_success = True
+                        hw_time = (time.time() - hw_start_time) * 1000
+                        if should_log_verbose:
+                            self.get_logger().info(f"   ✅ Hardware: move(angle={int(angle)}, throttle={self.throttle}) (소요시간: {hw_time:.2f}ms)")
+                else:
+                    self.driver.stop()
+                    hardware_success = True
+                    hw_time = (time.time() - hw_start_time) * 1000
+                    if should_log_verbose:
+                        self.get_logger().info(f"   ✅ Hardware: stop() (소요시간: {hw_time:.2f}ms)")
+            except Exception as e:
+                # 🔍 조건 2: 명령을 아예 무시했는지 확인 (하드웨어 제어 실패)
+                self.get_logger().error(f"   ❌ Hardware 제어 실패: {e} | ⚠️ 명령 무시됨!")
+        
+        # 🔍 조건 2: ROS publish는 성공했지만 하드웨어 제어가 없거나 실패한 경우
+        if should_log_verbose and ros_publish_success and ROBOT_AVAILABLE and not hardware_success:
+            self.get_logger().warn(f"   ⚠️ ROS publish는 성공했지만 하드웨어 제어가 실행되지 않음 (명령 무시 가능성)")
 
     def get_latest_image_via_service(self, max_retries: int = 3) -> np.ndarray | None:
         """
@@ -713,6 +1146,11 @@ class MobileVLADataCollector(Node):
                         next_key_hint = ' '
                     else:
                         next_key_hint = next_key.upper()
+        
+        # 50개 이상 데이터 수집 시 상세 로깅 자동 활성화
+        if current_count >= 50 and not self.verbose_logging:
+            self.verbose_logging = True
+            self.get_logger().info("🔍 상세 로깅 모드 활성화 (50개 이상 데이터 수집 감지)")
         
         # 간소화된 로그 출력 (마지막 키 힌트도 포함)
         if remaining > 0:
@@ -846,6 +1284,9 @@ class MobileVLADataCollector(Node):
         self.collecting = True
         self.episode_start_time = time.time()
         
+        # 에피소드 시작 시 상세 로깅은 비활성화 (데이터 수집 중 자동 활성화됨)
+        self.verbose_logging = False
+        
         # 에피소드 시작 시점의 시간대 자동 분류
         start_timestamp = datetime.now()
         start_time_period = self.classify_time_period(start_timestamp)
@@ -856,6 +1297,10 @@ class MobileVLADataCollector(Node):
         self.get_logger().info(f"🎬 에피소드 시작: {self.episode_name}")
         self.get_logger().info(f"⏰ 시작 시간: {start_time_str} → 시간대: {period_desc} ({start_time_period})")
         self.get_logger().info(f"🔍 수집 상태: collecting={self.collecting}, 초기이미지크기={initial_image.shape}")
+        
+        # 명령 카운터 초기화 (에피소드별로 추적)
+        self.command_counter = 0
+        self.get_logger().info(f"📊 명령 추적 시작 (카운터 초기화)")
         
         # 에피소드 시작 시점의 이미지를 첫 번째 데이터 포인트로 수집
         self.collect_data_point_with_action("episode_start", self.STOP_ACTION, initial_image)
@@ -977,6 +1422,11 @@ class MobileVLADataCollector(Node):
         self.check_and_continue_repeat_measurement()
 
         self.publish_cmd_vel(self.STOP_ACTION)
+        
+        # 자동 복귀 안내 메시지
+        if len(self.episode_data) > 0:
+            self.get_logger().info("")
+            self.get_logger().info("🔄 'B' 키를 눌러 시작 위치로 자동 복귀할 수 있습니다.")
 
     def reset_to_initial_state(self):
         """모든 상태를 초기화하고 첫 화면으로 리셋"""
@@ -1000,6 +1450,13 @@ class MobileVLADataCollector(Node):
             self.repeat_count_mode = False
             self.repeat_count_input = ""
         
+        # 가이드 편집 모드 중이면 취소
+        if self.guide_edit_mode:
+            sys.stdout.write("\n")  # 입력 줄 완료
+            sys.stdout.flush()
+            self.guide_edit_mode = False
+            self.guide_edit_keys = []
+        
         # 모든 선택 상태 초기화
         self.scenario_selection_mode = False
         self.pattern_selection_mode = False
@@ -1013,6 +1470,15 @@ class MobileVLADataCollector(Node):
         self.waiting_for_next_repeat = False
         self.current_repeat_index = 0
         self.target_repeat_count = 1
+        
+        # 자동 복귀 상태 초기화
+        if self.auto_return_active:
+            self.auto_return_active = False
+            self.get_logger().info("🛑 자동 복귀를 중단합니다...")
+            self.current_action = self.STOP_ACTION.copy()
+            for _ in range(3):
+                self.publish_cmd_vel(self.STOP_ACTION, source="reset_cancel_return")
+                time.sleep(0.02)
         
         # 핵심 패턴 가이드 상태 초기화
         self.core_guidance_active = False
@@ -1809,10 +2275,7 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
         
     def show_repeat_count_selection(self):
-        """반복 횟수 입력 메뉴 표시"""
-        self.repeat_count_mode = True
-        self.repeat_count_input = ""
-        
+        """반복 횟수 입력 메뉴 표시 (가이드 표시 및 편집 옵션 포함)"""
         # 선택된 정보 표시
         scenario_config = self.cup_scenarios.get(self.selected_scenario, {})
         pattern_names = {
@@ -1825,21 +2288,101 @@ class MobileVLADataCollector(Node):
             "far": "FAR (먼 위치)"
         }
         
-        self.get_logger().info("🔄 반복 횟수 입력")
-        self.get_logger().info("=" * 50)
+        self.get_logger().info("=" * 60)
         self.get_logger().info(f"📦 시나리오: {scenario_config.get('description', self.selected_scenario)}")
         self.get_logger().info(f"📋 패턴: {pattern_names.get(self.selected_pattern_type, self.selected_pattern_type)}")
         self.get_logger().info(f"📍 거리: {distance_names.get(self.selected_distance_level, self.selected_distance_level)}")
         self.get_logger().info("")
+        
+        # 핵심 패턴인 경우 가이드 표시
+        if self.selected_pattern_type == "core":
+            guide_keys = self.get_core_pattern_guide_keys(
+                self.selected_scenario,
+                self.selected_pattern_type,
+                self.selected_distance_level
+            )
+            guide_str = " ".join([k.upper() for k in guide_keys])
+            self.get_logger().info(f"🎮 현재 가이드: {guide_str}")
+            self.get_logger().info("")
+            self.get_logger().info("✨ 가이드 편집: H 키를 눌러 가이드를 수정하거나 새로 입력하세요")
+            self.get_logger().info("   (가이드를 수정하면 해당 조합에 대해 저장됩니다)")
+            self.get_logger().info("")
+        
+        self.get_logger().info("🔄 반복 횟수 입력")
+        self.get_logger().info("=" * 60)
         self.get_logger().info("✨ 반복 횟수를 입력하세요:")
         self.get_logger().info("   Enter: 1회 측정 (기본값)")
         self.get_logger().info("   숫자 입력 후 Enter: 해당 횟수만큼 반복 측정 (최대 100회)")
         self.get_logger().info("   예: '5' 입력 후 Enter → 5회 반복")
         self.get_logger().info("")
         self.get_logger().info("🚫 취소하려면 WASD 키를 누르세요.")
+        
+        self.repeat_count_mode = True
+        self.repeat_count_input = ""
         # 입력 프롬프트 표시 (커서 깜빡임을 위한)
         sys.stdout.write("📝 반복 횟수: ")
         sys.stdout.flush()
+    
+    def show_guide_edit_menu(self):
+        """가이드 편집 메뉴 표시"""
+        self.guide_edit_mode = True
+        self.guide_edit_keys = []
+        
+        # 현재 가이드 가져오기
+        current_guide_keys = self.get_core_pattern_guide_keys(
+            self.selected_scenario,
+            self.selected_pattern_type,
+            self.selected_distance_level
+        )
+        
+        self.get_logger().info("")
+        self.get_logger().info("=" * 60)
+        self.get_logger().info("✏️ 가이드 편집 모드")
+        self.get_logger().info("=" * 60)
+        self.get_logger().info(f"📦 시나리오: {self.selected_scenario}")
+        self.get_logger().info(f"📋 패턴: {self.selected_pattern_type}")
+        self.get_logger().info(f"📍 거리: {self.selected_distance_level}")
+        self.get_logger().info("")
+        if current_guide_keys:
+            current_guide_str = " ".join([k.upper() for k in current_guide_keys])
+            self.get_logger().info(f"📋 현재 가이드: {current_guide_str}")
+        else:
+            self.get_logger().info("📋 현재 가이드: 없음 (새로 입력하세요)")
+        self.get_logger().info("")
+        self.get_logger().info("✨ 가이드 키를 입력하세요:")
+        self.get_logger().info("   W/A/S/D: 이동, Q/E/Z/C: 대각선, R/T: 회전, SPACE: 정지")
+        self.get_logger().info("   Enter: 가이드 저장 및 완료")
+        self.get_logger().info("   백스페이스: 마지막 키 삭제")
+        self.get_logger().info("   X: 취소 (기존 가이드 유지)")
+        self.get_logger().info("")
+        self.get_logger().info("💡 최대 18개 키까지 입력 가능 (부족하면 SPACE로 자동 패딩)")
+        sys.stdout.write("📝 가이드 입력: ")
+        sys.stdout.flush()
+    
+    def save_edited_guide(self):
+        """편집된 가이드를 저장"""
+        if not self.guide_edit_keys:
+            self.get_logger().warn("⚠️ 가이드가 비어있습니다. 저장하지 않습니다.")
+            return False
+        
+        # 가이드 키 정규화 (18개로)
+        normalized_keys = self._normalize_to_18_keys(self.guide_edit_keys)
+        
+        # 조합 키 생성
+        combo_key = self._combined_key(
+            self.selected_scenario,
+            self.selected_pattern_type,
+            self.selected_distance_level
+        )
+        
+        # 가이드 저장
+        self.core_patterns[combo_key] = normalized_keys
+        self.save_core_patterns()
+        
+        guide_str = " ".join([k.upper() for k in normalized_keys])
+        self.get_logger().info(f"✅ 가이드 저장 완료: {guide_str}")
+        self.get_logger().info(f"   키: {combo_key}")
+        return True
         
     def start_next_repeat_measurement(self):
         """다음 반복 측정 시작 (상태 머신 방식)"""
@@ -2217,7 +2760,19 @@ class MobileVLADataCollector(Node):
                 df = pd.DataFrame(data)
                 
                 if output_path is None:
-                    output_path = file_path.parent / f"{file_path.stem}_data.csv"
+                    # H5 파일의 time_period 메타데이터를 읽어서 파일명에 추가
+                    time_period = metadata.get('time_period', None)
+                    stem = file_path.stem
+                    
+                    # stem에서 "medium" 뒤에 시간대 정보 추가
+                    if time_period and 'medium' in stem:
+                        # medium 뒤에 시간대 추가
+                        stem = stem.replace('medium', f'medium_{time_period}')
+                    elif time_period:
+                        # medium이 없으면 그냥 끝에 추가
+                        stem = f"{stem}_{time_period}"
+                    
+                    output_path = file_path.parent / f"{stem}_data.csv"
                 
                 df.to_csv(output_path, index=False)
                 self.get_logger().info(f"📊 CSV 파일 저장 완료: {output_path}")
@@ -2280,6 +2835,331 @@ class MobileVLADataCollector(Node):
         
         except Exception as e:
             self.get_logger().error(f"❌ JSON 추출 중 오류 발생: {e}")
+    
+    def get_reverse_action(self, action: Dict[str, float]) -> Dict[str, float]:
+        """
+        액션의 반대 방향을 반환합니다.
+        
+        Args:
+            action: 원본 액션 딕셔너리
+            
+        Returns:
+            반대 방향 액션 딕셔너리
+        """
+        return {
+            "linear_x": -action["linear_x"],
+            "linear_y": -action["linear_y"],
+            "angular_z": -action["angular_z"]
+        }
+    
+    def start_auto_return(self):
+        """에피소드 종료 후 시작 위치로 자동 복귀 시작"""
+        if self.auto_return_active:
+            self.get_logger().warn("⚠️ 이미 자동 복귀가 진행 중입니다.")
+            return
+        
+        if len(self.episode_data) == 0:
+            self.get_logger().warn("⚠️ 복귀할 경로가 없습니다.")
+            return
+        
+        # 복귀할 액션 리스트 생성 (역순, 반대 방향)
+        return_actions = []
+        # episode_start는 제외하고, start_action만 추출
+        for data in self.episode_data:
+            if data.get('action_event_type') == 'start_action':
+                # 반대 방향 액션 생성
+                reverse_action = self.get_reverse_action(data['action'])
+                return_actions.append(reverse_action)
+        
+        if len(return_actions) == 0:
+            self.get_logger().warn("⚠️ 복귀할 액션이 없습니다.")
+            return
+        
+        # 역순으로 변경 (마지막 액션부터 첫 액션까지)
+        return_actions.reverse()
+        
+        self.get_logger().info("")
+        self.get_logger().info("=" * 60)
+        self.get_logger().info("🔄 자동 복귀 시작")
+        self.get_logger().info(f"   📍 복귀할 액션 수: {len(return_actions)}개")
+        self.get_logger().info(f"   ⏱️  예상 소요 시간: {len(return_actions) * 0.3:.1f}초")
+        self.get_logger().info("   💡 각 액션을 0.3초 동안 실행합니다.")
+        self.get_logger().info("   🛑 중단하려면 'B' 키를 다시 누르세요.")
+        self.get_logger().info("=" * 60)
+        
+        # 자동 복귀를 별도 스레드에서 실행
+        self.auto_return_active = True
+        self.return_thread = threading.Thread(target=self.execute_auto_return, args=(return_actions,))
+        self.return_thread.daemon = True
+        self.return_thread.start()
+    
+    def execute_auto_return(self, return_actions: List[Dict[str, float]]):
+        """
+        자동 복귀 실행 (별도 스레드에서 실행)
+        
+        Args:
+            return_actions: 복귀할 액션 리스트 (역순, 반대 방향)
+        """
+        try:
+            # 먼저 정지 상태로 초기화
+            self.current_action = self.STOP_ACTION.copy()
+            for _ in range(3):
+                self.publish_cmd_vel(self.STOP_ACTION, source="auto_return_init")
+                time.sleep(0.02)
+            time.sleep(0.05)
+            
+            # 각 액션을 0.3초 동안 실행
+            for i, action in enumerate(return_actions):
+                if not self.auto_return_active:
+                    self.get_logger().info("🛑 자동 복귀가 중단되었습니다.")
+                    break
+                
+                self.get_logger().info(f"🔄 복귀 진행: {i+1}/{len(return_actions)} (액션: lx={action['linear_x']:.2f}, ly={action['linear_y']:.2f}, az={action['angular_z']:.2f})")
+                
+                # 액션 실행
+                self.current_action = action.copy()
+                self.publish_cmd_vel(action, source=f"auto_return_{i+1}")
+                
+                # 0.3초 동안 유지
+                time.sleep(0.3)
+                
+                # 정지 신호 전송
+                self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_return_stop_{i+1}")
+                time.sleep(0.02)
+            
+            # 최종 정지
+            if self.auto_return_active:
+                self.current_action = self.STOP_ACTION.copy()
+                for _ in range(3):
+                    self.publish_cmd_vel(self.STOP_ACTION, source="auto_return_final")
+                    time.sleep(0.02)
+                time.sleep(0.05)
+                
+                self.get_logger().info("")
+                self.get_logger().info("=" * 60)
+                self.get_logger().info("✅ 자동 복귀 완료!")
+                self.get_logger().info("=" * 60)
+                self.get_logger().info("")
+        
+        except Exception as e:
+            self.get_logger().error(f"❌ 자동 복귀 중 오류 발생: {e}")
+        finally:
+            self.auto_return_active = False
+            self.return_thread = None
+    
+    def show_measurement_task_table(self):
+        """측정 가능한 태스크와 종류를 표로 정리하여 표시"""
+        # 조합별 통계를 최신 상태로 업데이트
+        self.resync_scenario_progress()
+        
+        self.get_logger().info("")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("📊 측정 태스크 표")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("")
+        
+        # 시나리오별 목표와 설명
+        self.get_logger().info("📋 시나리오 (4개):")
+        for key, scenario in self.cup_scenarios.items():
+            desc = scenario["description"]
+            target = scenario["target"]
+            current = self.scenario_stats.get(key, 0)
+            progress = self.create_progress_bar(current, target)
+            self.get_logger().info(f"   {scenario['key']}: {desc} - 목표: {target}개 | {progress}")
+        self.get_logger().info("")
+        
+        # 패턴 타입별 목표
+        self.get_logger().info("🎯 패턴 타입 (2개):")
+        for pattern, target in self.pattern_targets.items():
+            pattern_name = "핵심 패턴 (Core)" if pattern == "core" else "변형 패턴 (Variant)"
+            self.get_logger().info(f"   {pattern.upper()}: {pattern_name} - 목표: {target}개")
+        self.get_logger().info("")
+        
+        # 거리 레벨별 목표
+        self.get_logger().info("📍 거리 레벨 (3개):")
+        for distance, config in self.distance_levels.items():
+            label = config["label"]
+            samples = config["samples_per_scenario"]
+            self.get_logger().info(f"   {distance.upper()}: {label} - 샘플/시나리오: {samples}개")
+        self.get_logger().info("")
+        
+        # 조합별 통계
+        self.get_logger().info("📈 조합별 통계:")
+        self.get_logger().info("   시나리오 × 패턴 × 거리 = 총 조합")
+        total_combinations = 0
+        for scenario in self.cup_scenarios.keys():
+            for pattern in self.pattern_targets.keys():
+                for distance in self.distance_levels.keys():
+                    combo = (scenario, pattern, distance)
+                    current = self.pattern_distance_stats.get(scenario, {}).get(pattern, {}).get(distance, 0)
+                    target = self.distance_targets_per_pattern[pattern][distance]
+                    progress = self.create_progress_bar(current, target)
+                    self.get_logger().info(f"   {scenario} × {pattern} × {distance}: {progress}")
+                    total_combinations += 1
+        self.get_logger().info("")
+        self.get_logger().info(f"   총 조합 수: {total_combinations}개 (4 시나리오 × 2 패턴 × 3 거리)")
+        self.get_logger().info("")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("")
+    
+    def show_auto_measurement_menu(self):
+        """자동 측정 메뉴 표시"""
+        self.get_logger().info("")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("🤖 자동 측정 메뉴")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("")
+        self.get_logger().info("📋 측정할 태스크를 선택하세요:")
+        self.get_logger().info("")
+        
+        # 시나리오 선택
+        self.get_logger().info("1️⃣ 시나리오 선택:")
+        for key, scenario in self.cup_scenarios.items():
+            desc = scenario["description"]
+            current = self.scenario_stats.get(key, 0)
+            target = scenario["target"]
+            progress = self.create_progress_bar(current, target)
+            self.get_logger().info(f"   {scenario['key']}: {desc} | {progress}")
+        self.get_logger().info("")
+        
+        # 패턴 선택
+        self.get_logger().info("2️⃣ 패턴 타입 선택:")
+        self.get_logger().info("   C: 핵심 패턴 (Core) - 가이드 기반 자동 측정")
+        self.get_logger().info("   V: 변형 패턴 (Variant) - 수동 측정 필요")
+        self.get_logger().info("")
+        
+        # 거리 선택
+        self.get_logger().info("3️⃣ 거리 레벨 선택:")
+        for key, config in self.distance_levels.items():
+            label = config["label"]
+            key_map = {"close": "J", "medium": "K", "far": "L"}
+            self.get_logger().info(f"   {key_map[key]}: {label} ({key})")
+        self.get_logger().info("")
+        
+        self.get_logger().info("💡 자동 측정은 핵심 패턴(Core)만 지원합니다.")
+        self.get_logger().info("   핵심 패턴 가이드가 있는 경우에만 자동 측정이 가능합니다.")
+        self.get_logger().info("")
+        self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("")
+        
+        # 자동 측정 모드 활성화 (시나리오 선택 대기)
+        self.scenario_selection_mode = True
+        self.auto_measurement_mode = True  # 자동 측정 모드 플래그
+    
+    def execute_auto_measurement(self, scenario_id: str, pattern_type: str, distance_level: str):
+        """자동 측정 실행 (핵심 패턴 가이드 기반)"""
+        try:
+            # 핵심 패턴 가이드 가져오기
+            guide_keys = self.get_core_pattern_guide_keys(scenario_id, pattern_type, distance_level)
+            
+            if not guide_keys:
+                self.get_logger().warn(f"⚠️ {scenario_id}의 핵심 패턴 가이드가 없습니다. 자동 측정을 시작할 수 없습니다.")
+                return
+            
+            self.get_logger().info("")
+            self.get_logger().info("=" * 80)
+            self.get_logger().info("🤖 자동 측정 시작")
+            self.get_logger().info(f"   시나리오: {scenario_id}")
+            self.get_logger().info(f"   패턴: {pattern_type}")
+            self.get_logger().info(f"   거리: {distance_level}")
+            self.get_logger().info(f"   가이드: {' '.join([k.upper() for k in guide_keys])}")
+            self.get_logger().info(f"   총 액션 수: {len(guide_keys)}개")
+            self.get_logger().info(f"   예상 소요 시간: {len(guide_keys) * (0.31 + 1.5):.1f}초 (액션 0.31초 + 정지 1.5초)")
+            self.get_logger().info("   🛑 중단하려면 'A' 키를 다시 누르세요.")
+            self.get_logger().info("=" * 80)
+            self.get_logger().info("")
+            
+            # 반복 측정 인덱스 업데이트
+            if self.is_repeat_measurement_active:
+                # 첫 번째 측정일 때만 인덱스 증가 (N 키를 눌렀을 때는 이미 증가되어 있음)
+                if self.current_repeat_index == 0:
+                    self.current_repeat_index = 1
+                self.get_logger().info(f"📊 [{self.current_repeat_index}/{self.target_repeat_count}] 측정 시작...")
+            
+            # 에피소드 시작
+            self.start_episode_with_pattern_and_distance(scenario_id, pattern_type, distance_level)
+            
+            # 각 키를 순차적으로 실행
+            for idx, key in enumerate(guide_keys):
+                if not self.auto_measurement_active:
+                    self.get_logger().info("🛑 자동 측정이 중단되었습니다.")
+                    break
+                
+                # 키를 액션으로 변환하여 실행
+                if key.lower() in self.WASD_TO_CONTINUOUS:
+                    action = self.WASD_TO_CONTINUOUS[key.lower()]
+                    self.get_logger().info(f"🔄 자동 측정 진행: {idx+1}/{len(guide_keys)} (키: {key.upper()})")
+                    
+                    # 기존 타이머 취소 (이전 액션의 타이머가 남아있을 수 있음)
+                    if self.movement_timer and self.movement_timer.is_alive():
+                        self.movement_timer.cancel()
+                    
+                    # 액션 실행 (수동 측정과 동일한 방식: 명령 발행 후 타이머로 0.3초 후 정지)
+                    self.current_action = action.copy()
+                    self.publish_cmd_vel(action, source=f"auto_measurement_{idx+1}")
+                    
+                    # 각 액션마다 데이터 수집
+                    self.collect_data_point_with_action("start_action", action)
+                    
+                    # 타이머 시작 (0.31초 후 자동 정지)
+                    timer_duration = 0.31
+                    self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
+                    self.movement_timer.start()
+                    
+                    # 타이머가 실행될 때까지 대기 (0.31초)
+                    time.sleep(timer_duration)
+                    
+                    # 타이머가 정지 명령을 발행했는지 확인하고, 필요시 추가 정지 명령 발행
+                    if self.current_action != self.STOP_ACTION:
+                        self.current_action = self.STOP_ACTION.copy()
+                        self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_measurement_stop_{idx+1}")
+                    
+                    # 정지 상태 유지 (1.5초) - 수동 측정과 동일한 간격
+                    time.sleep(1.5)
+                elif key.upper() == 'SPACE':
+                    # 정지 명령
+                    self.current_action = self.STOP_ACTION.copy()
+                    self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_measurement_stop_{idx+1}")
+                    time.sleep(0.3)
+                else:
+                    self.get_logger().warn(f"⚠️ 알 수 없는 키: {key}")
+            
+            # 에피소드 종료
+            if self.auto_measurement_active:
+                self.get_logger().info("")
+                self.get_logger().info("✅ 자동 측정 완료! 에피소드를 종료합니다...")
+                self.stop_episode()
+                
+                # 반복 측정 확인
+                if self.is_repeat_measurement_active:
+                    self.check_and_continue_repeat_measurement()
+            
+        except Exception as e:
+            self.get_logger().error(f"❌ 자동 측정 중 오류 발생: {e}")
+        finally:
+            self.auto_measurement_active = False
+            self.auto_measurement_thread = None
+            self.auto_measurement_mode = False
+    
+    def get_core_pattern_guide_keys(self, scenario_id: str, pattern_type: str, distance_level: str) -> List[str]:
+        """핵심 패턴 가이드 키 리스트 반환"""
+        # 1) 조합 키 우선
+        if pattern_type and distance_level:
+            combo = self._combined_key(scenario_id, pattern_type, distance_level)
+            if combo in self.core_patterns and self.core_patterns[combo]:
+                return self._normalize_to_18_keys(self.core_patterns[combo])
+        # 2) 시나리오 단독 키 (과거 호환)
+        if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
+            return self._normalize_to_18_keys(self.core_patterns[scenario_id])
+        # 3) 기본 가이드 (없을 때만 사용)
+        default_guides = {
+            "1box_left": ["w", "w", "w", "a", "a", "w", "w", "d", "d"],
+            "1box_right": ["w", "w", "d", "d", "w", "w", "w", "a", "a"],
+            "2box_left": ["w", "w", "a", "a", "a", "w", "w", "d", "d", "d"],
+            "2box_right": ["w", "d", "d", "d", "w", "w", "w", "a", "a", "a"]
+        }
+        return default_guides.get(scenario_id, [])
 
 
 def main(args=None):

@@ -119,7 +119,19 @@ def export_to_csv(file_path: Path, output_path: Path = None):
             
             # 출력 파일 경로 설정
             if output_path is None:
-                output_path = file_path.parent / f"{file_path.stem}_data.csv"
+                # H5 파일의 time_period 메타데이터를 읽어서 파일명에 추가
+                time_period = metadata.get('time_period', None)
+                stem = file_path.stem
+                
+                # stem에서 "medium" 뒤에 시간대 정보 추가
+                if time_period and 'medium' in stem:
+                    # medium 뒤에 시간대 추가
+                    stem = stem.replace('medium', f'medium_{time_period}')
+                elif time_period:
+                    # medium이 없으면 그냥 끝에 추가
+                    stem = f"{stem}_{time_period}"
+                
+                output_path = file_path.parent / f"{stem}_data.csv"
             
             df.to_csv(output_path, index=False)
             print(f"📊 CSV 파일 저장 완료: {output_path}")
