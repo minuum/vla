@@ -149,6 +149,7 @@ class MobileVLADataCollector(Node):
 
         self.current_action = self.STOP_ACTION.copy()
         self.movement_timer = None
+        self.movement_lock = threading.Lock()  # 타이머와 키 입력 동기화용 락
         # 명령 발행 추적용 변수
         self.command_counter = 0  # 명령 발행 카운터
         self.last_command_time = None  # 마지막 명령 발행 시간
@@ -684,29 +685,36 @@ class MobileVLADataCollector(Node):
                 self.current_episode_keys.append(key)
             
             # 🔴 이전 타이머 취소 및 강제 정지 처리 (ROS 버퍼 문제 방지)
-            # 타이머가 실행 중이면 먼저 취소하여 중복 정지 명령 방지
+            # 락을 사용하여 타이머와 키 입력 동기화
             timer_was_active = False
             timer_info = ""
-            if self.movement_timer is not None:
-                if self.movement_timer.is_alive():
-                    timer_was_active = True
-                    timer_info = f" | 기존 타이머 활성 상태: True (취소 예정)"
-                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: is_alive()=True, 취소 시작...")
-                    try:
-                        cancel_result = self.movement_timer.cancel()
-                        timer_info += f" | 취소 결과: {cancel_result}"
-                        self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 취소 시도: cancel()={cancel_result}")
-                    except Exception as e:
-                        timer_info += f" | 취소 실패: {e}"
-                        self.get_logger().error(f"❌ [키입력:{key.upper()}] 타이머 취소 중 오류: {e}")
-                    self.movement_timer = None  # 참조 제거로 메모리 누수 방지
+            with self.movement_lock:
+                if self.movement_timer is not None:
+                    if self.movement_timer.is_alive():
+                        timer_was_active = True
+                        timer_info = f" | 기존 타이머 활성 상태: True (취소 예정)"
+                        self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: is_alive()=True, 취소 시작...")
+                        try:
+                            cancel_result = self.movement_timer.cancel()
+                            timer_info += f" | 취소 결과: {cancel_result}"
+                            self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 취소 시도: cancel()={cancel_result}")
+                        except Exception as e:
+                            timer_info += f" | 취소 실패: {e}"
+                            self.get_logger().error(f"❌ [키입력:{key.upper()}] 타이머 취소 중 오류: {e}")
+                        self.movement_timer = None  # 참조 제거로 메모리 누수 방지
+                    else:
+                        timer_info = f" | 기존 타이머 활성 상태: False (이미 종료됨)"
+                        self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: is_alive()=False (이미 종료됨)")
+                        self.movement_timer = None
                 else:
-                    timer_info = f" | 기존 타이머 활성 상태: False (이미 종료됨)"
-                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: is_alive()=False (이미 종료됨)")
-                    self.movement_timer = None
-            else:
-                timer_info = f" | 기존 타이머: None (없음)"
-                self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: None (타이머 없음)")
+                    timer_info = f" | 기존 타이머: None (없음)"
+                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 상태 확인: None (타이머 없음)")
+                
+                # 🔴 타이머가 실행 중이었으면 강제 정지 후 안정화 대기
+                if timer_was_active:
+                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머가 실행 중이었으므로 강제 정지 실행...")
+                    self.stop_movement_internal(collect_data=False)
+                    time.sleep(0.1)  # 안정화 대기
             
             if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50) or timer_was_active:
                 self.get_logger().info(f"⏱️  기존 타이머 처리 완료 (키 입력: {key.upper()}){timer_info}")
@@ -754,20 +762,18 @@ class MobileVLADataCollector(Node):
                 )
             
             self.current_action = action.copy()
-            self.publish_cmd_vel(action, source=f"key_input_{key}")
-
-            if self.collecting:
-                self.collect_data_point_with_action("start_action", action)
-
-            # 🔴 새 타이머 시작 (타이머 객체 생성 및 시작)
-            # 기존 타이머는 이미 취소되었으므로 새로 생성
+            
+            # 🔴 새 타이머 먼저 시작 (블로킹 전에 타이머 설정)
+            # 타이머를 먼저 시작하여 이미지 수집 블로킹과 무관하게 정지 보장
+            # 기존 타이머는 이미 취소되었으므로 새로 생성 (락 사용)
             timer_duration = 0.3
             self.get_logger().info(f"🔍 [키입력:{key.upper()}] 새 타이머 생성 시작: duration={timer_duration}초")
             try:
-                self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
-                self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 객체 생성 완료: {self.movement_timer}")
-                self.movement_timer.start()
-                self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 start() 호출 완료, is_alive()={self.movement_timer.is_alive()}")
+                with self.movement_lock:
+                    self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
+                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 객체 생성 완료: {self.movement_timer}")
+                    self.movement_timer.start()
+                    self.get_logger().info(f"🔍 [키입력:{key.upper()}] 타이머 start() 호출 완료, is_alive()={self.movement_timer.is_alive()}")
             except Exception as e:
                 self.get_logger().error(f"❌ [키입력:{key.upper()}] 타이머 생성/시작 중 오류: {e}")
                 import traceback
@@ -775,6 +781,12 @@ class MobileVLADataCollector(Node):
             
             if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
                 self.get_logger().info(f"⏱️  타이머 시작: {timer_duration}초 후 자동 정지 예약 (타이머 객체: {self.movement_timer}, is_alive: {self.movement_timer.is_alive() if self.movement_timer else 'N/A'})")
+            
+            # 🔴 타이머 시작 후 이동 명령 발행 및 데이터 수집
+            self.publish_cmd_vel(action, source=f"key_input_{key}")
+
+            if self.collecting:
+                self.collect_data_point_with_action("start_action", action)
             
         elif key == ' ':
             if self.verbose_logging or (self.collecting and len(self.episode_data) >= 50):
@@ -811,21 +823,22 @@ class MobileVLADataCollector(Node):
                 self.get_logger().info(f"   ⏭️  이미 정지 상태, 타이머 콜백 스킵")
             return
         
-        # 🔴 타이머가 취소되었는지 확인 (타이머 객체가 여전히 유효한지)
+        # 🔴 타이머가 취소되었는지 확인 (타이머 객체가 여전히 유효한지, 락 사용)
         timer_status = "None"
-        if self.movement_timer is not None:
-            is_alive = self.movement_timer.is_alive()
-            timer_status = f"is_alive()={is_alive}"
-            self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer={self.movement_timer}, {timer_status}")
-        else:
-            self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer=None")
-        
-        if self.movement_timer and not self.movement_timer.is_alive():
-            # 타이머가 이미 취소되었으면 리턴
-            self.get_logger().info(f"🔍 [타이머콜백] ⏭️  타이머가 이미 취소됨, 콜백 스킵")
-            if should_log_verbose:
-                self.get_logger().info(f"   ⏭️  타이머가 이미 취소됨, 콜백 스킵")
-            return
+        with self.movement_lock:
+            if self.movement_timer is not None:
+                is_alive = self.movement_timer.is_alive()
+                timer_status = f"is_alive()={is_alive}"
+                self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer={self.movement_timer}, {timer_status}")
+            else:
+                self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer=None")
+            
+            if self.movement_timer and not self.movement_timer.is_alive():
+                # 타이머가 이미 취소되었으면 리턴
+                self.get_logger().info(f"🔍 [타이머콜백] ⏭️  타이머가 이미 취소됨, 콜백 스킵")
+                if should_log_verbose:
+                    self.get_logger().info(f"   ⏭️  타이머가 이미 취소됨, 콜백 스킵")
+                return
         
         self.get_logger().info(f"🔍 [타이머콜백] stop_movement_internal() 호출 시작...")
         
@@ -841,15 +854,15 @@ class MobileVLADataCollector(Node):
         self.stop_movement_internal(collect_data=False)
         self.get_logger().info(f"🔍 [타이머콜백] stop_movement_internal() 호출 완료, 추가 정지 신호 발행 시작...")
         
-        # 추가로 여러 번 정지 신호 발행 (ROS 버퍼 보장)
-        for i in range(2):
-            self.get_logger().info(f"🔍 [타이머콜백] 추가 정지 신호 {i+1}/2 발행 중...")
+        # 추가로 여러 번 정지 신호 발행 (ROS 버퍼 보장, 2회 → 3회)
+        for i in range(3):
+            self.get_logger().info(f"🔍 [타이머콜백] 추가 정지 신호 {i+1}/3 발행 중...")
             self.publish_cmd_vel(self.STOP_ACTION, source=f"timer_extra_stop_{i+1}")
-            time.sleep(0.01)
+            time.sleep(0.05)  # 딜레이 증가 (0.01초 → 0.05초)
         
-        self.get_logger().info(f"🔍 [타이머콜백] ✅ 타이머 기반 정지 완료 (총 5회 정지 명령 발행)")
+        self.get_logger().info(f"🔍 [타이머콜백] ✅ 타이머 기반 정지 완료 (총 8회 정지 명령 발행)")
         if should_log_verbose:
-            self.get_logger().info(f"   ✅ 타이머 기반 정지 완료 (총 5회 정지 명령 발행)")
+            self.get_logger().info(f"   ✅ 타이머 기반 정지 완료 (총 8회 정지 명령 발행)")
 
     def stop_movement_internal(self, collect_data: bool):
         """
@@ -881,21 +894,21 @@ class MobileVLADataCollector(Node):
             )
 
         self.current_action = self.STOP_ACTION.copy()
-        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 시작 (3회)...")
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 시작 (5회)...")
         
-        # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행 (더 강화)
-        for i in range(3):
-            self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 신호 {i+1}/3 발행 중...")
+        # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행 (더 강화: 3회 → 5회)
+        for i in range(5):
+            self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 신호 {i+1}/5 발행 중...")
             self.publish_cmd_vel(self.STOP_ACTION, source=f"stop_internal_{i+1}")
-            time.sleep(0.02)  # 각 신호 사이 딜레이 (버퍼 플러시)
+            time.sleep(0.05)  # 각 신호 사이 딜레이 증가 (0.02초 → 0.05초)
         
-        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 완료 (3회)")
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 완료 (5회)")
         
-        # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보)
-        time.sleep(0.03)
+        # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보, 0.03초 → 0.1초)
+        time.sleep(0.1)
         
         if should_log_verbose:
-            self.get_logger().info(f"   ✅ stop_movement_internal 완료 (3회 발행, 안정화 대기 완료)")
+            self.get_logger().info(f"   ✅ stop_movement_internal 완료 (5회 발행, 안정화 대기 완료)")
 
         if self.collecting and collect_data:
             self.collect_data_point_with_action("stop_action", self.STOP_ACTION)
@@ -1041,7 +1054,7 @@ class MobileVLADataCollector(Node):
                 request = GetImage.Request()
                 future = self.get_image_client.call_async(request)
                 
-                rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)  # 10초 → 2초로 단축
                 
                 if future.done():
                     response = future.result()
@@ -1236,7 +1249,7 @@ class MobileVLADataCollector(Node):
         try:
             reset_request = Empty.Request()
             reset_future = self.reset_camera_client.call_async(reset_request)
-            rclpy.spin_until_future_complete(self, reset_future, timeout_sec=10.0)
+            rclpy.spin_until_future_complete(self, reset_future, timeout_sec=2.0)  # 10초 → 2초로 단축
             
             if reset_future.done():
                 self.get_logger().info("✅ 카메라 스트림 재시작 완료!")
