@@ -2939,12 +2939,21 @@ class MobileVLADataCollector(Node):
         # 역순으로 변경 (마지막 액션부터 첫 액션까지)
         return_actions.reverse()
         
+        # 🔴 18프레임으로 정규화 (부족하면 STOP_ACTION으로 패딩)
+        if len(return_actions) < 18:
+            padding_count = 18 - len(return_actions)
+            self.get_logger().info(f"📏 복귀 액션 정규화: {len(return_actions)}개 → 18개 (STOP {padding_count}개 추가)")
+            return_actions.extend([self.STOP_ACTION.copy() for _ in range(padding_count)])
+        elif len(return_actions) > 18:
+            self.get_logger().warn(f"⚠️ 복귀 액션이 18개를 초과합니다 ({len(return_actions)}개). 첫 18개만 사용합니다.")
+            return_actions = return_actions[:18]
+        
         self.get_logger().info("")
         self.get_logger().info("=" * 60)
         self.get_logger().info("🔄 자동 복귀 시작")
-        self.get_logger().info(f"   📍 복귀할 액션 수: {len(return_actions)}개")
-        self.get_logger().info(f"   ⏱️  예상 소요 시간: {len(return_actions) * 0.3:.1f}초")
-        self.get_logger().info("   💡 각 액션을 0.3초 동안 실행합니다.")
+        self.get_logger().info(f"   📍 복귀할 액션 수: {len(return_actions)}개 (18프레임 정규화)")
+        self.get_logger().info(f"   ⏱️  예상 소요 시간: {len(return_actions) * 0.4:.1f}초")
+        self.get_logger().info("   💡 각 액션을 0.4초 동안 실행합니다.")
         self.get_logger().info("   🛑 중단하려면 'B' 키를 다시 누르세요.")
         self.get_logger().info("=" * 60)
         
@@ -2957,19 +2966,20 @@ class MobileVLADataCollector(Node):
     def execute_auto_return(self, return_actions: List[Dict[str, float]]):
         """
         자동 복귀 실행 (별도 스레드에서 실행)
+        N 키와 동일한 정지 메커니즘 사용: 타이머 + 8회 정지 신호 발행
         
         Args:
-            return_actions: 복귀할 액션 리스트 (역순, 반대 방향)
+            return_actions: 복귀할 액션 리스트 (역순, 반대 방향, 18프레임으로 정규화됨)
         """
         try:
-            # 먼저 정지 상태로 초기화
+            # 먼저 정지 상태로 초기화 (N 키와 동일하게 강화)
             self.current_action = self.STOP_ACTION.copy()
-            for _ in range(3):
-                self.publish_cmd_vel(self.STOP_ACTION, source="auto_return_init")
-                time.sleep(0.02)
-            time.sleep(0.05)
+            for i in range(5):
+                self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_return_init_{i+1}")
+                time.sleep(0.05)
+            time.sleep(0.1)
             
-            # 각 액션을 0.3초 동안 실행
+            # 각 액션을 0.4초 동안 실행 (N 키와 동일)
             for i, action in enumerate(return_actions):
                 if not self.auto_return_active:
                     self.get_logger().info("🛑 자동 복귀가 중단되었습니다.")
@@ -2977,24 +2987,29 @@ class MobileVLADataCollector(Node):
                 
                 self.get_logger().info(f"🔄 복귀 진행: {i+1}/{len(return_actions)} (액션: lx={action['linear_x']:.2f}, ly={action['linear_y']:.2f}, az={action['angular_z']:.2f})")
                 
+                # 🔴 N 키와 동일한 메커니즘: 타이머 먼저 시작
+                timer_duration = 0.4
+                with self.movement_lock:
+                    self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
+                    self.movement_timer.start()
+                
                 # 액션 실행
                 self.current_action = action.copy()
                 self.publish_cmd_vel(action, source=f"auto_return_{i+1}")
                 
-                # 0.3초 동안 유지
-                time.sleep(0.3)
+                # 타이머가 실행될 때까지 대기 (0.4초)
+                time.sleep(timer_duration)
                 
-                # 정지 신호 전송
-                self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_return_stop_{i+1}")
-                time.sleep(0.02)
+                # 타이머가 정지 명령을 발행했는지 확인하고, 추가 대기
+                time.sleep(0.3)  # 정지 신호가 완전히 처리될 시간 확보
             
-            # 최종 정지
+            # 최종 정지 (N 키와 동일하게 강화)
             if self.auto_return_active:
                 self.current_action = self.STOP_ACTION.copy()
-                for _ in range(3):
-                    self.publish_cmd_vel(self.STOP_ACTION, source="auto_return_final")
-                    time.sleep(0.02)
-                time.sleep(0.05)
+                for i in range(5):
+                    self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_return_final_{i+1}")
+                    time.sleep(0.05)
+                time.sleep(0.1)
                 
                 self.get_logger().info("")
                 self.get_logger().info("=" * 60)
@@ -3004,6 +3019,8 @@ class MobileVLADataCollector(Node):
         
         except Exception as e:
             self.get_logger().error(f"❌ 자동 복귀 중 오류 발생: {e}")
+            import traceback
+            self.get_logger().error(f"❌ 트레이스백:\n{traceback.format_exc()}")
         finally:
             self.auto_return_active = False
             self.return_thread = None
@@ -3126,7 +3143,7 @@ class MobileVLADataCollector(Node):
             self.get_logger().info(f"   거리: {distance_level}")
             self.get_logger().info(f"   가이드: {' '.join([k.upper() for k in guide_keys])}")
             self.get_logger().info(f"   총 액션 수: {len(guide_keys)}개")
-            self.get_logger().info(f"   예상 소요 시간: {len(guide_keys) * (0.31 + 1.5):.1f}초 (액션 0.31초 + 정지 1.5초)")
+            self.get_logger().info(f"   예상 소요 시간: {len(guide_keys) * (0.4 + 0.3):.1f}초 (액션 0.4초 + 안정화 0.3초)")
             self.get_logger().info("   🛑 중단하려면 'A' 키를 다시 누르세요.")
             self.get_logger().info("=" * 80)
             self.get_logger().info("")
@@ -3152,36 +3169,44 @@ class MobileVLADataCollector(Node):
                     action = self.WASD_TO_CONTINUOUS[key.lower()]
                     self.get_logger().info(f"🔄 자동 측정 진행: {idx+1}/{len(guide_keys)} (키: {key.upper()})")
                     
-                    # 기존 타이머 취소 (이전 액션의 타이머가 남아있을 수 있음)
-                    if self.movement_timer and self.movement_timer.is_alive():
-                        self.movement_timer.cancel()
+                    # 🔴 N 키와 동일한 메커니즘: 기존 타이머 취소 및 강제 정지
+                    timer_was_active = False
+                    with self.movement_lock:
+                        if self.movement_timer and self.movement_timer.is_alive():
+                            self.movement_timer.cancel()
+                            timer_was_active = True
                     
-                    # 액션 실행 (수동 측정과 동일한 방식: 명령 발행 후 타이머로 0.3초 후 정지)
+                    if timer_was_active:
+                        # 강제 정지 (N 키와 동일)
+                        self.current_action = self.STOP_ACTION.copy()
+                        for i in range(3):
+                            self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_measurement_stop_prev_{i+1}")
+                            time.sleep(0.02)
+                        time.sleep(0.05)
+                    
+                    # 🔴 N 키와 동일한 메커니즘: 타이머 먼저 시작
+                    timer_duration = 0.4
+                    with self.movement_lock:
+                        self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
+                        self.movement_timer.start()
+                    
+                    # 액션 실행
                     self.current_action = action.copy()
                     self.publish_cmd_vel(action, source=f"auto_measurement_{idx+1}")
                     
                     # 각 액션마다 데이터 수집
-                    self.collect_data_point_with_action("start_action", action)
-                    
-                    # 타이머 시작 (0.4초 후 자동 정지)
-                    timer_duration = 0.4
-                    self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
-                    self.movement_timer.start()
+                    if self.collecting:
+                        self.collect_data_point_with_action("start_action", action)
                     
                     # 타이머가 실행될 때까지 대기 (0.4초)
                     time.sleep(timer_duration)
                     
-                    # 타이머가 정지 명령을 발행했는지 확인하고, 필요시 추가 정지 명령 발행
-                    if self.current_action != self.STOP_ACTION:
-                        self.current_action = self.STOP_ACTION.copy()
-                        self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_measurement_stop_{idx+1}")
+                    # 타이머가 정지 명령을 발행했는지 확인하고, 추가 대기
+                    time.sleep(0.3)  # 정지 신호가 완전히 처리될 시간 확보
                     
-                    # 정지 상태 유지 (1.5초) - 수동 측정과 동일한 간격
-                    time.sleep(1.5)
                 elif key.upper() == 'SPACE':
-                    # 정지 명령
-                    self.current_action = self.STOP_ACTION.copy()
-                    self.publish_cmd_vel(self.STOP_ACTION, source=f"auto_measurement_stop_{idx+1}")
+                    # 정지 명령 (N 키 스페이스바와 동일)
+                    self.stop_movement_internal(collect_data=True)
                     time.sleep(0.3)
                 else:
                     self.get_logger().warn(f"⚠️ 알 수 없는 키: {key}")
