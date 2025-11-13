@@ -701,6 +701,12 @@ class MobileVLADataCollector(Node):
                     # 자동 측정 중단
                     self.get_logger().info("🛑 자동 측정을 중단합니다...")
                     self.auto_measurement_active = False
+                    # 🔴 반복 측정 상태도 모두 리셋
+                    self.is_repeat_measurement_active = False
+                    self.waiting_for_next_repeat = False
+                    self.current_repeat_index = 0
+                    self.target_repeat_count = 1
+                    self.auto_measurement_mode = False
                     # 정지 신호 전송
                     self.current_action = self.STOP_ACTION.copy()
                     for _ in range(3):
@@ -1519,6 +1525,11 @@ class MobileVLADataCollector(Node):
         self.waiting_for_next_repeat = False
         self.current_repeat_index = 0
         self.target_repeat_count = 1
+        
+        # 🔴 자동 측정 상태 초기화
+        self.auto_measurement_mode = False
+        self.auto_measurement_active = False
+        self.auto_measurement_thread = None
         
         # 자동 복귀 상태 초기화
         if self.auto_return_active:
@@ -2480,6 +2491,8 @@ class MobileVLADataCollector(Node):
             self.is_repeat_measurement_active = False
             self.current_repeat_index = 0
             self.waiting_for_next_repeat = False
+            # 🔴 자동 측정 모드도 종료
+            self.auto_measurement_mode = False
         
     def _combined_key(self, scenario_id: str, pattern_type: str | None, distance_level: str | None) -> str:
         parts = [scenario_id]
@@ -3214,9 +3227,12 @@ class MobileVLADataCollector(Node):
         except Exception as e:
             self.get_logger().error(f"❌ 자동 측정 중 오류 발생: {e}")
         finally:
+            # 🔴 auto_measurement_active만 False로 설정 (스레드 완료 표시)
+            # auto_measurement_mode는 모든 반복 측정이 완료될 때까지 유지
             self.auto_measurement_active = False
             self.auto_measurement_thread = None
-            self.auto_measurement_mode = False
+            # 🔴 auto_measurement_mode는 여기서 False로 설정하지 않음
+            # (반복 측정이 모두 완료되었을 때만 check_and_continue_repeat_measurement에서 False로 설정)
     
     def get_core_pattern_guide_keys(self, scenario_id: str, pattern_type: str, distance_level: str) -> List[str]:
         """핵심 패턴 가이드 키 리스트 반환"""
