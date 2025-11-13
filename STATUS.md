@@ -3,6 +3,15 @@
 ## ✅ Done (완료)
 
 ### 2025-01-13 (최신)
+- **자동 측정(A) 반복 모드 로직 수정** 🔄
+  - 문제: A로 50회 반복 설정 → 첫 측정 완료 후 N 키 → 수동 측정 모드로 전환됨
+  - 원인: `execute_auto_measurement` 완료 시 `auto_measurement_mode`가 False로 리셋됨
+  - 해결: 
+    - `auto_measurement_mode`는 모든 반복이 완료될 때까지 유지
+    - `check_and_continue_repeat_measurement`에서만 모든 반복 완료 시 리셋
+    - A 키로 중단 시 모든 반복 측정 상태 리셋
+    - `reset_to_initial_state`에서도 자동 측정 상태 리셋
+
 - **에피소드 프레임 수 18개로 수정** ✅
   - 문제: 초기 프레임 1개 + 18개 액션 = 19프레임 수집
   - 해결: 초기 프레임 1개 + 17개 액션 = 18프레임 정상 수집
