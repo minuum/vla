@@ -657,7 +657,8 @@ class MobileVLADataCollector(Node):
             # 이동 키 처리 (가이드 편집 모드, 선택 모드, 반복 횟수 입력 모드 우선 처리)
             if self.guide_edit_mode:
                 # 가이드 편집 모드: 키를 가이드에 추가
-                if len(self.guide_edit_keys) < 18:
+                max_guide_actions = self.fixed_episode_length - 1  # 18 - 1 = 17 (초기 프레임 제외)
+                if len(self.guide_edit_keys) < max_guide_actions:
                     # 키를 소문자로 변환하여 저장 (SPACE는 그대로)
                     if key == ' ':
                         guide_key = 'SPACE'
@@ -1217,14 +1218,15 @@ class MobileVLADataCollector(Node):
         return ch.lower()
 
     def _normalize_to_18_keys(self, keys: List[str]) -> List[str]:
-        """핵심 패턴 키 시퀀스를 18 길이로 정규화 (부족하면 SPACE로 패딩, 넘치면 자름)"""
-        normalized = list(keys[: self.fixed_episode_length])
-        if len(normalized) < self.fixed_episode_length:
-            normalized += ['SPACE'] * (self.fixed_episode_length - len(normalized))
+        """핵심 패턴 키 시퀀스를 17 길이로 정규화 (초기 프레임 1개 + 17개 액션 = 18 프레임)"""
+        action_count = self.fixed_episode_length - 1  # 18 - 1 = 17 (초기 프레임 제외)
+        normalized = list(keys[:action_count])
+        if len(normalized) < action_count:
+            normalized += ['SPACE'] * (action_count - len(normalized))
         return normalized
 
     def _get_planned_core_keys_18(self, scenario_id: str, pattern_type: str | None, distance_level: str | None) -> List[str]:
-        """조합별 핵심 패턴을 18 길이로 반환 (없으면 덜 구체적인 키 → 기본)"""
+        """조합별 핵심 패턴을 17 길이로 반환 (초기 프레임 제외)"""
         # 1) 조합 우선
         if pattern_type and distance_level:
             combo = self._combined_key(scenario_id, pattern_type, distance_level)
@@ -2416,7 +2418,7 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   백스페이스: 마지막 키 삭제")
         self.get_logger().info("   X: 취소 (기존 가이드 유지)")
         self.get_logger().info("")
-        self.get_logger().info("💡 최대 18개 키까지 입력 가능 (부족하면 SPACE로 자동 패딩)")
+        self.get_logger().info("💡 최대 17개 액션까지 입력 가능 (초기 프레임 1개 + 17개 액션 = 18프레임)")
         sys.stdout.write("📝 가이드 입력: ")
         sys.stdout.flush()
     
@@ -2939,19 +2941,20 @@ class MobileVLADataCollector(Node):
         # 역순으로 변경 (마지막 액션부터 첫 액션까지)
         return_actions.reverse()
         
-        # 🔴 18프레임으로 정규화 (부족하면 STOP_ACTION으로 패딩)
-        if len(return_actions) < 18:
-            padding_count = 18 - len(return_actions)
-            self.get_logger().info(f"📏 복귀 액션 정규화: {len(return_actions)}개 → 18개 (STOP {padding_count}개 추가)")
+        # 🔴 17개 액션으로 정규화 (초기 프레임 1개 + 17개 액션 = 18프레임)
+        target_action_count = self.fixed_episode_length - 1  # 18 - 1 = 17
+        if len(return_actions) < target_action_count:
+            padding_count = target_action_count - len(return_actions)
+            self.get_logger().info(f"📏 복귀 액션 정규화: {len(return_actions)}개 → {target_action_count}개 (STOP {padding_count}개 추가)")
             return_actions.extend([self.STOP_ACTION.copy() for _ in range(padding_count)])
-        elif len(return_actions) > 18:
-            self.get_logger().warn(f"⚠️ 복귀 액션이 18개를 초과합니다 ({len(return_actions)}개). 첫 18개만 사용합니다.")
-            return_actions = return_actions[:18]
+        elif len(return_actions) > target_action_count:
+            self.get_logger().warn(f"⚠️ 복귀 액션이 {target_action_count}개를 초과합니다 ({len(return_actions)}개). 첫 {target_action_count}개만 사용합니다.")
+            return_actions = return_actions[:target_action_count]
         
         self.get_logger().info("")
         self.get_logger().info("=" * 60)
         self.get_logger().info("🔄 자동 복귀 시작")
-        self.get_logger().info(f"   📍 복귀할 액션 수: {len(return_actions)}개 (18프레임 정규화)")
+        self.get_logger().info(f"   📍 복귀할 액션 수: {len(return_actions)}개 ({target_action_count}개 액션)")
         self.get_logger().info(f"   ⏱️  예상 소요 시간: {len(return_actions) * 0.4:.1f}초 (연속 실행)")
         self.get_logger().info("   💡 각 액션을 0.4초 동안 실행합니다.")
         self.get_logger().info("   🛑 중단하려면 'B' 키를 다시 누르세요.")
@@ -2969,7 +2972,7 @@ class MobileVLADataCollector(Node):
         자동 연속 실행을 위해 정지 신호 최소화
         
         Args:
-            return_actions: 복귀할 액션 리스트 (역순, 반대 방향, 18프레임으로 정규화됨)
+            return_actions: 복귀할 액션 리스트 (역순, 반대 방향, 17개 액션으로 정규화됨)
         """
         try:
             # 먼저 정지 상태로 초기화 (간단하게)
@@ -3129,7 +3132,7 @@ class MobileVLADataCollector(Node):
             self.get_logger().info(f"   패턴: {pattern_type}")
             self.get_logger().info(f"   거리: {distance_level}")
             self.get_logger().info(f"   가이드: {' '.join([k.upper() for k in guide_keys])}")
-            self.get_logger().info(f"   총 액션 수: {len(guide_keys)}개")
+            self.get_logger().info(f"   총 액션 수: {len(guide_keys)}개 (초기 프레임 1개 + 액션 {len(guide_keys)}개 = 총 {len(guide_keys)+1}프레임)")
             self.get_logger().info(f"   예상 소요 시간: {len(guide_keys) * (0.4 + 0.3):.1f}초 (액션 0.4초 + 안정화 0.3초)")
             self.get_logger().info("   🛑 중단하려면 'A' 키를 다시 누르세요.")
             self.get_logger().info("=" * 80)
