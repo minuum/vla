@@ -146,6 +146,7 @@ class MobileVLADataCollector(Node):
         self.record_core_pattern: bool = False
         self.overwrite_core: bool = False  # '핵심 표준 재등록' 토글 상태
         self.core_mismatch_count: int = 0  # 핵심 패턴 검증 불일치 카운트 (에피소드 단위)
+        self.last_completed_episode_actions: List[str] = []  # 마지막 완료된 에피소드의 액션 시퀀스
 
         self.current_action = self.STOP_ACTION.copy()
         self.movement_timer = None
@@ -524,6 +525,36 @@ class MobileVLADataCollector(Node):
             else:
                 # 다른 상황에서는 무시
                 pass
+        elif key == 'u':
+            # 방금 수집한 키 입력을 가이드로 저장 (핵심 패턴이고 반복 횟수 입력 모드일 때만)
+            if self.selected_pattern_type == "core" and self.repeat_count_mode and self.last_completed_episode_actions:
+                # 반복 횟수 입력 모드 취소
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+                self.repeat_count_mode = False
+                self.repeat_count_input = ""
+                
+                # 마지막 완료된 에피소드의 액션을 가이드로 저장
+                combo_key = f"{self.selected_scenario}__{self.selected_pattern_type}__{self.selected_distance_level}"
+                # 18키로 정규화
+                normalized_keys = self._normalize_to_18_keys(self.last_completed_episode_actions)
+                self.core_patterns[combo_key] = normalized_keys
+                self.save_core_patterns()
+                
+                guide_str = " ".join([k.upper() for k in normalized_keys])
+                self.get_logger().info("=" * 60)
+                self.get_logger().info(f"✅ 가이드 갱신 완료: {combo_key}")
+                self.get_logger().info(f"🎮 새 가이드: {guide_str}")
+                self.get_logger().info("=" * 60)
+                
+                # 반복 횟수 입력 모드로 돌아가기
+                self.show_repeat_count_selection()
+            elif self.guide_edit_mode:
+                # 가이드 편집 모드에서는 U 키를 이동 키로 처리하지 않음
+                pass
+            else:
+                # 다른 상황에서는 무시
+                pass
         elif key == '\r' or key == '\n':  # Enter 키
             if self.guide_edit_mode:
                 # 가이드 편집 완료
@@ -766,7 +797,7 @@ class MobileVLADataCollector(Node):
             # 🔴 새 타이머 먼저 시작 (블로킹 전에 타이머 설정)
             # 타이머를 먼저 시작하여 이미지 수집 블로킹과 무관하게 정지 보장
             # 기존 타이머는 이미 취소되었으므로 새로 생성 (락 사용)
-            timer_duration = 0.3
+            timer_duration = 0.4
             self.get_logger().info(f"🔍 [키입력:{key.upper()}] 새 타이머 생성 시작: duration={timer_duration}초")
             try:
                 with self.movement_lock:
@@ -1470,6 +1501,9 @@ class MobileVLADataCollector(Node):
             self.guide_edit_mode = False
             self.guide_edit_keys = []
         
+        # 마지막 완료된 에피소드 액션 초기화
+        self.last_completed_episode_actions = []
+        
         # 모든 선택 상태 초기화
         self.scenario_selection_mode = False
         self.pattern_selection_mode = False
@@ -1565,6 +1599,14 @@ class MobileVLADataCollector(Node):
             f.create_dataset('actions', data=actions, compression='gzip')
             f.create_dataset('action_event_types', data=action_event_types, compression='gzip')
 
+        # 마지막 완료된 에피소드의 액션 시퀀스 저장 (가이드 갱신 옵션용)
+        # "start_action" 제외하고 WASD/QEZC 키만 추출
+        valid_keys = {'w', 'a', 's', 'd', 'q', 'e', 'z', 'c'}
+        self.last_completed_episode_actions = [
+            action_type for action_type in action_event_types
+            if action_type.lower() in valid_keys
+        ]
+        
         return save_path
 
     def classify_by_frames(self, num_frames: int) -> str:
@@ -2319,6 +2361,12 @@ class MobileVLADataCollector(Node):
             self.get_logger().info("")
             self.get_logger().info("✨ 가이드 편집: H 키를 눌러 가이드를 수정하거나 새로 입력하세요")
             self.get_logger().info("   (가이드를 수정하면 해당 조합에 대해 저장됩니다)")
+            # 마지막 완료된 에피소드가 있으면 U 키 옵션 표시
+            if self.last_completed_episode_actions:
+                last_actions_str = " ".join([k.upper() for k in self.last_completed_episode_actions])
+                self.get_logger().info("")
+                self.get_logger().info("🔄 가이드 갱신: U 키를 눌러 방금 수집한 키 입력을 가이드로 저장")
+                self.get_logger().info(f"   방금 수집: {last_actions_str}")
             self.get_logger().info("")
         
         self.get_logger().info("🔄 반복 횟수 입력")
@@ -3115,12 +3163,12 @@ class MobileVLADataCollector(Node):
                     # 각 액션마다 데이터 수집
                     self.collect_data_point_with_action("start_action", action)
                     
-                    # 타이머 시작 (0.31초 후 자동 정지)
-                    timer_duration = 0.31
+                    # 타이머 시작 (0.4초 후 자동 정지)
+                    timer_duration = 0.4
                     self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
                     self.movement_timer.start()
                     
-                    # 타이머가 실행될 때까지 대기 (0.31초)
+                    # 타이머가 실행될 때까지 대기 (0.4초)
                     time.sleep(timer_duration)
                     
                     # 타이머가 정지 명령을 발행했는지 확인하고, 필요시 추가 정지 명령 발행
