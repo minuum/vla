@@ -182,6 +182,32 @@ WASD_TO_CONTINUOUS = {
 - 최상위 레벨: `window_size=8` (RoboVLMs 기본값)
 - `act_head`는 내부 설정으로 유지
 
+### 4. ⚠️ 액션 차원 불일치 (2025-11-14 발견)
+**문제:**
+- `base_trainer.py`의 `_process_batch`는 7D 액션 (6D arm + 1D gripper)을 가정
+- 우리 데이터는 2D 액션 (linear_x, linear_y)
+- `arm_action = action[:, :, :6]` → **IndexError**
+- `gripper_action = action[:, :, 6]` → **IndexError**
+
+**해결 방안:**
+- Mobile VLA 전용 Trainer 생성 (`_process_batch` 오버라이드)
+- 2D 액션 처리 로직 구현
+- Gripper 관련 로직 제거
+
+**참고:**
+- `COMPATIBILITY_ISSUE_ANALYSIS_20251114.md` 참조
+- `CODE_REVIEW_SUMMARY_20251114.md` 참조
+
+### 5. ⚠️ Loss 계산 로직 (2025-11-14 발견)
+**문제:**
+- `base_policy.py`의 `BasePolicyHead.loss`는 6D pose + 1D gripper를 가정
+- `pred_action[..., :6]` → 6차원 가정
+- 우리는 2D 액션만 사용
+
+**해결 방안:**
+- 2D 액션 전용 Loss 계산 로직 구현
+- Config에서 `arm_gripper_loss_ratio: 0.0` 설정 (이미 완료)
+
 ---
 
 ## 📝 코드 변경 이력
