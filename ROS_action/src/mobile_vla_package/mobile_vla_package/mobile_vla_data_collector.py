@@ -129,6 +129,7 @@ class MobileVLADataCollector(Node):
         self.repeat_count_input = ""  # 입력 중인 숫자 문자열
         self.guide_edit_mode = False  # 가이드 편집 모드
         self.guide_edit_keys = []  # 편집 중인 가이드 키 시퀀스
+        self.guide_edit_selection_mode = False  # 가이드 편집을 위한 선택 모드 (H 키로 시작)
         self.selected_scenario = None
         self.selected_pattern_type = None
         self.selected_distance_level = None
@@ -412,9 +413,21 @@ class MobileVLADataCollector(Node):
                 sys.stdout.flush()
                 self.guide_edit_mode = False
                 self.guide_edit_keys = []
+                self.guide_edit_selection_mode = False
                 self.get_logger().info("🚫 가이드 편집이 취소되었습니다. 기존 가이드를 유지합니다.")
-                # 반복 횟수 입력 모드로 돌아가기
-                self.show_repeat_count_selection()
+                # 반복 횟수 입력 모드로 돌아가기 (반복 횟수 입력 모드였던 경우)
+                if self.repeat_count_mode or (self.selected_scenario and self.selected_pattern_type and self.selected_distance_level):
+                    self.show_repeat_count_selection()
+            elif self.guide_edit_selection_mode:
+                # 가이드 편집 선택 모드 취소
+                self.guide_edit_selection_mode = False
+                self.scenario_selection_mode = False
+                self.pattern_selection_mode = False
+                self.distance_selection_mode = False
+                self.selected_scenario = None
+                self.selected_pattern_type = None
+                self.selected_distance_level = None
+                self.get_logger().info("🚫 가이드 편집 선택이 취소되었습니다.")
             else:
                 # 리셋 기능: 모든 상태 초기화하고 첫 화면으로 돌아가기
                 self.reset_to_initial_state()
@@ -447,7 +460,10 @@ class MobileVLADataCollector(Node):
                 }
                 self.selected_scenario = scenario_map[key]
                 self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
-                if self.auto_measurement_mode:
+                if self.guide_edit_selection_mode:
+                    # 가이드 편집을 위한 선택 모드: 패턴 선택으로 전환
+                    self.show_pattern_selection()
+                elif self.auto_measurement_mode:
                     # 자동 측정 모드: 패턴 선택으로 바로 이동
                     self.show_pattern_selection()
                 else:
@@ -466,7 +482,15 @@ class MobileVLADataCollector(Node):
                 self.pattern_selection_mode = False  # 패턴 선택 모드 해제
                 self.selected_pattern_type = pattern_type
                 
-                if self.auto_measurement_mode:
+                if self.guide_edit_selection_mode:
+                    # 가이드 편집을 위한 선택 모드: 핵심 패턴만 지원
+                    if pattern_type == "variant":
+                        self.get_logger().warn("⚠️ 가이드 편집은 핵심 패턴(Core)만 지원합니다. 'C' 키를 눌러주세요.")
+                        self.show_pattern_selection()  # 다시 패턴 선택
+                    else:
+                        # 핵심 패턴 선택 시 거리 선택으로 전환
+                        self.show_distance_selection()
+                elif self.auto_measurement_mode:
                     # 자동 측정 모드: 핵심 패턴만 지원
                     if pattern_type == "variant":
                         self.get_logger().warn("⚠️ 자동 측정은 핵심 패턴(Core)만 지원합니다. 'C' 키를 눌러주세요.")
@@ -489,7 +513,11 @@ class MobileVLADataCollector(Node):
                 self.selected_distance_level = distance_map[key]
                 self.distance_selection_mode = False
                 
-                if self.auto_measurement_mode:
+                if self.guide_edit_selection_mode:
+                    # 가이드 편집을 위한 선택 모드: 가이드 편집 메뉴로 전환
+                    self.guide_edit_selection_mode = False
+                    self.show_guide_edit_menu()
+                elif self.auto_measurement_mode:
                     # 자동 측정 모드: 반복 횟수 입력 모드로 전환
                     self.show_repeat_count_selection()
                 else:
@@ -510,21 +538,32 @@ class MobileVLADataCollector(Node):
                 self.throttle = min(100, self.throttle + 10)
                 self.get_logger().info(f'속도: {self.throttle}%')
         elif key == 'h':
-            # 가이드 편집 모드 진입 (핵심 패턴이고 반복 횟수 입력 모드일 때만)
-            if self.selected_pattern_type == "core" and self.repeat_count_mode:
-                # 반복 횟수 입력 모드 취소
+            # 가이드 편집 모드 진입
+            if self.guide_edit_mode:
+                # 가이드 편집 모드에서는 H 키를 이동 키로 처리하지 않음
+                pass
+            elif self.selected_pattern_type == "core" and self.repeat_count_mode:
+                # 반복 횟수 입력 모드에서 가이드 편집 모드로 진입 (기존 동작)
                 sys.stdout.write("\n")
                 sys.stdout.flush()
                 self.repeat_count_mode = False
                 self.repeat_count_input = ""
                 # 가이드 편집 모드 진입
                 self.show_guide_edit_menu()
-            elif self.guide_edit_mode:
-                # 가이드 편집 모드에서는 H 키를 이동 키로 처리하지 않음
-                pass
+            elif self.selected_scenario and self.selected_pattern_type == "core" and self.selected_distance_level:
+                # 이미 선택이 완료된 경우 바로 가이드 편집 모드로 진입
+                self.show_guide_edit_menu()
             else:
-                # 다른 상황에서는 무시
-                pass
+                # 처음부터 가이드 편집을 위한 선택 모드로 진입
+                self.guide_edit_selection_mode = True
+                self.get_logger().info("")
+                self.get_logger().info("=" * 60)
+                self.get_logger().info("✏️ 가이드 편집 모드 진입")
+                self.get_logger().info("=" * 60)
+                self.get_logger().info("💡 시나리오, 패턴(Core), 거리를 선택하세요.")
+                self.get_logger().info("")
+                # 시나리오 선택 모드로 진입
+                self.show_scenario_selection()
         elif key == 'u':
             # 방금 수집한 키 입력을 가이드로 저장 (핵심 패턴이고 반복 횟수 입력 모드일 때만)
             if self.selected_pattern_type == "core" and self.repeat_count_mode and self.last_completed_episode_actions:
@@ -562,10 +601,21 @@ class MobileVLADataCollector(Node):
                 sys.stdout.flush()
                 
                 if self.save_edited_guide():
-                    # 가이드 저장 성공 시 반복 횟수 입력 모드로 돌아가기
+                    # 가이드 저장 성공
                     self.guide_edit_mode = False
                     self.guide_edit_keys = []
-                    self.show_repeat_count_selection()
+                    self.guide_edit_selection_mode = False
+                    # 반복 횟수 입력 모드로 돌아가기 (반복 횟수 입력 모드였던 경우)
+                    if self.repeat_count_mode or (self.selected_scenario and self.selected_pattern_type and self.selected_distance_level):
+                        self.show_repeat_count_selection()
+                    else:
+                        # H 키로 시작한 경우: 완료 메시지만 표시
+                        self.get_logger().info("")
+                        self.get_logger().info("✅ 가이드 편집이 완료되었습니다.")
+                        # 선택 상태 초기화
+                        self.selected_scenario = None
+                        self.selected_pattern_type = None
+                        self.selected_distance_level = None
                 else:
                     # 저장 실패 시 다시 편집 모드 유지
                     self.show_guide_edit_menu()
