@@ -1,0 +1,23 @@
+config not in config. The value is /home/billy/25-1kp/vla/Mobile_VLA/configs/mobile_vla_20251114_lora.json.
+log_dir not in config. The value is None.
+output_dir not in config. The value is None.
+data_dir not in config. The value is None.
+annotation_file not in config. The value is None.
+data_subfolder not in config. The value is None.
+task_num not in config. The value is None.
+use_multi_modal_emb not in config. The value is False.
+no_video_pretrained_model not in config. The value is False.
+finetune not in config. The value is False.
+llm not in config. The value is {'type': None, 'n_embd': None, 'n_layer': None, 'n_head': None}.
+Traceback (most recent call last):
+  File "/home/billy/25-1kp/vla/RoboVLMs_upstream/main.py", line 355, in <module>
+    dist.init_process_group(backend="nccl")
+  File "/home/billy/.cache/pypoetry/virtualenvs/vla-tensorrt-sSUdR_m1-py3.10/lib/python3.10/site-packages/torch/distributed/c10d_logger.py", line 86, in wrapper
+    func_return = func(*args, **kwargs)
+  File "/home/billy/.cache/pypoetry/virtualenvs/vla-tensorrt-sSUdR_m1-py3.10/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py", line 1177, in init_process_group
+    store, rank, world_size = next(rendezvous_iterator)
+  File "/home/billy/.cache/pypoetry/virtualenvs/vla-tensorrt-sSUdR_m1-py3.10/lib/python3.10/site-packages/torch/distributed/rendezvous.py", line 234, in _env_rendezvous_handler
+    rank = int(_get_env_or_raise("RANK"))
+  File "/home/billy/.cache/pypoetry/virtualenvs/vla-tensorrt-sSUdR_m1-py3.10/lib/python3.10/site-packages/torch/distributed/rendezvous.py", line 219, in _get_env_or_raise
+    raise _env_error(env_var)
+ValueError: Error initializing torch.distributed using env:// rendezvous: environment variable RANK expected, but not set
