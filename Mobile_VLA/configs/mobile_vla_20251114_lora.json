@@ -74,15 +74,14 @@
         "num_latents": 64
     },
     "act_encoder": null,
-    "trainer_type": "MobileVLATrainer",
     "act_head": {
-        "type": "MobileVLALSTMDecoder",
+        "type": "LSTMDecoder",
         "hidden_size": 512,
         "action_dim": 2,
         "down_sample": "none",
         "latent": 1,
-        "fwd_pred_next_n": 10,
-        "window_size": 8,
+        "fwd_pred_next_n": 1,
+        "window_size": 1,
         "action_space": "continuous",
         "with_history": true,
         "history_type": "post"
