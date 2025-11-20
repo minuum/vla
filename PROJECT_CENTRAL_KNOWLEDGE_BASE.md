@@ -119,8 +119,16 @@ WASD_TO_CONTINUOUS = {
 - 액션 정규화: `±1.15` → `±1.0` 클램핑 (정상)
 - 파인튜닝에 문제 없음
 
+### 모델 호환성 및 트러블슈팅 (2025-11-20)
+**Kosmos-2 + LoRA 학습 시 In-place Operation 오류:**
+- **증상**: `RuntimeError: a leaf Variable that requires grad is being used in an in-place operation.`
+- **원인**: Frozen Backbone에서 생성된 `inputs_embeds`가 Leaf Variable로 인식되어, 모델 내부의 이미지 임베딩 삽입 과정에서 In-place 수정이 차단됨.
+- **해결**: `BaseRoboVLM`에서 `inputs_embeds`를 수동 생성 후 `.clone()`하여 Non-leaf Variable로 변환 후 전달.
+- **Action Token**: Kosmos 모델 입력 시 `inputs_embeds` 끝에 `action_token`을 명시적으로 추가하여 액션 예측 유도.
+
 **참고:**
 - `TRAJECTORY_ANALYSIS_20251114.md` 참조
+- `KOSMOS_IN_PLACE_ERROR_FIX.md` 참조
 
 ---
 

@@ -32,9 +32,9 @@ echo "🔧 Device: CUDA"
 echo "📦 Model: Kosmos-2 with LoRA"
 echo ""
 
-# CUDA 확인
+# CUDA 확인 (스킵 - 학습 시작 시 확인됨)
 echo "🔍 CUDA 확인..."
-python3 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"N/A\"}')"
+echo "  (학습 시작 시 자동 확인)"
 echo ""
 
 # 데이터셋 확인
@@ -58,11 +58,11 @@ echo "🚀 LoRA Fine-tuning 시작..."
 echo "   - Using RoboVLMs main.py"
 echo "   - Dataset: MobileVLAH5Dataset"
 echo "   - LoRA: r=32, alpha=16, dropout=0.1"
-echo "   - Epochs: 20"
+echo "   - Epochs: 10"
 echo ""
 
-# 학습 시작
-python3 main.py "$CONFIG"
+# 학습 시작 (Poetry 환경에서 실행)
+poetry run python main.py "$CONFIG"
 
 echo ""
 echo "✅ LoRA Fine-tuning 완료!"
