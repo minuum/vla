@@ -72,14 +72,22 @@ class BaseRoboVLM(nn.Module):
         self.kwargs = kwargs
         self.configs = configs
         self.model_name = configs["model"]
-        self.model_config = json.load(
-            open(
-                os.path.join(
-                    self.configs["vlm"]["pretrained_model_name_or_path"], "config.json"
-                ),
-                "r",
-            )
-        )
+        # 모델 설정 로드: 로컬 경로가 없으면 HF Hub에서 직접 로드
+        vlm_path = self.configs["vlm"]["pretrained_model_name_or_path"]
+        local_config_path = os.path.join(vlm_path, "config.json")
+        try:
+            if os.path.exists(local_config_path):
+                self.model_config = json.load(open(local_config_path, "r"))
+            else:
+                from transformers import AutoConfig
+                self.model_config = AutoConfig.from_pretrained(
+                    vlm_path, trust_remote_code=True
+                ).to_dict()
+        except Exception:
+            from transformers import AutoConfig
+            self.model_config = AutoConfig.from_pretrained(
+                vlm_path, trust_remote_code=True
+            ).to_dict()
 
         self.train_setup_configs = train_setup_configs
         self.act_encoder_configs = act_encoder_configs
@@ -90,6 +98,15 @@ class BaseRoboVLM(nn.Module):
         self.tokenizer, self.backbone = self._init_backbone()
         # import pdb;pdb.set_trace()
         self.tokenizer = update_tokenizer(self.tokenizer, self.configs["tokenizer"])
+        # Try to prepare a processor for models (e.g., Kosmos) that need pixel_values
+        if not hasattr(self, "processor") or self.processor is None:
+            try:
+                from transformers import AutoProcessor
+                self.processor = AutoProcessor.from_pretrained(
+                    self.configs["vlm"]["pretrained_model_name_or_path"], trust_remote_code=True
+                )
+            except Exception:
+                self.processor = None
         if self.train_setup_configs.get("reinit", False):
             initialize_param(self.backbone)
         self.act_head, self.fwd_head, self.clip_norm_head = self._init_heads()
@@ -1112,15 +1129,74 @@ class BaseRoboVLM(nn.Module):
                     multimodal_attention_mask, "(b l) n -> b (l n)", l=seq_len
                 )
 
-        output = self.model(
-            input_ids=None,
-            attention_mask=multimodal_attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            inputs_embeds=multimodal_embeds,
-            use_cache=use_cache,
-            output_hidden_states=True,
-        )
+        try:
+            output = self.model(
+                input_ids=None,
+                attention_mask=multimodal_attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=multimodal_embeds,
+                use_cache=use_cache,
+                output_hidden_states=True,
+            )
+        except ValueError as e:
+            # Some backbones (e.g., Kosmos-2) require pixel_values or image_embeds.
+            # Fall back to passing pixel_values directly for Kosmos
+            if "pixel_values" in str(e) or "image_embeds" in str(e):
+                # vision_x is shaped as (bs*seq, 1, C, H, W) for history_type in [pre, post]
+                # Use pixel_values pathway for Kosmos
+                if vision_x.ndim == 5 and vision_x.shape[1] == 1:
+                    pixel_values = vision_x.squeeze(1)
+                else:
+                    pixel_values = vision_x
+                
+                # For Kosmos, use pixel_values only (not both pixel_values and image_embeds)
+                if hasattr(self, 'configs') and self.configs.get('model') == 'kosmos':
+                    # Kosmos는 pixel_values 또는 image_embeds 중 하나만 사용
+                    # pixel_values를 사용하면 내부에서 자동으로 image_embeds를 생성
+                    
+                    # 적절한 input_ids 생성 (빈 텍스트가 아닌 실제 텍스트)
+                    if lang_x.sum() == 0:  # 모든 값이 0인 경우 (더미)
+                        # Kosmos의 기본 토큰들로 최소한의 입력 생성
+                        dummy_input_ids = torch.ones((lang_x.shape[0], 3), dtype=torch.long, device=lang_x.device)
+                        dummy_input_ids[:, 0] = 0  # BOS token (일반적으로 0)
+                        dummy_input_ids[:, 1] = 1  # 단어 토큰
+                        dummy_input_ids[:, 2] = 2  # EOS token (일반적으로 2)
+                        
+                        # 단순한 어텐션 마스크
+                        simple_attention_mask = torch.ones((lang_x.shape[0], 3), dtype=torch.bool, device=lang_x.device)
+                    else:
+                        dummy_input_ids = lang_x
+                        simple_attention_mask = attention_mask
+                    
+                    # image_embeds_position_mask 생성 (Kosmos에서 필요할 수 있음)
+                    # pixel_values의 배치 크기를 기반으로 생성
+                    batch_size = pixel_values.shape[0]
+                    # 기본적으로 이미지 임베딩은 텍스트 시작 부분에 위치
+                    image_embeds_position_mask = torch.zeros((batch_size, 3), dtype=torch.bool, device=pixel_values.device)
+                    image_embeds_position_mask[:, 0] = True  # 첫 번째 위치에 이미지 임베딩
+                    
+                    output = self.model(
+                        pixel_values=pixel_values,  # pixel_values만 사용
+                        input_ids=dummy_input_ids,
+                        attention_mask=simple_attention_mask,
+                        image_embeds_position_mask=image_embeds_position_mask,
+                        use_cache=use_cache,
+                        output_hidden_states=True,
+                    )
+                else:
+                    # For other models, call with input_ids and pixel_values
+                    output = self.model(
+                        input_ids=lang_x,
+                        attention_mask=attention_mask,
+                        position_ids=position_ids,
+                        past_key_values=past_key_values,
+                        pixel_values=pixel_values,
+                        use_cache=use_cache,
+                        output_hidden_states=True,
+                    )
+            else:
+                raise
 
         output_hs = output.hidden_states[-1].clone()
         if history_type == "pre":

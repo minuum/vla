@@ -1,367 +1,279 @@
-# 🤖 VLA (Vision-Language-Action) Robot System
+# Mobile VLA Project
 
-Jetson 기반 ROS2 멀티모달 로봇 제어 시스템
+## 📁 프로젝트 구조
 
-[![ROS2](https://img.shields.io/badge/ROS2-Humble-blue.svg)](https://docs.ros.org/en/humble/)
-[![CUDA](https://img.shields.io/badge/CUDA-11.8+-green.svg)](https://developer.nvidia.com/cuda-toolkit)
-[![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg)](https://www.python.org/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg)](https://www.docker.com/)
+```
+Mobile_VLA/
+├── core/                    # 핵심 코드
+│   ├── *_core.py           # 핵심 기능
+│   ├── data_core/          # 데이터 처리
+│   └── train_core/         # 훈련 관련
+├── models/                  # 모델 구현
+│   ├── core/               # 핵심 모델
+│   ├── experimental/       # 실험적 모델
+│   ├── data/               # 데이터 분석
+│   └── legacy/             # 레거시 코드
+├── experimental/            # 실험적 기능
+│   └── *_experimental.py   # 실험적 코드
+├── results/                 # 결과 파일들
+│   ├── *.json              # 성능 결과
+│   ├── *.png               # 시각화
+│   ├── *.pt                # 모델 체크포인트
+│   └── *.log               # 로그 파일
+├── docs/                    # 문서
+│   ├── *.md                # 마크다운 문서
+│   └── *.ipynb             # 노트북
+├── legacy/                  # 레거시 데이터
+└── README.md               # 이 파일
+```
+
+## 🎯 Core Components (핵심 구성요소)
+
+### 🚀 핵심 기능
+- `action_analysis_core.py` - 액션 분석
+- `mobile_dataset_core.py` - 모바일 데이터셋
+- `mobile_trainer_core.py` - 모바일 훈련기
+- `mobile_trainer_simple_core.py` - 단순 훈련기
+- `train_mobile_vla_core.py` - VLA 훈련 스크립트
+
+### 📊 데이터 처리
+- `data_core/` - 데이터 처리 모듈
+- `train_core/` - 훈련 관련 모듈
+
+## 🤖 Models (모델)
+
+### 🎯 Core Models (핵심 모델)
+- **훈련 스크립트**: CLIP+LSTM, LSTM 기반 훈련
+- **인코더**: 모바일 이미지/텍스트 인코더
+- **정책 헤드**: 모바일 정책 네트워크
+- **유틸리티**: 추론, 최적화, 과적합 해결
+
+### 🔬 Experimental Models (실험적 모델)
+- **고급 모델**: 멀티모달, RoboVLMs 수정
+- **분석 도구**: 정확도, 성능 분석
+- **특수 기능**: Z축 처리, 차원 확인
+
+### 📈 Data Analysis (데이터 분석)
+- **데이터셋 분석**: 기본 분석, 증강 효과
+- **로봇 증강**: 로봇 특화 증강 분석
+
+### 📚 Legacy Code (레거시)
+- **참고용**: Kosmos2 분석, RoboVLMs 스타일
+
+## 🔬 Experimental Features (실험적 기능)
+
+### 🧪 실험적 코드
+- `example_usage_experimental.py` - 사용 예제
+- 기타 실험적 기능들
+
+## 📊 Results (결과)
+
+### 📈 성능 결과
+- **JSON 파일**: 훈련/평가 결과
+- **PNG 파일**: 시각화 그래프
+- **PT/PTH 파일**: 모델 체크포인트
+- **LOG 파일**: 훈련 로그
+
+### 📁 결과 디렉토리
+- `simple_baseline_results/` - 기본 베이스라인
+- `simple_clip_lstm_results_extended/` - CLIP+LSTM 확장
+- `simple_lstm_results_extended/` - LSTM 확장
+
+## 📚 Documentation (문서)
+
+### 📖 분석 문서
+- **성능 분석**: 다양한 성능 분석 보고서
+- **모델 비교**: 모델 간 비교 분석
+- **최적화 아이디어**: 성능 개선 방안
+- **프로젝트 요약**: 전체 프로젝트 요약
+
+### 📓 노트북
+- **액션 예측**: 주요 분석 노트북
+- **정리된 분석**: 정리된 분석 노트북
+
+## 🗂️ Legacy Data (레거시 데이터)
+
+### 📦 증강 데이터셋
+- `augmented_dataset/` - 기본 증강 데이터
+- `distance_aware_augmented_dataset/` - 거리 인식 증강
+
+## 🚀 사용 가이드
+
+### 🎯 Simple CLIP LSTM 모델 추론 시스템 (최신)
+
+#### 체크포인트 기반 추론
+- **체크포인트**: `vla/Robo+/Mobile_VLA/simple_clip_lstm_model/best_simple_clip_lstm_model.pth` (7.3GB)
+- **모델 구조**: Kosmos2 (24층) + CLIP (12층) 하이브리드
+- **출력**: 2D 로봇 액션 (선형/각속도)
+
+#### 실행 방법
+```bash
+# 1. 추론 컨테이너 시작
+cd /home/soda
+./vla/run_simple_clip_lstm_inference.sh
+
+# 2. 메모리 최적화된 추론 실행 (컨테이너 내부에서)
+python3 vla/memory_optimized_inference.py
+```
+
+#### 사용 가능한 명령어
+- **`infer`**: 단일 추론 실행
+- **`benchmark`**: 성능 벤치마크 (5회)
+- **`memory`**: 메모리 상태 확인
+- **`clear`**: 메모리 정리
+- **`quit`**: 종료
+
+#### 메모리 최적화 기능
+- **메모리 모니터링**: 시스템/GPU 메모리 실시간 확인
+- **메모리 정리**: PyTorch 캐시 및 가비지 컬렉션
+- **모델 최적화**: 레이어 수 축소 (24→6, 12→6)
+- **입력 최적화**: 시퀀스 길이 단축
+
+#### 현재 상태
+- ✅ 체크포인트 구조 분석 완료
+- ✅ 메모리 최적화된 모델 구현
+- ✅ 도커 컨테이너 실행 스크립트
+- ⚠️ 모델 가중치 로드 시 구조 불일치 (수정 중)
+- 🔄 실제 추론 성능 테스트 진행 중
+
+#### 관련 문서
+- [Simple CLIP LSTM 추론 진행상황](./SIMPLE_CLIP_LSTM_INFERENCE_PROGRESS.md)
+- [메모리 최적화 가이드](./MEMORY_OPTIMIZATION_GUIDE.md)
+
+### 🎯 기존 시스템
+
+### 🎯 빠른 시작
+```bash
+# 핵심 훈련
+python core/train_mobile_vla_core.py
+
+# 모델 훈련
+python models/core/train_simple_clip_lstm_core.py
+
+# 실험적 모델
+python models/experimental/train_simplified_model.py
+```
+
+### 📊 성능 평가
+```bash
+# 정확도 분석
+python models/experimental/accuracy_analysis_experimental.py
+
+# 2D 평가
+python models/experimental/accurate_2d_evaluation_eval.py
+```
+
+### 🔧 모델 사용
+```python
+from core.mobile_dataset_core import MobileDataset
+from core.mobile_trainer_core import MobileTrainer
+from models.core.mobile_image_encoder_core import MobileImageEncoder
+
+# 데이터셋 초기화
+dataset = MobileDataset()
+
+# 훈련기 초기화
+trainer = MobileTrainer()
+
+# 인코더 초기화
+encoder = MobileImageEncoder()
+```
+
+## 📋 파일 태그 시스템
+
+### `_core.py`
+- 핵심 기능을 담당하는 안정적인 코드
+- 프로덕션 환경에서 사용 가능
+- 지속적인 유지보수 대상
+
+### `_experimental.py`
+- 실험적 기능 및 연구용 코드
+- 성능 검증이 필요한 코드
+- 향후 core로 이동 가능
+
+### `_data.py`
+- 데이터 처리 및 분석 관련 코드
+- 데이터셋 전처리 및 증강
+- 통계 분석 및 시각화
+
+### `_policy.py`
+- 정책 네트워크 관련 코드
+- 액션 예측 및 결정 로직
+- 강화학습 정책 구현
+
+### `_eval.py`
+- 모델 평가 및 벤치마킹 코드
+- 성능 측정 및 비교
+- 테스트 스크립트
+
+### `_legacy.py`
+- 참고용 레거시 코드
+- 더 이상 활발히 개발되지 않음
+- 아카이브 목적
+
+## 📈 성능 지표
+
+### 주요 메트릭
+- **MAE (Mean Absolute Error)**: 액션 예측 정확도
+- **정확도**: 임계값별 성공률
+- **R² 점수**: 모델 예측 능력
+- **상관관계**: 예측-실제 간 상관관계
+
+### 목표 성능
+- **MAE**: < 0.1 (10cm 이내)
+- **정확도 (0.3)**: > 80%
+- **R² 점수**: > 0.7
+- **상관관계**: > 0.8
+
+## 🔄 마이그레이션 가이드
+
+### Core로 이동 조건
+- 충분한 테스트 완료
+- 성능 검증 완료
+- 문서화 완료
+- 안정성 확인
+
+### Legacy로 이동 조건
+- 더 이상 사용되지 않음
+- 대체 코드 존재
+- 참고 가치만 남음
+
+## 🛠️ 개발 가이드라인
+
+### 코드 작성 규칙
+1. 파일명에 적절한 태그 사용
+2. 클래스명은 CamelCase
+3. 함수명은 snake_case
+4. 상세한 docstring 작성
+5. 타입 힌트 사용
+
+### 테스트 규칙
+1. 새로운 기능은 반드시 테스트 작성
+2. 실험적 코드는 별도 디렉토리에 배치
+3. 성능 개선 시 벤치마크 실행
+4. 문서화 필수
+
+### 배포 규칙
+1. Core 코드만 프로덕션 배포
+2. Experimental 코드는 검증 후 이동
+3. Legacy 코드는 참고용으로만 보관
+4. 정기적인 코드 리뷰 및 정리
+
+## 📝 프로젝트 요약
+
+### 🎯 목표
+Mobile VLA (Vision-Language-Action) 모델을 통한 로봇 제어 시스템 구현
+
+### 🔧 주요 기능
+- **Vision**: 이미지 인코딩 및 처리
+- **Language**: 텍스트 명령 이해
+- **Action**: 로봇 액션 예측 및 제어
+
+### 📊 현재 상태
+- 기본 모델 구현 완료
+- 성능 최적화 진행 중
+- 실험적 기능 개발 중
 
 ---
 
-## 📋 **프로젝트 개요**
-
-이 프로젝트는 **음성 명령**과 **카메라 입력**을 통해 로봇을 지능적으로 제어하는 VLA (Vision-Language-Action) 시스템입니다. Jetson 플랫폼에서 ROS2를 기반으로 구현되었으며, AI 모델을 활용한 멀티모달 로봇 제어를 제공합니다.
-
-### **🎯 주요 기능**
-- 🎤 **음성 인식**: Whisper 기반 STT로 자연어 명령 처리
-- 📷 **시각 인식**: 실시간 카메라 이미지 처리
-- 🧠 **VLA 추론**: 멀티모달 AI를 통한 지능적 행동 결정
-- 🚗 **옴니휠 제어**: 정밀한 로봇 이동 제어
-- 🛡️ **안전 시스템**: 센서 기반 장애물 감지 및 회피
-
----
-
-## 🏗️ **시스템 아키텍처**
-
-```mermaid
-graph TD
-    A[🎤 audio_capture_node] -->|AudioData| B[🧠 stt_node]
-    B -->|STTActionResult| D[🤖 vla_node]
-    C[📷 camera_input_node] -->|Image| D
-    D -->|cmd_vel| E[🚗 omni_controller]
-    D -->|action_parsed| F[🎮 robot_control_node]
-    F -->|cmd_vel| E
-    E -->|제어신호| G[🏎️ Robot Hardware]
-```
-
-### **📦 노드별 역할**
-
-| **노드** | **기능** | **입력** | **출력** | **상태** |
-|----------|----------|----------|----------|----------|
-| `audio_capture_node` | 마이크 오디오 캡처 | 🎤 Jetson Mic | `/audio/raw` | ✅ 완료 |
-| `stt_node` | 음성 텍스트 변환 | `/audio/raw` | `/stt_action` | 🔄 진행중 |
-| `camera_input_node` | 카메라 이미지 캡처 | 📷 CSI/USB Camera | `/camera/image_raw` | ✅ 완료 |
-| `vla_node` | VLA 멀티모달 추론 | Image + Text | `/cmd_vel` or `/vla/action_parsed` | 🔄 진행중 |
-| `robot_control_node` | 행동 텍스트 파싱 | `/vla/action_parsed` | `/cmd_vel` | ⏳ 대기 |
-| `omni_controller` | 옴니휠 로봇 제어 | `/cmd_vel` | Hardware Control | ✅ 완료 |
-
----
-
-## 📁 **프로젝트 구조**
-
-```
-vla/
-├── README.md                    # 📖 프로젝트 메인 문서
-├── RoboVLMs/                   # 🧠 VLA 모델 서브모듈
-│   ├── robovlms/               # VLA 모델 코어
-│   │   ├── robovlms/
-│   │   │   └── robovlms.py
-│   │   ├── whisper/                # STT Docker 환경
-│   │   │   ├── whisper/
-│   │   │   │   └── whisper.py
-│   │   │   ├── Dockerfile
-│   │   │   └── docker-compose.yml
-│   │   ├── configs/                # 모델 설정 파일
-│   │   │   └── config.yaml
-│   │   └── scripts/                # 유틸리티 스크립트
-│   └── ROS_action/                 # 🤖 ROS2 워크스페이스
-│       ├── build/                  # 빌드 결과물
-│       ├── install/                # 설치된 패키지
-│       ├── log/                    # 로그 파일
-│       ├── src/                    # 소스 코드
-│       │   ├── audio_capture_package/     # 🎤 오디오 캡처
-│       │   │   ├── audio_capture_package/
-│       │   │   │   └── audio_capture_node.py
-│       │   │   ├── package.xml
-│       │   │   └── setup.py
-│       │   ├── camera_pub/               # 📷 카메라 퍼블리셔
-│       │   │   ├── camera_pub/
-│       │   │   │   └── camera_publisher_node.py
-│       │   │   ├── package.xml
-│       │   │   └── setup.py
-│       │   ├── vla_node/                 # 🧠 VLA 추론 노드
-│       │   │   ├── vla_node/
-│       │   │   │   └── vla_node.py
-│       │   │   ├── package.xml
-│       │   │   └── setup.py
-│       │   ├── omni_controller/          # 🚗 로봇 제어
-│       │   │   ├── omni_controller/
-│       │   │   │   └── omni_drive_node.py
-│       │   │   ├── package.xml
-│       │   │   └── setup.py
-│       │   └── custom_interfaces/        # 🔗 커스텀 메시지
-│       │       ├── action/
-│       │       │   └── STTAction.action
-│       │       ├── msg/
-│       │       └── srv/
-│       └── vla_system_launch.py    # 🚀 시스템 런치 파일
-└── docs/                       # 📚 추가 문서
-    ├── installation.md         # 설치 가이드
-    ├── troubleshooting.md      # 문제 해결
-    └── api_reference.md        # API 레퍼런스
-```
-
----
-
-## 🔧 **설치 가이드**
-
-### **📋 시스템 요구사항**
-- **하드웨어**: NVIDIA Jetson Nano/Xavier/Orin
-- **OS**: Ubuntu 20.04/22.04 (ARM64)
-- **ROS2**: Humble Hawksbill
-- **CUDA**: 11.8+
-- **Python**: 3.8+
-- **Docker**: 20.10+
-
-### **1️⃣ ROS2 환경 설정**
-
-```bash
-# ROS2 Humble 설치 (이미 설치된 경우 스킵)
-sudo apt update
-sudo apt install ros-humble-desktop
-source /opt/ros/humble/setup.bash
-
-# 의존성 설치
-sudo apt install python3-colcon-common-extensions
-sudo apt install ros-humble-cv-bridge ros-humble-image-transport
-sudo apt install ros-humble-audio-common-msgs
-```
-
-### **2️⃣ 프로젝트 클론 및 설정**
-
-```bash
-# 프로젝트 클론
-git clone https://github.com/minuum/vla.git
-cd vla
-
-# 서브모듈 초기화
-git submodule update --init --recursive
-
-# ROS2 워크스페이스 빌드
-cd ROS_action
-colcon build
-source install/setup.bash
-```
-
-### **3️⃣ AI 모델 환경 설정**
-
-```bash
-# Python 의존성 설치
-pip install torch transformers pillow opencv-python
-pip install whisper-openai
-
-# VLA 모델 캐시 디렉토리 생성
-mkdir -p .vla_models_cache
-```
-
-### **4️⃣ STT Docker 환경 설정**
-
-```bash
-# STT Docker 이미지 빌드
-cd RoboVLMs/whisper
-docker build -t whisper-stt .
-```
-
----
-
-## 🚀 **실행 가이드**
-
-### **🎯 전체 시스템 실행**
-
-```bash
-# 1. ROS2 환경 설정
-cd ~/vla/ROS_action
-source install/setup.bash
-export ROS_DOMAIN_ID=20
-
-# 2. STT Docker 컨테이너 실행 (별도 터미널)
-cd ~/vla/RoboVLMs/whisper
-docker run --rm -it --network="host" --gpus all whisper-stt
-
-# 3. 메인 시스템 실행 (메인 터미널)
-ros2 launch vla_system_launch.py
-```
-
-### **🔧 개별 노드 실행**
-
-#### **카메라 노드**
-```bash
-# Jetson CSI 카메라
-ros2 run camera_pub camera_publisher_node
-
-# USB 카메라
-ros2 run camera_pub camera_publisher_node \
-  --ros-args -p use_gstreamer:=false -p camera_device:=0
-```
-
-#### **오디오 캡처 노드**
-```bash
-ros2 run audio_capture_package audio_capture_node
-```
-
-#### **VLA 추론 노드**
-```bash
-# GPU 모드 (권장)
-ros2 run vla_node vla_node
-
-# CPU 모드
-ros2 run vla_node vla_node \
-  --ros-args -p device_preference:=cpu
-```
-
-#### **로봇 제어 노드**
-```bash
-# 실제 하드웨어
-ros2 run omni_controller omni_drive_node
-
-# 시뮬레이션 모드
-ros2 run omni_controller omni_drive_node \
-  --ros-args -p simulation_mode:=true
-```
-
----
-
-## 🎮 **사용법**
-
-### **🎤 음성 명령 예시**
-- **"move forward"** - 전진
-- **"turn left"** - 좌회전
-- **"turn right"** - 우회전
-- **"stop"** - 정지
-- **"navigate to the chair"** - 의자로 이동
-- **"avoid obstacle"** - 장애물 회피
-
-### **🖥️ 시스템 모니터링**
-
-```bash
-# 활성 노드 확인
-ros2 node list
-
-# 토픽 목록 확인
-ros2 topic list
-
-# 실시간 로그 확인
-ros2 launch vla_system_launch.py log_level:=debug
-
-# 특정 토픽 모니터링
-ros2 topic echo /cmd_vel
-ros2 topic echo /vla/status
-```
-
-### **🧪 수동 테스트**
-
-```bash
-# 수동 cmd_vel 명령
-ros2 topic pub /cmd_vel geometry_msgs/msg/Twist \
-  '{linear: {x: 0.2}, angular: {z: 0.0}}'
-
-# 수동 STT 텍스트 입력
-ros2 topic pub /stt/text std_msgs/msg/String \
-  '{data: "move forward"}'
-```
-
----
-
-## 📊 **시스템 상태**
-
-### **✅ 완료된 기능**
-- [x] 카메라 이미지 캡처 및 퍼블리시
-- [x] 오디오 캡처 시스템
-- [x] 옴니휠 로봇 제어 (센서 안전 기능 포함)
-- [x] VLA 추론 노드 기본 구조
-- [x] STT Docker 환경 최적화
-
-### **🔄 진행 중인 작업**
-- [ ] STT 노드 통신 테스트 및 정확성 검증
-- [ ] VLA 모델 완전 통합
-- [ ] 노드 간 통합 테스트
-
-### **⏳ 예정된 기능**
-- [ ] End-to-End 시스템 테스트
-- [ ] 성능 최적화
-- [ ] 추가 음성 명령 지원
-- [ ] 웹 기반 모니터링 인터페이스
-
----
-
-## 🐛 **문제 해결**
-
-### **자주 발생하는 문제**
-
-#### **1. 카메라 연결 실패**
-```bash
-# 카메라 장치 확인
-ls /dev/video*
-
-# USB 카메라로 전환
-ros2 run camera_pub camera_publisher_node \
-  --ros-args -p use_gstreamer:=false
-```
-
-#### **2. GPU 메모리 부족**
-```bash
-# GPU 메모리 확인
-nvidia-smi
-
-# CPU 모드로 실행
-ros2 run vla_node vla_node \
-  --ros-args -p device_preference:=cpu
-```
-
-#### **3. ROS2 통신 문제**
-```bash
-# ROS Domain ID 설정
-export ROS_DOMAIN_ID=20
-
-# 네트워크 설정 확인
-sudo ufw disable  # 방화벽 임시 비활성화
-```
-
-더 자세한 문제 해결은 [`docs/troubleshooting.md`](docs/troubleshooting.md)를 참조하세요.
-
----
-
-## 🤝 **기여하기**
-
-### **개발 워크플로우**
-1. Fork 프로젝트
-2. Feature 브랜치 생성 (`git checkout -b feature/amazing-feature`)
-3. 변경 사항 커밋 (`git commit -m 'Add some amazing feature'`)
-4. 브랜치에 Push (`git push origin feature/amazing-feature`)
-5. Pull Request 생성
-
-### **코딩 스타일**
-- Python: PEP 8 준수
-- C++: ROS2 코딩 스타일 가이드 준수
-- 한국어 주석 권장
-
----
-
-## 👥 **개발팀**
-
-| **역할** | **담당자** | **GitHub** |
-|----------|-----------|------------|
-| 🎤 Audio & STT | @jiwoo | [@jiwoo](https://github.com/jiwoo) |
-| 📷 Camera & Hardware | @최용석 | [@choiyongseok](https://github.com/choiyongseok) |
-| 🧠 VLA & AI | @이민우, @YUBEEN | [@minwoo](https://github.com/minwoo), [@yubeen](https://github.com/yubeen) |
-| 🚗 Robot Control | @양동건 | [@yangdonggun](https://github.com/KNDG01001) |
-
----
-
-## 📄 **라이선스**
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
-
----
-
-## 🙏 **감사의 말**
-
-- [ROS2](https://docs.ros.org/en/humble/) - 로봇 운영 체제
-- [OpenAI Whisper](https://github.com/openai/whisper) - 음성 인식 모델
-- [Transformers](https://huggingface.co/transformers/) - VLA 모델 프레임워크
-- [PaliGemma](https://huggingface.co/google/paligemma-3b-mix-224) - 멀티모달 모델
-
----
-
-**🚀 VLA 로봇과 함께 미래의 스마트 로봇 제어를 경험해보세요!** 
+**📝 참고**: 이 프로젝트는 Mobile VLA 시스템의 모든 구성요소를 체계적으로 관리합니다. 새로운 기능 추가 시 적절한 태그를 사용하여 분류해주세요. 
