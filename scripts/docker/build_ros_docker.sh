@@ -18,7 +18,7 @@ echo "🔨 ROS 설정이 포함된 이미지 빌드 중..."
 echo "⚠️ 빌드 시간이 오래 걸릴 수 있습니다 (10-15분)"
 echo ""
 
-docker build -f Dockerfile.mobile-vla-ros -t mobile_vla:ros .
+docker build -f docker/Dockerfile.mobile-vla-ros -t mobile_vla:ros .
 
 if [ $? -eq 0 ]; then
     echo "✅ ROS 설정이 포함된 이미지 빌드 완료!"

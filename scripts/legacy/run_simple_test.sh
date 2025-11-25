@@ -15,7 +15,7 @@ docker rm mobile_vla_simple_test 2>/dev/null || true
 
 # 이미지 빌드 (간단한 버전)
 echo "🔨 Docker 이미지 빌드 중..."
-docker build -f Dockerfile.mobile-vla-simple -t mobile_vla:simple-test .
+docker build -f docker/Dockerfile.mobile-vla-simple -t mobile_vla:simple-test .
 
 # 컨테이너 실행 (최소한의 설정)
 echo "🚀 컨테이너 실행 중..."
