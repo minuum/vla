@@ -1,0 +1,74 @@
+{
+  "dataset_type": "VLA_Robot_Demonstration",
+  "total_samples": 1,
+  "timesteps_per_sample": 108,
+  "data_structure": {
+    "robot_state": {
+      "shape": [
+        108,
+        15
+      ],
+      "description": "Robot joint positions and gripper state over time",
+      "columns": [
+        "state_0",
+        "state_1",
+        "state_2",
+        "state_3",
+        "state_4",
+        "state_5",
+        "state_6",
+        "state_7",
+        "state_8",
+        "state_9",
+        "state_10",
+        "state_11",
+        "state_12",
+        "state_13",
+        "state_14"
+      ]
+    },
+    "task": {
+      "shape": [
+        108,
+        1
+      ],
+      "description": "Task instruction repeated for each timestep",
+      "content": "Take the tiger out of the red bowl and put it in the grey bowl."
+    },
+    "hand_image": {
+      "shape": [
+        108,
+        480,
+        640,
+        3
+      ],
+      "description": "Hand/wrist camera images over time (RGB)",
+      "format": "uint8"
+    },
+    "third_person_image": {
+      "shape": [
+        108,
+        480,
+        640,
+        4
+      ],
+      "description": "Third-person view camera images over time (RGBA)",
+      "format": "float32"
+    },
+    "action": {
+      "shape": [
+        108,
+        8
+      ],
+      "description": "Robot actions taken at each timestep"
+    }
+  },
+  "statistics": {
+    "robot_state": {
+      "min": -3.696216408406393,
+      "max": 3.4553534984588623,
+      "mean": -0.0663291967633837,
+      "std": 1.5729693364747999
+    }
+  }
+}
