@@ -1,0 +1,41 @@
+{
+  "analysis_date": "2025-11-14T21:14:49.400655",
+  "total_episodes": 136,
+  "total_frames": 2391,
+  "avg_frames_per_episode": 17.580882352941178,
+  "num_tasks": 2,
+  "task_stats": {
+    "1box_hori_left_core_medium": {
+      "num_episodes": 105,
+      "num_trajectories": 101,
+      "num_unique_trajectories": 8,
+      "consistency": 0.9207920792079208,
+      "most_common_trajectories": [
+        {
+          "trajectory": "SWWWWAQQQQQQQWWWWE",
+          "count": 79
+        },
+        {
+          "trajectory": "SWWAQQQQQQAWWWWWWW",
+          "count": 10
+        },
+        {
+          "trajectory": "SWWWAAQQQQQQQWWWWW",
+          "count": 6
+        }
+      ]
+    },
+    "1box_hori_right_core_medium": {
+      "num_episodes": 31,
+      "num_trajectories": 31,
+      "num_unique_trajectories": 1,
+      "consistency": 0.967741935483871,
+      "most_common_trajectories": [
+        {
+          "trajectory": "SWWWWDEEEEEEEWWWWQ",
+          "count": 31
+        }
+      ]
+    }
+  }
+}
