@@ -1,0 +1,8 @@
+{
+  "total_parameters": 1824217605,
+  "trainable_parameters": 1824217605,
+  "model_size_mb": 6958.837909698486,
+  "vision_resampler_tokens": 64,
+  "action_dim": 3,
+  "mobile_optimized": true
+}
