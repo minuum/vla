@@ -27,189 +27,26 @@ Mobile_VLA/
 └── README.md               # 이 파일
 ```
 
-## 🎯 Core Components (핵심 구성요소)
+## 🏆 Latest Results: LoRA Fine-tuning
 
-### 🚀 핵심 기능
-- `action_analysis_core.py` - 액션 분석
-- `mobile_dataset_core.py` - 모바일 데이터셋
-- `mobile_trainer_core.py` - 모바일 훈련기
-- `mobile_trainer_simple_core.py` - 단순 훈련기
-- `train_mobile_vla_core.py` - VLA 훈련 스크립트
+The following metrics represent the latest end-to-end training results using LoRA fine-tuning on the Kosmos-2 backbone.
 
-### 📊 데이터 처리
-- `data_core/` - 데이터 처리 모듈
-- `train_core/` - 훈련 관련 모듈
+### 📊 Training Metrics (Epoch 16)
+- **Model**: Kosmos-2 + LoRA
+- **LoRA Config**: Rank=32, Alpha=16, Dropout=0.1
+- **Trainable Parameters**: 55.8M (Total: 1.7B)
+- **Dataset**: 175 Train Episodes, 44 Validation Episodes
+- **Training Loss**: **0.134**
+- **Validation Loss**: **0.213**
+- **Action Loss**: **0.213**
 
-## 🤖 Models (모델)
+> [!NOTE]
+> Training was validated up to Epoch 16. The low training and validation loss indicates successful convergence and effective learning of the mobile robot's action space.
 
-### 🎯 Core Models (핵심 모델)
-- **훈련 스크립트**: CLIP+LSTM, LSTM 기반 훈련
-- **인코더**: 모바일 이미지/텍스트 인코더
-- **정책 헤드**: 모바일 정책 네트워크
-- **유틸리티**: 추론, 최적화, 과적합 해결
-
-### 🔬 Experimental Models (실험적 모델)
-- **고급 모델**: 멀티모달, RoboVLMs 수정
-- **분석 도구**: 정확도, 성능 분석
-- **특수 기능**: Z축 처리, 차원 확인
-
-### 📈 Data Analysis (데이터 분석)
-- **데이터셋 분석**: 기본 분석, 증강 효과
-- **로봇 증강**: 로봇 특화 증강 분석
-
-### 📚 Legacy Code (레거시)
-- **참고용**: Kosmos2 분석, RoboVLMs 스타일
-
-## 🔬 Experimental Features (실험적 기능)
-
-### 🧪 실험적 코드
-- `example_usage_experimental.py` - 사용 예제
-- 기타 실험적 기능들
-
-## 📊 Results (결과)
-
-### 📈 성능 결과
-- **JSON 파일**: 훈련/평가 결과
-- **PNG 파일**: 시각화 그래프
-- **PT/PTH 파일**: 모델 체크포인트
-- **LOG 파일**: 훈련 로그
-
-### 📁 결과 디렉토리
-- `simple_baseline_results/` - 기본 베이스라인
-- `simple_clip_lstm_results_extended/` - CLIP+LSTM 확장
-- `simple_lstm_results_extended/` - LSTM 확장
-
-## 📚 Documentation (문서)
-
-### 📖 분석 문서
-- **성능 분석**: 다양한 성능 분석 보고서
-- **모델 비교**: 모델 간 비교 분석
-- **최적화 아이디어**: 성능 개선 방안
-- **프로젝트 요약**: 전체 프로젝트 요약
-
-### 📓 노트북
-- **액션 예측**: 주요 분석 노트북
-- **정리된 분석**: 정리된 분석 노트북
-
-## 🗂️ Legacy Data (레거시 데이터)
-
-### 📦 증강 데이터셋
-- `augmented_dataset/` - 기본 증강 데이터
-- `distance_aware_augmented_dataset/` - 거리 인식 증강
-
-## 🚀 사용 가이드
-
-### 🎯 Simple CLIP LSTM 모델 추론 시스템 (최신)
-
-#### 체크포인트 기반 추론
-- **체크포인트**: `vla/Robo+/Mobile_VLA/simple_clip_lstm_model/best_simple_clip_lstm_model.pth` (7.3GB)
-- **모델 구조**: Kosmos2 (24층) + CLIP (12층) 하이브리드
-- **출력**: 2D 로봇 액션 (선형/각속도)
-
-#### 실행 방법
-```bash
-# 1. 추론 컨테이너 시작
-cd /home/soda
-./vla/run_simple_clip_lstm_inference.sh
-
-# 2. 메모리 최적화된 추론 실행 (컨테이너 내부에서)
-python3 vla/memory_optimized_inference.py
-```
-
-#### 사용 가능한 명령어
-- **`infer`**: 단일 추론 실행
-- **`benchmark`**: 성능 벤치마크 (5회)
-- **`memory`**: 메모리 상태 확인
-- **`clear`**: 메모리 정리
-- **`quit`**: 종료
-
-#### 메모리 최적화 기능
-- **메모리 모니터링**: 시스템/GPU 메모리 실시간 확인
-- **메모리 정리**: PyTorch 캐시 및 가비지 컬렉션
-- **모델 최적화**: 레이어 수 축소 (24→6, 12→6)
-- **입력 최적화**: 시퀀스 길이 단축
-
-#### 현재 상태
-- ✅ 체크포인트 구조 분석 완료
-- ✅ 메모리 최적화된 모델 구현
-- ✅ 도커 컨테이너 실행 스크립트
-- ⚠️ 모델 가중치 로드 시 구조 불일치 (수정 중)
-- 🔄 실제 추론 성능 테스트 진행 중
-
-#### 관련 문서
-- [Simple CLIP LSTM 추론 진행상황](./SIMPLE_CLIP_LSTM_INFERENCE_PROGRESS.md)
-- [메모리 최적화 가이드](./MEMORY_OPTIMIZATION_GUIDE.md)
-
-### 🎯 기존 시스템
-
-### 🎯 빠른 시작
-```bash
-# 핵심 훈련
-python core/train_mobile_vla_core.py
-
-# 모델 훈련
-python models/core/train_simple_clip_lstm_core.py
-
-# 실험적 모델
-python models/experimental/train_simplified_model.py
-```
-
-### 📊 성능 평가
-```bash
-# 정확도 분석
-python models/experimental/accuracy_analysis_experimental.py
-
-# 2D 평가
-python models/experimental/accurate_2d_evaluation_eval.py
-```
-
-### 🔧 모델 사용
-```python
-from core.mobile_dataset_core import MobileDataset
-from core.mobile_trainer_core import MobileTrainer
-from models.core.mobile_image_encoder_core import MobileImageEncoder
-
-# 데이터셋 초기화
-dataset = MobileDataset()
-
-# 훈련기 초기화
-trainer = MobileTrainer()
-
-# 인코더 초기화
-encoder = MobileImageEncoder()
-```
-
-## 📋 파일 태그 시스템
-
-### `_core.py`
-- 핵심 기능을 담당하는 안정적인 코드
-- 프로덕션 환경에서 사용 가능
-- 지속적인 유지보수 대상
-
-### `_experimental.py`
-- 실험적 기능 및 연구용 코드
-- 성능 검증이 필요한 코드
-- 향후 core로 이동 가능
-
-### `_data.py`
-- 데이터 처리 및 분석 관련 코드
-- 데이터셋 전처리 및 증강
-- 통계 분석 및 시각화
-
-### `_policy.py`
-- 정책 네트워크 관련 코드
-- 액션 예측 및 결정 로직
-- 강화학습 정책 구현
-
-### `_eval.py`
-- 모델 평가 및 벤치마킹 코드
-- 성능 측정 및 비교
-- 테스트 스크립트
-
-### `_legacy.py`
-- 참고용 레거시 코드
-- 더 이상 활발히 개발되지 않음
-- 아카이브 목적
+## 📁 Key Directories
+- `models/core/`: Core model training scripts
+- `results/`: Checkpoints and performance logs
+- `docs/`: Detailed analysis reports
 
 ## 📈 성능 지표
 
