@@ -15,7 +15,7 @@ docker rm mobile_vla_robovlms_final 2>/dev/null || true
 
 # 이미지 빌드 (CUDA True로 검증된 버전 사용)
 echo "🔨 CUDA True로 검증된 이미지 사용..."
-# docker build -f Dockerfile.mobile-vla -t mobile_vla:robovlms-final .
+# docker build -f docker/Dockerfile.mobile-vla -t mobile_vla:robovlms-final .
 
 # 컨테이너 실행 (CUDA True로 검증된 설정)
 echo "🚀 컨테이너 실행 중 (CUDA True 설정)..."

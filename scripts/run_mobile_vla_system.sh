@@ -72,14 +72,14 @@ if ! docker images | grep -q "mobile_vla:pytorch-2.3.0-cuda"; then
     log_warning "Mobile VLA 이미지가 없습니다. 빌드를 시작합니다..."
     
     # Dockerfile 확인
-    if [ ! -f "Dockerfile.mobile-vla" ]; then
-        log_error "Dockerfile.mobile-vla이 없습니다."
+    if [ ! -f "docker/Dockerfile.mobile-vla" ]; then
+        log_error "docker/Dockerfile.mobile-vla이 없습니다."
         exit 1
     fi
     
     # 이미지 빌드
     log_info "🔨 Docker 이미지 빌드 중... (시간이 오래 걸릴 수 있습니다)"
-    docker build -t mobile_vla:pytorch-2.3.0-cuda -f Dockerfile.mobile-vla .
+    docker build -t mobile_vla:pytorch-2.3.0-cuda -f docker/Dockerfile.mobile-vla .
     
     if [ $? -eq 0 ]; then
         log_success "Docker 이미지 빌드 완료"

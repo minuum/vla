@@ -50,12 +50,12 @@ show_help() {
 build_image() {
     log_info "Docker 이미지 빌드 시작..."
     
-    if [ ! -f "Dockerfile.mobile-vla" ]; then
-        log_error "Dockerfile.mobile-vla 파일을 찾을 수 없습니다."
+    if [ ! -f "docker/Dockerfile.mobile-vla" ]; then
+        log_error "docker/Dockerfile.mobile-vla 파일을 찾을 수 없습니다."
         exit 1
     fi
     
-    docker build -t mobile_vla:robovlms -f Dockerfile.mobile-vla .
+    docker build -t mobile_vla:robovlms -f docker/Dockerfile.mobile-vla .
     
     if [ $? -eq 0 ]; then
         log_success "Docker 이미지 빌드 완료!"
