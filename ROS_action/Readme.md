@@ -1,188 +1,173 @@
-# ROS_action 패키지
+# 🚀 Mobile VLA System
 
-**Vision-Language-Action (VLA) 기반 로봇 제어 시스템**
+Hugging Face의 `minium/mobile-vla` 모델을 사용한 Vision-Language-Action 시스템입니다.
 
-이 프로젝트는 ROS2 기반의 멀티모달 로봇 제어 시스템으로, 시각, 음성, 액션 처리를 통합한 VLA 파이프라인을 구현합니다.
+## 🎯 주요 기능
 
-## 📁 패키지 구조
+- **실시간 VLM 추론**: 단일 이미지 → 18프레임 액션 예측
+- **순차적 실행**: 10Hz로 액션 시퀀스 실행
+- **실시간 모니터링**: 시스템 상태 및 성능 추적
+- **동적 제어**: 실행 중지/재개/속도 조절
+- **Docker 지원**: 완전한 컨테이너화된 실행 환경
+
+## 🏗️ 시스템 아키텍처
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Mobile VLA System                           │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
+│  │   Camera    │    │  Inference  │    │  Action     │        │
+│  │   Node      │───▶│   Node      │───▶│  Executor   │        │
+│  │             │    │             │    │   Node      │        │
+│  └─────────────┘    └─────────────┘    └─────────────┘        │
+│         │                   │                   │              │
+│         │                   │                   │              │
+│         ▼                   ▼                   ▼              │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
+│  │  System     │    │  Hugging    │    │  Robot      │        │
+│  │  Monitor    │    │  Face       │    │  Control    │        │
+│  │             │    │  Model      │    │             │        │
+│  └─────────────┘    └─────────────┘    └─────────────┘        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 🚀 빠른 시작
+
+### 1. 환경 설정
+```bash
+# ROS 환경 설정
+source /opt/ros/humble/setup.bash
+export ROS_DOMAIN_ID=0
+
+# Mobile VLA 패키지 환경 설정
+cd /home/soda/vla/ROS_action
+export AMENT_PREFIX_PATH=/home/soda/vla/ROS_action/install:$AMENT_PREFIX_PATH
+```
+
+### 2. 패키지 빌드
+```bash
+colcon build --packages-select mobile_vla_package
+```
+
+### 3. 시스템 실행
+```bash
+# 전체 시스템 실행 (카메라 시뮬레이터 포함)
+ros2 launch mobile_vla_package test_mobile_vla.launch.py
+```
+
+## 📊 실시간 모니터링
+
+```bash
+# 시스템 상태 확인
+ros2 topic echo /mobile_vla/system_status
+
+# 성능 메트릭 확인
+ros2 topic echo /mobile_vla/performance_metrics
+
+# 추론 결과 확인
+ros2 topic echo /mobile_vla/inference_result
+```
+
+## 🐳 Docker 실행
+
+```bash
+# Docker 컨테이너 빌드 및 실행
+docker-compose -f docker-compose.mobile-vla.yml up --build
+```
+
+## 📈 성능 지표
+
+- **모델**: minium/mobile-vla (Hugging Face)
+- **입력**: RGB 이미지 (224x224) + 텍스트 태스크
+- **출력**: 18프레임 액션 시퀀스 [linear_x, linear_y, angular_z]
+- **추론 시간**: 100-500ms (GPU 기준)
+- **실행 시간**: 1.8초 (18프레임 × 100ms)
+- **프레임 레이트**: 10Hz
+
+## 📁 프로젝트 구조
 
 ```
 ROS_action/
 ├── src/
-│   ├── camera_pub/         # 카메라 이미지 퍼블리셔
-│   ├── camera_sub/         # 카메라 이미지 구독자
-│   ├── mic_pub/           # 마이크 오디오 퍼블리셔
-│   ├── object_pose/       # 객체 탐지 및 위치 추정
-│   ├── omni_controller/   # 옴니휠 로봇 제어
-│   └── ros_action_msgs/   # 커스텀 메시지 타입
-├── install/
-└── log/
+│   └── mobile_vla_package/
+│       ├── mobile_vla_package/
+│       │   ├── mobile_vla_inference.py      # VLM 추론 노드
+│       │   ├── action_sequence_executor.py  # 액션 실행 노드
+│       │   ├── system_monitor.py           # 시스템 모니터링
+│       │   ├── test_camera_simulator.py    # 테스트 카메라
+│       │   ├── test_monitor.py             # 테스트 모니터
+│       │   └── simple_inference_test.py    # 간단한 추론 테스트
+│       ├── launch/
+│       │   ├── launch_mobile_vla.launch.py # 메인 launch 파일
+│       │   └── test_mobile_vla.launch.py   # 테스트 launch 파일
+│       └── requirements.txt                # Python 의존성
+├── docker-compose.mobile-vla.yml           # Docker Compose
+├── Dockerfile.mobile-vla                   # Docker 이미지
+├── start_mobile_vla.sh                     # 시작 스크립트
+└── MOBILE_VLA_USAGE_GUIDE.md              # 상세 사용 가이드
 ```
 
-## 🔧 패키지 상세 설명
+## 🎯 사용 예시
 
-### 1. camera_pub 📷
-**Jetson Orin IMX219 카메라 퍼블리셔**
-
-- **기능**: CSI 카메라를 통해 실시간 이미지 캡처 및 퍼블리시
-- **토픽**: `/camera/image_raw` (sensor_msgs/Image)
-- **특징**: 
-  - GStreamer 파이프라인 사용
-  - 1280x720 해상도, 30fps
-  - 180도 회전 처리
-  - Enter 키 기반 수동 캡처 모드
-
-### 2. camera_sub 📸
-**카메라 이미지 구독 및 저장**
-
-- **기능**: 카메라 이미지를 받아 로컬 디스크에 저장
-- **구독 토픽**: `/camera/image_raw` (sensor_msgs/Image)
-- **저장 경로**: `~/camera_images/`
-- **특징**: 타임스탬프 기반 파일명 생성
-
-### 3. mic_pub 🎤
-**마이크 오디오 퍼블리셔**
-
-- **기능**: 시스템 마이크를 통한 오디오 녹음 및 퍼블리시
-- **토픽**: `/audio/raw` (std_msgs/Int16MultiArray)
-- **설정**: 16kHz 샘플링, 16-bit, 모노
-- **특징**: 
-  - 5초 간격 녹음
-  - Enter 키 기반 수동 녹음 모드
-  - WAV 파일 저장 옵션 (주석 처리됨)
-
-### 4. object_pose 🎯
-**YOLOv5 기반 객체 탐지 및 위치 추정**
-
-- **기능**: 
-  - YOLOv5s 모델을 사용한 실시간 객체 탐지
-  - 바운딩박스 기반 거리 및 각도 계산
-  - 음성 인식 키워드 기반 타겟 객체 전환
-- **구독 토픽**: 
-  - `/camera/image_raw` (sensor_msgs/Image)
-  - `/stt/text` (std_msgs/String)
-- **퍼블리시 토픽**: `/object_info` (ros_action_msgs/ObjectInfo)
-- **지원 객체**: 사람(person), 의자(chair), 노트북(laptop)
-- **특징**:
-  - GPU/CPU 자동 감지
-  - 카메라 시야각 110도 기준 각도 계산
-  - 객체 높이 0.15m 가정한 거리 추정
-
-### 5. omni_controller 🤖
-**옴니휠 로봇 제어 노드**
-
-- **기능**: 객체 위치 정보를 기반으로 한 로봇 이동 제어
-- **구독 토픽**: `/object_info` (ros_action_msgs/ObjectInfo)
-- **하드웨어**: 
-  - POP 플랫폼 기반 옴니휠 로봇
-  - PSD 센서 (근접 센서)
-  - 초음파 센서
-- **제어 로직**:
-  - 각도 기반 회전 제어 (92도/초 기준)
-  - 장애물 감지 시 자동 정지 (20cm 이내)
-  - 회전 후 전진 이동
-
-### 6. ros_action_msgs 📝
-**커스텀 메시지 타입 정의**
-
-#### ObjectInfo.msg
-```
-string object_id     # 객체 식별자
-float64 distance     # 거리 (미터)
-float64 angle        # 각도 (도, 정면 기준)
-```
-
-## 🚀 빌드 및 실행
-
-### 빌드
+### 기본 실행
 ```bash
-cd ROS_action
-colcon build
-source install/setup.bash
+# 1. 환경 설정
+source /opt/ros/humble/setup.bash
+export AMENT_PREFIX_PATH=/home/soda/vla/ROS_action/install:$AMENT_PREFIX_PATH
+export ROS_DOMAIN_ID=0
+
+# 2. 시스템 실행
+ros2 launch mobile_vla_package test_mobile_vla.launch.py
 ```
 
-### 실행 순서
-
-1. **카메라 스트리밍 시작**
+### 개별 노드 실행
 ```bash
-ros2 run camera_pub camera_publisher_node
+# 카메라 시뮬레이터
+ros2 run mobile_vla_package test_camera_simulator
+
+# 추론 노드
+ros2 run mobile_vla_package simple_inference_test
+
+# 테스트 모니터
+ros2 run mobile_vla_package test_monitor
 ```
 
-2. **객체 탐지 노드 실행**
+### 시스템 제어
 ```bash
-ros2 run object_pose object_pose_publisher
-```
+# 카메라 시뮬레이터 제어
+ros2 topic pub /camera_simulator/control std_msgs/msg/String "data: 'stop'"
 
-3. **로봇 제어 노드 실행**
-```bash
-ros2 run omni_controller omni_drive_node
-```
+# 액션 실행 제어
+ros2 topic pub /mobile_vla/control std_msgs/msg/String '{"action": "stop"}'
 
-4. **옵션: 이미지 저장 (디버깅용)**
-```bash
-ros2 run camera_sub camera_subscriber_node
-```
-
-5. **옵션: 오디오 녹음 (STT 연동용)**
-```bash
-ros2 run mic_pub mic_publisher_node
-```
-
-## 📊 데이터 플로우
-
-```
-카메라 → /camera/image_raw → 객체 탐지 → /object_info → 로봇 제어
-마이크 → /audio/raw → STT → /stt/text → 객체 전환
+# 태스크 설정
+ros2 topic pub /mobile_vla/task std_msgs/msg/String "data: 'Navigate around obstacles'"
 ```
 
 ## 🔧 시스템 요구사항
 
-- **OS**: Ubuntu 22.04 (ROS2 Humble)
-- **Hardware**: 
-  - Jetson Orin (권장) 또는 NVIDIA GPU
-  - IMX219 CSI 카메라
-  - POP 플랫폼 옴니휠 로봇
-  - 마이크 (USB 또는 내장)
-- **Dependencies**:
-  - OpenCV
-  - PyTorch
-  - YOLOv5
-  - cv_bridge
-  - POP 라이브러리
+- **OS**: Ubuntu 20.04+
+- **ROS**: ROS2 Humble
+- **Python**: 3.8+
+- **GPU**: NVIDIA GPU (선택사항, CUDA 11.8+)
+- **메모리**: 8GB+ RAM
+- **저장공간**: 5GB+
 
-## 🔗 VLA 파이프라인 연동
+## 📝 참고 자료
 
-이 ROS_action 패키지는 `RoboVLMs/vla_test/action_parser.py`와 연동되어 다음과 같은 VLA 파이프라인을 구성합니다:
+- [Mobile VLA Model (Hugging Face)](https://huggingface.co/minium/mobile-vla)
+- [상세 사용 가이드](MOBILE_VLA_USAGE_GUIDE.md)
+- [시스템 시퀀스 다이어그램](Mobile_VLA_System_Sequence.md)
 
-1. **Vision**: 카메라 이미지 입력
-2. **Language**: 음성 인식 텍스트 입력
-3. **Action**: VLA 모델 추론 결과를 로봇 액션으로 변환
+## 🤝 기여
 
-## 🐛 문제 해결
+버그 리포트나 기능 요청은 GitHub Issues를 통해 제출해주세요.
 
-### 카메라 관련
-- GStreamer 파이프라인 오류 시 `nvarguscamerasrc` 지원 여부 확인
-- 권한 문제 시 사용자를 `video` 그룹에 추가
+## 📄 라이선스
 
-### 마이크 관련
-- `arecord` 명령어 지원 여부 확인
-- ALSA 설정 확인
+이 프로젝트는 Apache 2.0 라이선스 하에 배포됩니다.
 
-### GPU 관련
-- CUDA 설치 및 PyTorch GPU 지원 확인
-- 메모리 부족 시 배치 크기 조정
+---
 
-## 📅 최근 업데이트
-
-- **2025.03**: 초기 패키지 구조 설계
-- **2025.04**: YOLOv5 기반 객체 탐지 구현
-- **2025.05**: 옴니휠 로봇 제어 로직 추가
-- **2025.05**: 음성 인식 키워드 기반 객체 전환 기능 추가
-- **2025.06**: VLA 파이프라인 연동 준비
-
-## 👥 기여자
-
-- **카메라 시스템**: soda
-- **마이크 시스템**: shosae
-- **객체 탐지**: shosae
-- **로봇 제어**: 팀 공동 작업
+**🎉 Mobile VLA System을 사용해주셔서 감사합니다!**

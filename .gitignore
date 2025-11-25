@@ -89,7 +89,7 @@ Model_ws/build/
 Model_ws/install/
 Model_ws/log/
 *.pt
-*.pth
+# *.pth  # 주석 처리하여 .pth 파일 추적 허용
 *.bin
 *.safetensors
 .vla_models_cache/
@@ -105,3 +105,12 @@ ROS_action/src/*.whl
 # *.h5
 # Ignore numpy arrays
 *.npy
+
+# Setup scripts (generated automatically)
+setup_aliases_docker.sh
+setup_aliases_host.sh
+setup_ros2_docker.sh
+setup_ros2_host.sh
+./vla/RoboVLMs/.vlms
+RoboVLMs/.vlms/kosmos-2-patch14-224
+mobile-vla-omniwheel/
