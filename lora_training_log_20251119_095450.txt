@@ -1,0 +1,18 @@
+usage: main.py [-h] [--gpus GPUS] [--num_nodes NUM_NODES] [--seed SEED]
+               [--log_dir LOG_DIR] [--output_dir OUTPUT_DIR]
+               [--data_dir DATA_DIR] [--annotation_file ANNOTATION_FILE]
+               [--model_load_path MODEL_LOAD_PATH]
+               [--data_subfolder DATA_SUBFOLDER] [--task_num TASK_NUM]
+               [--seq_len SEQ_LEN] [--exp_name EXP_NAME]
+               [--arm_gripper_loss_ratio ARM_GRIPPER_LOSS_RATIO]
+               [--fwd_loss_ratio FWD_LOSS_RATIO]
+               [--fwd_pred_next_n FWD_PRED_NEXT_N] [--use_multi_modal_emb]
+               [--no_video_pretrained_model] [--finetune]
+               [--learning_rate LEARNING_RATE] [--min_lr_scale MIN_LR_SCALE]
+               [--warmup_epochs WARMUP_EPOCHS] [--weight_decay WEIGHT_DECAY]
+               [--batch_size BATCH_SIZE] [--strategy STRATEGY]
+               [--precision PRECISION] [--gradient_clip_val GRADIENT_CLIP_VAL]
+               [--max_epochs MAX_EPOCHS] [--type TYPE] [--n_embd N_EMBD]
+               [--n_layer N_LAYER] [--n_head N_HEAD]
+               config
+main.py: error: unrecognized arguments: --config
