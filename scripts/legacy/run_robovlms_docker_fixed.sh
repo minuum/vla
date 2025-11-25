@@ -15,7 +15,7 @@ docker rm mobile_vla_robovlms_final 2>/dev/null || true
 
 # 이미지 빌드 (기존 이미지 사용)
 echo "🔨 Docker 이미지 빌드 중..."
-docker build -f Dockerfile.mobile-vla -t mobile_vla:robovlms-final .
+docker build -f docker/Dockerfile.mobile-vla -t mobile_vla:robovlms-final .
 
 # 컨테이너 실행 (FIXED - sleep 명령어 사용)
 echo "🚀 컨테이너 실행 중 (FIXED)..."

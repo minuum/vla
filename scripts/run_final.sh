@@ -7,7 +7,7 @@ set -e
 # 최종 이미지 및 컨테이너 이름 설정
 IMAGE_NAME="mobile_vla:robovlms-jp6-final"
 CONTAINER_NAME="mobile_vla_robovlms_jp6_final"
-DOCKERFILE="Dockerfile.jp6.final"
+DOCKERFILE="docker/Dockerfile.jp6.final"
 
 echo "🚀 RoboVLMs Docker 환경 시작 (JetPack 6, l4t-ml 기반)"
 echo "🧹 기존 컨테이너 정리 중..."

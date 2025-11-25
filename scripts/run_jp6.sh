@@ -8,7 +8,7 @@ set -e
 # JP6용 새 이미지 및 컨테이너 이름 설정
 IMAGE_NAME="mobile_vla:robovlms-jp6"
 CONTAINER_NAME="mobile_vla_robovlms_jp6"
-DOCKERFILE="Dockerfile.jp6"
+DOCKERFILE="docker/Dockerfile.jp6"
 
 echo "🚀 RoboVLMs Docker 환경 시작 (JetPack 6 호스트)"
 echo "🏆 최고 성능 모델: Kosmos2 + CLIP 하이브리드 (MAE 0.212)"
