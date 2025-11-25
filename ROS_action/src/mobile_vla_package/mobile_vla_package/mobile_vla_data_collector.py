@@ -1661,16 +1661,56 @@ class MobileVLADataCollector(Node):
             f.create_dataset('images', data=images, compression='gzip')
             f.create_dataset('actions', data=actions, compression='gzip')
             f.create_dataset('action_event_types', data=action_event_types, compression='gzip')
+            
+            # Language instruction 추가
+            # 실제 태스크: "장애물을 피해 음료수 페트병 앞으로 도착해라"
+            # 영어 번역: "Navigate around obstacles and reach the front of the beverage bottle"
+            instruction = self._generate_language_instruction(episode_name)
+            f.create_dataset(
+                'language_instruction',
+                data=np.array([instruction.encode('utf-8')], dtype='S256')
+            )
 
         # 마지막 완료된 에피소드의 액션 시퀀스 저장 (가이드 갱신 옵션용)
         # "start_action" 제외하고 WASD/QEZC 키만 추출
         valid_keys = {'w', 'a', 's', 'd', 'q', 'e', 'z', 'c'}
         self.last_completed_episode_actions = [
-            action_type for action_type in action_event_types
+        action_type for action_type in action_event_types
             if action_type.lower() in valid_keys
         ]
         
         return save_path
+    
+    def _generate_language_instruction(self, episode_name: str) -> str:
+        """
+        에피소드 이름에서 language instruction 생성
+        
+        실제 태스크: "장애물을 피해 음료수 페트병 앞으로 도착해라"
+        영어 번역: "Navigate around obstacles and reach the front of the beverage bottle"
+        
+        Args:
+            episode_name: 에피소드 파일명 (예: "episode_20251106_145248_1box_hori_left_core_medium")
+        
+        Returns:
+            영어 instruction 문자열
+        """
+        # 기본 명령어 (실제 수집 태스크)
+        base_instruction = "Navigate around obstacles and reach the front of the beverage bottle"
+        
+        # 파일명에서 방향 정보 추출
+        filename_lower = episode_name.lower()
+        
+        # 방향 정보 확인
+        direction = ""
+        if "left" in filename_lower:
+            direction = " on the left"
+        elif "right" in filename_lower:
+            direction = " on the right"
+        
+        # 최종 instruction 생성 (시간 정보 제거)
+        instruction = base_instruction + direction
+        
+        return instruction
 
     def classify_by_frames(self, num_frames: int) -> str:
         """프레임 수에 따라 카테고리 분류"""

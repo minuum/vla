@@ -1,0 +1,10 @@
+액션 타입,개수,비율 (%),설명
+FORWARD,"3,390",40.5%,직진
+FORWARD_LEFT,"2,426",29.0%,전진 + 좌회전
+FORWARD_RIGHT,"1,598",19.1%,전진 + 우회전
+STOP,468,5.6%,정지
+TURN_RIGHT,252,3.0%,제자리 우회전
+TURN_LEFT,233,2.8%,제자리 좌회전
+BACKWARD,0,0.0%,후진
+BACKWARD_LEFT,0,0.0%,후진 + 좌회전
+BACKWARD_RIGHT,0,0.0%,후진 + 우회전
