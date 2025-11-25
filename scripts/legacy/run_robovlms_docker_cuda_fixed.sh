@@ -19,7 +19,7 @@ docker info | grep nvidia || echo "⚠️  NVIDIA 런타임이 설정되지 않�
 
 # 이미지 빌드 (기존 이미지 사용)
 echo "🔨 Docker 이미지 빌드 중..."
-docker build -f Dockerfile.mobile-vla -t mobile_vla:robovlms-final .
+docker build -f docker/Dockerfile.mobile-vla -t mobile_vla:robovlms-final .
 
 # 컨테이너 실행 (CUDA FIXED)
 echo "🚀 컨테이너 실행 중 (CUDA FIXED)..."
