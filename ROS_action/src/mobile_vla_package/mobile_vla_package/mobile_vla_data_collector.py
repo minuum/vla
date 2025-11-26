@@ -335,6 +335,7 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   A: 자동 측정 (가이드 기반 자동 측정)")
         self.get_logger().info("   T: 측정 태스크 표 보기")
         self.get_logger().info("   S: 설정 모드 (가이드 모드 변경)")
+        self.get_logger().info("   O: 조작 모드 (수동 모드로 직접 전환)")
         self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 장애물 위치(J/K/L)")
         self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 (총 1000개 목표):")
         self.get_logger().info("   📦 4개 시나리오 × 250개 샘플 × 18프레임 고정 (RoboVLMs 기준: window=8 + pred_next=10)")
@@ -465,6 +466,18 @@ class MobileVLADataCollector(Node):
                 self.get_logger().warn("⚠️ 수집 중에는 설정을 변경할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
             else:
                 self.show_settings_menu()
+        elif key == 'o':
+            # 조작 모드(수동 모드) 직접 진입
+            if self.collecting:
+                self.get_logger().warn("⚠️ 수집 중에는 설정을 변경할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
+            else:
+                # 수동 모드로 직접 변경
+                if self.guide_mode != "manual":
+                    self.guide_mode = "manual"
+                    self.save_settings()
+                    self.get_logger().info("✅ 가이드 모드를 '수동 모드'로 변경했습니다.")
+                else:
+                    self.get_logger().info("ℹ️ 이미 수동 모드입니다.")
         elif key.isdigit():
             # 반복 횟수 입력 모드를 최우선으로 처리 (다른 숫자 입력보다 먼저)
             if self.repeat_count_mode:
