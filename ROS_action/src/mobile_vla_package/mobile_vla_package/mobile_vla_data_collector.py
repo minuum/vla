@@ -148,6 +148,11 @@ class MobileVLADataCollector(Node):
         self.overwrite_core: bool = False  # '핵심 표준 재등록' 토글 상태
         self.core_mismatch_count: int = 0  # 핵심 패턴 검증 불일치 카운트 (에피소드 단위)
         self.last_completed_episode_actions: List[str] = []  # 마지막 완료된 에피소드의 액션 시퀀스
+        
+        # 가이드 모드 설정
+        # "dataset": 데이터셋 최다 패턴 자동 추출 모드
+        # "manual": 수동 설정 가이드 모드 (core_patterns.json에서 로드)
+        self.guide_mode: str = "dataset"  # 기본값: 데이터셋 모드
 
         self.current_action = self.STOP_ACTION.copy()
         self.movement_timer = None
@@ -309,12 +314,14 @@ class MobileVLADataCollector(Node):
         self.progress_file = self.data_dir / "scenario_progress.json"
         self.time_period_file = self.data_dir / "time_period_stats.json"
         self.core_pattern_file = self.data_dir / "core_patterns.json"
+        self.settings_file = self.data_dir / "settings.json"
         
         # 데이터셋 통계 로드
         self.load_dataset_stats()
         self.load_scenario_progress()
         self.load_time_period_stats()
         self.load_core_patterns()
+        self.load_settings()
         
         self.get_logger().info("🤖 Mobile VLA Data Collector 준비 완료!")
         self.get_logger().info("📋 조작 방법:")
@@ -327,6 +334,7 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   B: 자동 복귀 (에피소드 종료 후 시작 위치로 복귀)")
         self.get_logger().info("   A: 자동 측정 (가이드 기반 자동 측정)")
         self.get_logger().info("   T: 측정 태스크 표 보기")
+        self.get_logger().info("   S: 설정 모드 (가이드 모드 변경)")
         self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 장애물 위치(J/K/L)")
         self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 (총 1000개 목표):")
         self.get_logger().info("   📦 4개 시나리오 × 250개 샘플 × 18프레임 고정 (RoboVLMs 기준: window=8 + pred_next=10)")
@@ -451,6 +459,12 @@ class MobileVLADataCollector(Node):
         elif key == 't':
             # 측정 태스크 표 보기
             self.show_measurement_task_table()
+        elif key == 's':
+            # 설정 모드
+            if self.collecting:
+                self.get_logger().warn("⚠️ 수집 중에는 설정을 변경할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
+            else:
+                self.show_settings_menu()
         elif key.isdigit():
             # 반복 횟수 입력 모드를 최우선으로 처리 (다른 숫자 입력보다 먼저)
             if self.repeat_count_mode:
@@ -2067,6 +2081,36 @@ class MobileVLADataCollector(Node):
                 json.dump(self.core_patterns, f, indent=2, ensure_ascii=False)
         except Exception as e:
             self.get_logger().warn(f"⚠️ 핵심 패턴 저장 실패: {e}")
+    
+    def load_settings(self):
+        """설정 파일 로드"""
+        try:
+            settings_file_abs = Path(self.settings_file).resolve()
+            if settings_file_abs.exists():
+                with open(settings_file_abs, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.guide_mode = data.get('guide_mode', 'dataset')
+                self.get_logger().info(f"⚙️ 설정 로드 완료: 가이드 모드 = {self.guide_mode}")
+            else:
+                self.guide_mode = 'dataset'  # 기본값
+                self.get_logger().info("⚙️ 기본 설정 사용: 가이드 모드 = dataset")
+        except Exception as e:
+            self.get_logger().warn(f"⚠️ 설정 로드 실패: {e}. 기본값 사용.")
+            self.guide_mode = 'dataset'
+    
+    def save_settings(self):
+        """설정 파일 저장"""
+        try:
+            settings_file_abs = Path(self.settings_file).resolve()
+            settings_file_abs.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                "guide_mode": self.guide_mode,
+                "last_updated": datetime.now().isoformat()
+            }
+            with open(settings_file_abs, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            self.get_logger().warn(f"⚠️ 설정 저장 실패: {e}")
             
     def save_scenario_progress(self):
         """시나리오 진행상황 저장"""
@@ -2386,9 +2430,10 @@ class MobileVLADataCollector(Node):
         
         # 핵심 패턴 가이드 표시
         core_pattern = self.get_core_pattern_guide(self.selected_scenario)
+        mode_info = "📊 데이터셋 모드" if self.guide_mode == "dataset" else "⚙️ 수동 모드"
         
         self.get_logger().info("📍 C키: 핵심 패턴 (Core) - 6개 수집 목표")
-        self.get_logger().info(f"   🎮 가이드: {core_pattern}")
+        self.get_logger().info(f"   🎮 가이드: {core_pattern} [{mode_info}]")
         self.get_logger().info("   💡 위 순서를 참고하여 정확히 따라하세요!")
         self.get_logger().info("")
         
@@ -2461,7 +2506,8 @@ class MobileVLADataCollector(Node):
                 self.selected_distance_level
             )
             guide_str = " ".join([k.upper() for k in guide_keys])
-            self.get_logger().info(f"🎮 현재 가이드: {guide_str}")
+            mode_info = "📊 데이터셋 모드" if self.guide_mode == "dataset" else "⚙️ 수동 모드"
+            self.get_logger().info(f"🎮 현재 가이드: {guide_str} [{mode_info}]")
             self.get_logger().info("")
             self.get_logger().info("✨ 가이드 편집: H 키를 눌러 가이드를 수정하거나 새로 입력하세요")
             self.get_logger().info("   (가이드를 수정하면 해당 조합에 대해 저장됩니다)")
@@ -2594,36 +2640,48 @@ class MobileVLADataCollector(Node):
         return "__".join(parts)
 
     def get_core_pattern_guide(self, scenario_id: str, pattern_type: str | None = None, distance_level: str | None = None) -> str:
-        """핵심 패턴 가이드 반환 (시나리오/패턴/거리 조합별로 분기, 없으면 시나리오 기본값 → 디폴트)"""
-        # 1) 조합 키 우선
-        if pattern_type and distance_level:
-            combo = self._combined_key(scenario_id, pattern_type, distance_level)
-            if combo in self.core_patterns and self.core_patterns[combo]:
-                keys = self._normalize_to_18_keys(self.core_patterns[combo])
+        """핵심 패턴 가이드 반환 (가이드 모드에 따라 다른 가이드 반환)"""
+        # 가이드 모드에 따라 다른 가이드 반환
+        if self.guide_mode == "dataset":
+            # 데이터셋 모드: 데이터셋 최다 패턴 기반 기본 가이드 사용
+            default_guides = {
+                "1box_left": "W W W A Q Q Q Q Q Q Q Q W W W W Q",
+                "1box_right": "W W W D E E E E E E W W W W Q Q Q", 
+                "2box_left": "W W → A A A → W W → D D D",
+                "2box_right": "W → D D D → W W W → A A A"
+            }
+            # 기존 형식 호환 (vert/hori 포함)
+            old_format_guides = {
+                "1box_vert_left": "W W W → A A → W W → D D",
+                "1box_vert_right": "W W → D D → W W W → A A", 
+                "1box_hori_left": "W → A A A → W W → D D D",
+                "1box_hori_right": "W W → D → W W → A",
+                "2box_vert_left": "W W → A A A → W W → D D D",
+                "2box_vert_right": "W → D D D → W W W → A A A",
+                "2box_hori_left": "W → A A A A → W W → D D D D",
+                "2box_hori_right": "W W → D D → W W → A A"
+            }
+            return default_guides.get(scenario_id) or old_format_guides.get(scenario_id, "W → A/D → W → ...")
+        else:
+            # 수동 모드: core_patterns.json에서 로드한 가이드 사용
+            # 1) 조합 키 우선
+            if pattern_type and distance_level:
+                combo = self._combined_key(scenario_id, pattern_type, distance_level)
+                if combo in self.core_patterns and self.core_patterns[combo]:
+                    keys = self._normalize_to_18_keys(self.core_patterns[combo])
+                    return " ".join([k.upper() for k in keys])
+            # 2) 시나리오 단독 키 (과거 호환)
+            if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
+                keys = self._normalize_to_18_keys(self.core_patterns[scenario_id])
                 return " ".join([k.upper() for k in keys])
-        # 2) 시나리오 단독 키 (과거 호환)
-        if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
-            keys = self._normalize_to_18_keys(self.core_patterns[scenario_id])
-            return " ".join([k.upper() for k in keys])
-        # 3) 초기 기본 가이드(없을 때만 사용) - 실제 데이터셋 최다 패턴 기반
-        default_guides = {
-            "1box_left": "W W W A Q Q Q Q Q Q Q Q W W W W Q",
-            "1box_right": "W W W D E E E E E E W W W W Q Q Q", 
-            "2box_left": "W W → A A A → W W → D D D",
-            "2box_right": "W → D D D → W W W → A A A"
-        }
-        # 기존 형식 호환 (vert/hori 포함)
-        old_format_guides = {
-            "1box_vert_left": "W W W → A A → W W → D D",
-            "1box_vert_right": "W W → D D → W W W → A A", 
-            "1box_hori_left": "W → A A A → W W → D D D",
-            "1box_hori_right": "W W → D → W W → A",
-            "2box_vert_left": "W W → A A A → W W → D D D",
-            "2box_vert_right": "W → D D D → W W W → A A A",
-            "2box_hori_left": "W → A A A A → W W → D D D D",
-            "2box_hori_right": "W W → D D → W W → A A"
-        }
-        return default_guides.get(scenario_id) or old_format_guides.get(scenario_id, "W → A/D → W → ...")
+            # 3) 기본 가이드 (없을 때만 사용)
+            default_guides = {
+                "1box_left": "W W W A Q Q Q Q Q Q Q Q W W W W Q",
+                "1box_right": "W W W D E E E E E E W W W W Q Q Q", 
+                "2box_left": "W W → A A A → W W → D D D",
+                "2box_right": "W → D D D → W W W → A A A"
+            }
+            return default_guides.get(scenario_id, "W → A/D → W → ...")
         
     def start_episode_with_pattern(self, scenario_id: str, pattern_type: str):
         """패턴 타입을 지정하여 에피소드 시작 (거리 선택 전)"""
@@ -2643,7 +2701,8 @@ class MobileVLADataCollector(Node):
         if pattern_type == "core":
             # 핵심 패턴인 경우 가이드 다시 표시
             guide = self.get_core_pattern_guide(scenario_id, pattern_type="core", distance_level=None)
-            self.get_logger().info(f"🎮 가이드 순서: {guide}")
+            mode_info = "📊 데이터셋 모드" if self.guide_mode == "dataset" else "⚙️ 수동 모드"
+            self.get_logger().info(f"🎮 가이드 순서: {guide} [{mode_info}]")
             self.get_logger().info("💡 위 순서를 정확히 따라해주세요!")
             # 핵심 패턴 가이드/녹화 플래그 (거리 미선택 플로우에서도 활성화)
             self.core_guidance_active = True
@@ -2695,8 +2754,9 @@ class MobileVLADataCollector(Node):
         
         if pattern_type == "core":
             guide = self.get_core_pattern_guide(scenario_id, pattern_type="core", distance_level=distance_level)
+            mode_info = "📊 데이터셋 모드" if self.guide_mode == "dataset" else "⚙️ 수동 모드"
             # 거리별로 W 길이 참고 안내
-            self.get_logger().info(f"🎮 가이드 순서: {guide}")
+            self.get_logger().info(f"🎮 가이드 순서: {guide} [{mode_info}]")
             self.get_logger().info("💡 위치별 조정: 가까움/W 줄임, 멀음/W 늘림")
             # 핵심 패턴 가이드/녹화 플래그
             self.core_guidance_active = True
@@ -3235,7 +3295,8 @@ class MobileVLADataCollector(Node):
             self.get_logger().info(f"   시나리오: {scenario_id}")
             self.get_logger().info(f"   패턴: {pattern_type}")
             self.get_logger().info(f"   거리: {distance_level}")
-            self.get_logger().info(f"   가이드: {' '.join([k.upper() for k in guide_keys])}")
+            mode_info = "📊 데이터셋 모드" if self.guide_mode == "dataset" else "⚙️ 수동 모드"
+            self.get_logger().info(f"   가이드: {' '.join([k.upper() for k in guide_keys])} [{mode_info}]")
             self.get_logger().info(f"   총 액션 수: {len(guide_keys)}개 (초기 프레임 1개 + 액션 {len(guide_keys)}개 = 총 {len(guide_keys)+1}프레임)")
             self.get_logger().info(f"   예상 소요 시간: {len(guide_keys) * (0.4 + 0.3):.1f}초 (액션 0.4초 + 안정화 0.3초)")
             self.get_logger().info("   🛑 중단하려면 'A' 키를 다시 누르세요.")
@@ -3326,23 +3387,86 @@ class MobileVLADataCollector(Node):
             # (반복 측정이 모두 완료되었을 때만 check_and_continue_repeat_measurement에서 False로 설정)
     
     def get_core_pattern_guide_keys(self, scenario_id: str, pattern_type: str, distance_level: str) -> List[str]:
-        """핵심 패턴 가이드 키 리스트 반환"""
-        # 1) 조합 키 우선
-        if pattern_type and distance_level:
-            combo = self._combined_key(scenario_id, pattern_type, distance_level)
-            if combo in self.core_patterns and self.core_patterns[combo]:
-                return self._normalize_to_18_keys(self.core_patterns[combo])
-        # 2) 시나리오 단독 키 (과거 호환)
-        if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
-            return self._normalize_to_18_keys(self.core_patterns[scenario_id])
-        # 3) 기본 가이드 (없을 때만 사용)
-        default_guides = {
-            "1box_left": ["w", "w", "w", "a", "a", "w", "w", "d", "d"],
-            "1box_right": ["w", "w", "d", "d", "w", "w", "w", "a", "a"],
-            "2box_left": ["w", "w", "a", "a", "a", "w", "w", "d", "d", "d"],
-            "2box_right": ["w", "d", "d", "d", "w", "w", "w", "a", "a", "a"]
-        }
-        return default_guides.get(scenario_id, [])
+        """핵심 패턴 가이드 키 리스트 반환 (가이드 모드에 따라 다른 가이드 반환)"""
+        if self.guide_mode == "dataset":
+            # 데이터셋 모드: 데이터셋 최다 패턴 기반 기본 가이드 사용
+            default_guides = {
+                "1box_left": ["w", "w", "w", "a", "q", "q", "q", "q", "q", "q", "q", "q", "w", "w", "w", "w", "q"],
+                "1box_right": ["w", "w", "w", "d", "e", "e", "e", "e", "e", "e", "w", "w", "w", "w", "q", "q", "q"],
+                "2box_left": ["w", "w", "a", "a", "a", "w", "w", "d", "d", "d"],
+                "2box_right": ["w", "d", "d", "d", "w", "w", "w", "a", "a", "a"]
+            }
+            return default_guides.get(scenario_id, [])
+        else:
+            # 수동 모드: core_patterns.json에서 로드한 가이드 사용
+            # 1) 조합 키 우선
+            if pattern_type and distance_level:
+                combo = self._combined_key(scenario_id, pattern_type, distance_level)
+                if combo in self.core_patterns and self.core_patterns[combo]:
+                    return self._normalize_to_18_keys(self.core_patterns[combo])
+            # 2) 시나리오 단독 키 (과거 호환)
+            if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
+                return self._normalize_to_18_keys(self.core_patterns[scenario_id])
+            # 3) 기본 가이드 (없을 때만 사용)
+            default_guides = {
+                "1box_left": ["w", "w", "w", "a", "q", "q", "q", "q", "q", "q", "q", "q", "w", "w", "w", "w", "q"],
+                "1box_right": ["w", "w", "w", "d", "e", "e", "e", "e", "e", "e", "w", "w", "w", "w", "q", "q", "q"],
+                "2box_left": ["w", "w", "a", "a", "a", "w", "w", "d", "d", "d"],
+                "2box_right": ["w", "d", "d", "d", "w", "w", "w", "a", "a", "a"]
+            }
+            return default_guides.get(scenario_id, [])
+    
+    def show_settings_menu(self):
+        """설정 메뉴 표시"""
+        self.get_logger().info("")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("⚙️ 설정 메뉴")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("")
+        
+        # 현재 가이드 모드 표시
+        current_mode_display = "📊 데이터셋 모드" if self.guide_mode == "dataset" else "⚙️ 수동 모드"
+        self.get_logger().info(f"현재 가이드 모드: {current_mode_display}")
+        self.get_logger().info("")
+        
+        # 가이드 모드 설명
+        self.get_logger().info("📋 가이드 모드 선택:")
+        self.get_logger().info("")
+        self.get_logger().info("1️⃣ 데이터셋 모드 (D 키)")
+        self.get_logger().info("   📊 현재 데이터셋에서 가장 많이 사용된 패턴을 자동으로 가이드로 사용")
+        self.get_logger().info("   💡 update_guides_from_dataset.py를 실행하여 최신 패턴으로 업데이트 가능")
+        self.get_logger().info("   ✨ 데이터셋이 변경되면 자동으로 최신 패턴 반영")
+        self.get_logger().info("")
+        self.get_logger().info("2️⃣ 수동 모드 (M 키)")
+        self.get_logger().info("   ⚙️ core_patterns.json 파일에 저장된 가이드를 사용")
+        self.get_logger().info("   💡 H 키로 가이드를 편집하여 저장 가능")
+        self.get_logger().info("   ✨ 수동으로 설정한 가이드를 유지")
+        self.get_logger().info("")
+        self.get_logger().info("🚫 취소: 다른 키")
+        self.get_logger().info("=" * 80)
+        self.get_logger().info("")
+        
+        # 키 입력 대기
+        key = self.get_key()
+        
+        if key.lower() == 'd':
+            # 데이터셋 모드로 변경
+            if self.guide_mode != "dataset":
+                self.guide_mode = "dataset"
+                self.save_settings()
+                self.get_logger().info("✅ 가이드 모드를 '데이터셋 모드'로 변경했습니다.")
+            else:
+                self.get_logger().info("ℹ️ 이미 데이터셋 모드입니다.")
+        elif key.lower() == 'm':
+            # 수동 모드로 변경
+            if self.guide_mode != "manual":
+                self.guide_mode = "manual"
+                self.save_settings()
+                self.get_logger().info("✅ 가이드 모드를 '수동 모드'로 변경했습니다.")
+            else:
+                self.get_logger().info("ℹ️ 이미 수동 모드입니다.")
+        else:
+            self.get_logger().info("🚫 취소되었습니다.")
 
 
 def main(args=None):
