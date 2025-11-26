@@ -635,11 +635,40 @@ class MobileVLADataCollector(Node):
                 
                 if self.save_edited_guide():
                     # 가이드 저장 성공
+                    # 가이드 편집 후 자동 테스트 실행 여부 확인 (저장 전 상태 확인)
+                    was_from_selection = self.guide_edit_selection_mode
+                    has_selection = (self.selected_scenario and 
+                                   self.selected_pattern_type == "core" and 
+                                   self.selected_distance_level)
+                    
                     self.guide_edit_mode = False
                     self.guide_edit_keys = []
                     self.guide_edit_selection_mode = False
+                    
+                    # 가이드 편집 후 자동 테스트 실행 (H 키로 시작하고 선택이 완료된 경우)
+                    if was_from_selection and has_selection:
+                        # 가이드 편집 후 자동으로 가이드 테스트 실행
+                        self.get_logger().info("")
+                        self.get_logger().info("🧪 가이드 저장 완료! 자동으로 가이드 테스트를 시작합니다...")
+                        self.get_logger().info("")
+                        
+                        # 자동 측정 설정 (가이드 테스트용: 1회만 실행, 반복 측정 모드 활성화)
+                        self.auto_measurement_mode = True
+                        self.auto_measurement_active = False  # 스레드 시작 전에는 False
+                        self.is_repeat_measurement_active = True
+                        self.current_repeat_index = 0
+                        self.target_repeat_count = 1  # 테스트용 1회만 실행
+                        self.waiting_for_next_repeat = False
+                        
+                        # 자동 측정을 별도 스레드에서 실행
+                        self.auto_measurement_thread = threading.Thread(
+                            target=self.execute_auto_measurement,
+                            args=(self.selected_scenario, self.selected_pattern_type, self.selected_distance_level)
+                        )
+                        self.auto_measurement_thread.daemon = True
+                        self.auto_measurement_thread.start()
                     # 반복 횟수 입력 모드로 돌아가기 (반복 횟수 입력 모드였던 경우)
-                    if self.repeat_count_mode or (self.selected_scenario and self.selected_pattern_type and self.selected_distance_level):
+                    elif self.repeat_count_mode or (self.selected_scenario and self.selected_pattern_type and self.selected_distance_level):
                         self.show_repeat_count_selection()
                     else:
                         # H 키로 시작한 경우: 완료 메시지만 표시
@@ -1238,11 +1267,16 @@ class MobileVLADataCollector(Node):
             current_key = self._infer_key_from_action(action)
             
             # 불일치 감지 (Core일 때만, 로그 없이 통계만 업데이트)
-            if planned_seq and len(self.current_episode_keys) < self.fixed_episode_length:
-                next_key = planned_seq[len(self.current_episode_keys)]
-                if planned_seq and next_key and pattern_for_guide == 'core':
-                    if current_key != next_key:
-                        self.core_mismatch_count += 1
+            # 인덱스 범위 체크: planned_seq의 길이와 current_episode_keys의 길이를 모두 확인
+            # 가이드가 17개 액션이면 인덱스는 0-16까지만 유효하므로, len(current_episode_keys) < len(planned_seq) 조건으로 체크
+            if planned_seq and len(self.current_episode_keys) < len(planned_seq) and len(self.current_episode_keys) < self.fixed_episode_length:
+                key_index = len(self.current_episode_keys)
+                # 추가 안전 체크: 인덱스가 범위 내에 있는지 확인
+                if key_index >= 0 and key_index < len(planned_seq):
+                    next_key = planned_seq[key_index]
+                    if next_key and pattern_for_guide == 'core':
+                        if current_key != next_key:
+                            self.core_mismatch_count += 1
         
         # 핵심 패턴 가이드가 활성화되어 있으면 다음 키 표시 (마지막 키까지 포함)
         if self.core_guidance_active and current_count < total_target:
@@ -2630,6 +2664,14 @@ class MobileVLADataCollector(Node):
             self.waiting_for_next_repeat = False
             # 🔴 자동 측정 모드도 종료
             self.auto_measurement_mode = False
+            self.auto_measurement_active = False
+            # 가이드 편집 후 자동 테스트인 경우 선택 상태 초기화
+            if self.selected_scenario and self.selected_pattern_type == "core" and self.selected_distance_level:
+                self.get_logger().info("")
+                self.get_logger().info("✅ 가이드 테스트 완료!")
+                self.selected_scenario = None
+                self.selected_pattern_type = None
+                self.selected_distance_level = None
         
     def _combined_key(self, scenario_id: str, pattern_type: str | None, distance_level: str | None) -> str:
         parts = [scenario_id]
@@ -3374,14 +3416,35 @@ class MobileVLADataCollector(Node):
                 
                 # 반복 측정 확인
                 if self.is_repeat_measurement_active:
+                    # check_and_continue_repeat_measurement에서 가이드 편집 후 자동 테스트 완료 시 상태 초기화 처리
                     self.check_and_continue_repeat_measurement()
+                else:
+                    # 반복 측정이 아닌 경우 (가이드 편집 후 자동 테스트 등) 즉시 상태 초기화
+                    self.auto_measurement_active = False
+                    self.auto_measurement_mode = False
+                    # 가이드 편집 후 자동 테스트인 경우 선택 상태 초기화
+                    if self.selected_scenario and self.selected_pattern_type == "core" and self.selected_distance_level:
+                        self.get_logger().info("")
+                        self.get_logger().info("✅ 가이드 테스트 완료!")
+                        self.selected_scenario = None
+                        self.selected_pattern_type = None
+                        self.selected_distance_level = None
             
         except Exception as e:
             self.get_logger().error(f"❌ 자동 측정 중 오류 발생: {e}")
+            # 오류 발생 시에도 상태 초기화
+            self.auto_measurement_active = False
+            self.auto_measurement_mode = False
+            if self.selected_scenario and self.selected_pattern_type == "core" and self.selected_distance_level:
+                self.selected_scenario = None
+                self.selected_pattern_type = None
+                self.selected_distance_level = None
         finally:
             # 🔴 auto_measurement_active만 False로 설정 (스레드 완료 표시)
             # auto_measurement_mode는 모든 반복 측정이 완료될 때까지 유지
-            self.auto_measurement_active = False
+            # (반복 측정이 아닌 경우는 위에서 이미 False로 설정됨)
+            if self.auto_measurement_active:
+                self.auto_measurement_active = False
             self.auto_measurement_thread = None
             # 🔴 auto_measurement_mode는 여기서 False로 설정하지 않음
             # (반복 측정이 모두 완료되었을 때만 check_and_continue_repeat_measurement에서 False로 설정)
@@ -3482,13 +3545,30 @@ def main(args=None):
         collector = MobileVLADataCollector()
         rclpy.spin(collector)
     except KeyboardInterrupt:
-        pass
+        print("\n⚠️ Ctrl+C 감지: 프로그램을 종료합니다...")
+        # 상태 정리
+        if collector:
+            try:
+                # 자동 측정 중이면 중지
+                collector.auto_measurement_active = False
+                collector.auto_measurement_mode = False
+                collector.is_repeat_measurement_active = False
+                collector.waiting_for_next_repeat = False
+                # 에피소드 종료
+                collector.stop_episode()
+            except Exception as e:
+                print(f"⚠️ 상태 정리 중 경고: {e}")
     except Exception as e:
         print(f"❌ 실행 중 오류 발생: {e}")
     finally:
         # 정리 작업
         try:
             if collector:
+                # 상태 정리
+                collector.auto_measurement_active = False
+                collector.auto_measurement_mode = False
+                collector.is_repeat_measurement_active = False
+                collector.waiting_for_next_repeat = False
                 collector.stop_episode()
                 collector.destroy_node()
         except Exception as e:
