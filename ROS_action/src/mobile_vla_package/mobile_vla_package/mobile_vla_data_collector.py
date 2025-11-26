@@ -1124,6 +1124,10 @@ class MobileVLADataCollector(Node):
         twist.linear.y = float(action["linear_y"])
         twist.angular.z = float(action["angular_z"])
         
+        # 🔍 액션 값 검증 (A 키 등 특정 키에 대해)
+        if "auto_measurement" in source and "key_a" in source:
+            self.get_logger().warn(f"🔍 [A키 디버깅] source={source}, action={action}, twist=lx={twist.linear.x:.2f}, ly={twist.linear.y:.2f}, az={twist.angular.z:.2f}")
+        
         # ROS 발행
         ros_publish_success = False
         ros_publish_time = None
@@ -1146,8 +1150,17 @@ class MobileVLADataCollector(Node):
             try:
                 hw_start_time = time.time()
                 if any(abs(v) > 0.1 for v in action.values()):
+                    # 🔍 A 키 디버깅: 하드웨어 제어 경로 확인
+                    if "auto_measurement" in source and "key_a" in source:
+                        self.get_logger().warn(f"🔍 [A키 하드웨어] angular_z={action['angular_z']:.2f}, linear_x={action['linear_x']:.2f}, linear_y={action['linear_y']:.2f}")
+                        self.get_logger().warn(f"🔍 [A키 하드웨어] abs(angular_z) > 0.1? {abs(action['angular_z']) > 0.1}")
+                        self.get_logger().warn(f"🔍 [A키 하드웨어] abs(linear_x) > 0.1 or abs(linear_y) > 0.1? {abs(action['linear_x']) > 0.1 or abs(action['linear_y']) > 0.1}")
+                    
                     if abs(action["angular_z"]) > 0.1:
                         spin_speed = int(action["angular_z"] * self.throttle)
+                        # 🔍 A 키가 회전으로 처리되는 경우 경고
+                        if "auto_measurement" in source and "key_a" in source:
+                            self.get_logger().error(f"❌ [A키 오류] 회전으로 처리됨! spin_speed={spin_speed}, action={action}")
                         self.driver.spin(spin_speed)
                         hardware_success = True
                         hw_time = (time.time() - hw_start_time) * 1000
@@ -1157,6 +1170,9 @@ class MobileVLADataCollector(Node):
                         angle = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
                         if angle < 0:
                             angle += 360
+                        # 🔍 A 키 디버깅: 이동 각도 확인
+                        if "auto_measurement" in source and "key_a" in source:
+                            self.get_logger().info(f"🔍 [A키 하드웨어] 이동으로 처리됨: angle={int(angle)}도, linear_y={action['linear_y']:.2f}")
                         self.driver.move(int(angle), self.throttle)
                         hardware_success = True
                         hw_time = (time.time() - hw_start_time) * 1000
@@ -3362,9 +3378,20 @@ class MobileVLADataCollector(Node):
                     break
                 
                 # 키를 액션으로 변환하여 실행
-                if key.lower() in self.WASD_TO_CONTINUOUS:
-                    action = self.WASD_TO_CONTINUOUS[key.lower()]
-                    self.get_logger().info(f"🔄 자동 측정 진행: {idx+1}/{len(guide_keys)} (키: {key.upper()})")
+                # 키 정규화: 소문자로 변환하고 공백 제거
+                normalized_key = key.strip().lower()
+                
+                if normalized_key in self.WASD_TO_CONTINUOUS:
+                    # 딕셔너리에서 액션 가져오기 (참조가 아닌 복사본 사용)
+                    action_template = self.WASD_TO_CONTINUOUS[normalized_key]
+                    action = {
+                        "linear_x": float(action_template["linear_x"]),
+                        "linear_y": float(action_template["linear_y"]),
+                        "angular_z": float(action_template["angular_z"])
+                    }
+                    
+                    # 디버깅: 키와 액션 매핑 확인
+                    self.get_logger().info(f"🔄 자동 측정 진행: {idx+1}/{len(guide_keys)} (키: '{key}' → 정규화: '{normalized_key}' → 액션: lx={action['linear_x']:.2f}, ly={action['linear_y']:.2f}, az={action['angular_z']:.2f})")
                     
                     # 🔴 N 키와 동일한 메커니즘: 기존 타이머 취소 및 강제 정지
                     timer_was_active = False
@@ -3387,9 +3414,9 @@ class MobileVLADataCollector(Node):
                         self.movement_timer = threading.Timer(timer_duration, self.stop_movement_timed)
                         self.movement_timer.start()
                     
-                    # 액션 실행
+                    # 액션 실행 (복사본 사용)
                     self.current_action = action.copy()
-                    self.publish_cmd_vel(action, source=f"auto_measurement_{idx+1}")
+                    self.publish_cmd_vel(action, source=f"auto_measurement_{idx+1}_key_{normalized_key}")
                     
                     # 각 액션마다 데이터 수집
                     if self.collecting:
