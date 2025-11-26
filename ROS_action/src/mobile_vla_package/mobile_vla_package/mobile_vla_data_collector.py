@@ -1167,13 +1167,23 @@ class MobileVLADataCollector(Node):
                         if should_log_verbose:
                             self.get_logger().info(f"   ✅ Hardware: spin({spin_speed}) (소요시간: {hw_time:.2f}ms)")
                     elif abs(action["linear_x"]) > 0.1 or abs(action["linear_y"]) > 0.1:
-                        angle = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
-                        if angle < 0:
-                            angle += 360
+                        # ROS 좌표계에서 각도 계산: arctan2(y, x)
+                        # ROS: x=전진, y=왼쪽, z=위
+                        # arctan2(y, x): y가 양수면 90도 (왼쪽)
+                        angle_ros = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
+                        if angle_ros < 0:
+                            angle_ros += 360
+                        
+                        # 🔴 로봇 하드웨어 좌표계 변환
+                        # 로봇 하드웨어가 90도=오른쪽, 270도=왼쪽을 사용하는 경우
+                        # ROS 좌표계 90도(왼쪽) → 하드웨어 좌표계 270도(왼쪽)로 변환
+                        # 변환 공식: hw_angle = (360 - ros_angle) % 360
+                        angle_hw = (360 - angle_ros) % 360
+                        
                         # 🔍 A 키 디버깅: 이동 각도 확인
                         if "auto_measurement" in source and "key_a" in source:
-                            self.get_logger().info(f"🔍 [A키 하드웨어] 이동으로 처리됨: angle={int(angle)}도, linear_y={action['linear_y']:.2f}")
-                        self.driver.move(int(angle), self.throttle)
+                            self.get_logger().info(f"🔍 [A키 하드웨어] ROS 각도={int(angle_ros)}도 → 하드웨어 각도={int(angle_hw)}도, linear_y={action['linear_y']:.2f}")
+                        self.driver.move(int(angle_hw), self.throttle)
                         hardware_success = True
                         hw_time = (time.time() - hw_start_time) * 1000
                         if should_log_verbose:
