@@ -127,6 +127,8 @@ class MobileVLADataCollector(Node):
         self.distance_selection_mode = False
         self.repeat_count_mode = False  # 반복 횟수 입력 모드
         self.repeat_count_input = ""  # 입력 중인 숫자 문자열
+        self.h5_verification_mode = False  # H5 파일 검증 메뉴 모드
+        self.h5_file_selection_input = ""  # H5 파일 번호 입력 중인 숫자 문자열
         self.guide_edit_mode = False  # 가이드 편집 모드
         self.guide_edit_keys = []  # 편집 중인 가이드 키 시퀀스
         self.guide_edit_selection_mode = False  # 가이드 편집을 위한 선택 모드 (H 키로 시작)
@@ -479,8 +481,12 @@ class MobileVLADataCollector(Node):
                 else:
                     self.get_logger().info("ℹ️ 이미 수동 모드입니다.")
         elif key.isdigit():
+            # H5 검증 모드일 때는 메인 루프에서 처리하지 않음 (show_h5_verification_menu 내부에서 처리)
+            if self.h5_verification_mode:
+                # H5 검증 메뉴 내부 루프에서 처리되므로 여기서는 무시
+                return
             # 반복 횟수 입력 모드를 최우선으로 처리 (다른 숫자 입력보다 먼저)
-            if self.repeat_count_mode:
+            elif self.repeat_count_mode:
                 # 숫자 입력 (최대 3자리)
                 if len(self.repeat_count_input) < 3:
                     self.repeat_count_input += key
@@ -1629,6 +1635,11 @@ class MobileVLADataCollector(Node):
             sys.stdout.flush()
             self.repeat_count_mode = False
             self.repeat_count_input = ""
+        
+        # H5 검증 모드 중이면 취소
+        if self.h5_verification_mode:
+            self.h5_verification_mode = False
+            self.h5_file_selection_input = ""
         
         # 가이드 편집 모드 중이면 취소
         if self.guide_edit_mode:
@@ -2874,26 +2885,59 @@ class MobileVLADataCollector(Node):
         
         self.get_logger().info("")
         self.get_logger().info("✨ 최신 파일 검증: Enter 키")
-        self.get_logger().info(f"✨ 파일 번호 선택: 1-{total_files} 숫자 키")
+        self.get_logger().info(f"✨ 파일 번호 선택: 1-{total_files} 숫자 입력 후 Enter")
         self.get_logger().info("🚫 취소: 다른 키")
         
-        # 키 입력 대기
-        key = self.get_key()
+        # H5 검증 모드 활성화
+        self.h5_verification_mode = True
+        self.h5_file_selection_input = ""
         
-        if key == '\r' or key == '\n':
-            # 최신 파일 검증
-            target_file = h5_files[0]
-            self.verify_and_extract_h5_file(target_file)
-        elif key.isdigit():
-            # 선택한 파일 검증
-            file_index = int(key) - 1
-            if 0 <= file_index < len(h5_files):
-                target_file = h5_files[file_index]
-                self.verify_and_extract_h5_file(target_file)
+        # 숫자 입력 루프
+        while self.h5_verification_mode:
+            key = self.get_key()
+            
+            if key == '\r' or key == '\n':
+                # Enter 키: 입력 완료 또는 최신 파일 검증
+                if self.h5_file_selection_input:
+                    # 숫자 입력이 있으면 해당 파일 검증
+                    try:
+                        file_index = int(self.h5_file_selection_input) - 1
+                        if 0 <= file_index < len(h5_files):
+                            target_file = h5_files[file_index]
+                            self.h5_verification_mode = False
+                            self.h5_file_selection_input = ""
+                            self.verify_and_extract_h5_file(target_file)
+                            return
+                        else:
+                            self.get_logger().info(f"🚫 잘못된 번호입니다. 1-{total_files} 범위의 숫자를 입력하세요.")
+                            self.h5_file_selection_input = ""
+                    except ValueError:
+                        self.get_logger().info(f"🚫 잘못된 입력입니다. 숫자를 입력하세요.")
+                        self.h5_file_selection_input = ""
+                else:
+                    # 숫자 입력이 없으면 최신 파일 검증
+                    target_file = h5_files[0]
+                    self.h5_verification_mode = False
+                    self.verify_and_extract_h5_file(target_file)
+                    return
+            elif key.isdigit():
+                # 숫자 입력 누적
+                self.h5_file_selection_input += key
+                self.get_logger().info(f"📝 입력 중: {self.h5_file_selection_input} (Enter로 확인)")
+            elif key == '\x7f' or key == '\b':  # Backspace
+                # 백스페이스: 마지막 숫자 제거
+                if self.h5_file_selection_input:
+                    self.h5_file_selection_input = self.h5_file_selection_input[:-1]
+                    if self.h5_file_selection_input:
+                        self.get_logger().info(f"📝 입력 중: {self.h5_file_selection_input} (Enter로 확인)")
+                    else:
+                        self.get_logger().info("📝 입력 취소됨")
             else:
-                self.get_logger().info(f"🚫 잘못된 번호입니다. 1-{total_files} 범위의 숫자를 입력하세요.")
-        else:
-            self.get_logger().info("🚫 취소되었습니다.")
+                # 다른 키: 취소
+                self.get_logger().info("🚫 취소되었습니다.")
+                self.h5_verification_mode = False
+                self.h5_file_selection_input = ""
+                return
     
     def verify_and_extract_h5_file(self, file_path: Path):
         """H5 파일 검증 및 추출 옵션 제공"""
