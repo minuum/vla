@@ -2866,14 +2866,15 @@ class MobileVLADataCollector(Node):
             self.get_logger().info("❌ H5 파일이 없습니다.")
             return
         
-        self.get_logger().info(f"📁 최근 수집된 파일 (최대 10개):")
-        for i, h5_file in enumerate(h5_files[:10], 1):
+        total_files = len(h5_files)
+        self.get_logger().info(f"📁 전체 데이터셋 파일 (총 {total_files}개):")
+        for i, h5_file in enumerate(h5_files, 1):
             file_size_mb = h5_file.stat().st_size / (1024*1024)
             self.get_logger().info(f"   {i}. {h5_file.name} ({file_size_mb:.2f} MB)")
         
         self.get_logger().info("")
         self.get_logger().info("✨ 최신 파일 검증: Enter 키")
-        self.get_logger().info("✨ 파일 번호 선택: 1-10 숫자 키")
+        self.get_logger().info(f"✨ 파일 번호 선택: 1-{total_files} 숫자 키")
         self.get_logger().info("🚫 취소: 다른 키")
         
         # 키 입력 대기
@@ -2883,11 +2884,14 @@ class MobileVLADataCollector(Node):
             # 최신 파일 검증
             target_file = h5_files[0]
             self.verify_and_extract_h5_file(target_file)
-        elif key.isdigit() and 1 <= int(key) <= min(10, len(h5_files)):
+        elif key.isdigit():
             # 선택한 파일 검증
             file_index = int(key) - 1
-            target_file = h5_files[file_index]
-            self.verify_and_extract_h5_file(target_file)
+            if 0 <= file_index < len(h5_files):
+                target_file = h5_files[file_index]
+                self.verify_and_extract_h5_file(target_file)
+            else:
+                self.get_logger().info(f"🚫 잘못된 번호입니다. 1-{total_files} 범위의 숫자를 입력하세요.")
         else:
             self.get_logger().info("🚫 취소되었습니다.")
     
