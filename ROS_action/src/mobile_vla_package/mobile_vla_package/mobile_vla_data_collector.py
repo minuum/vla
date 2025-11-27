@@ -2726,8 +2726,9 @@ class MobileVLADataCollector(Node):
         # 가이드 모드에 따라 다른 가이드 반환
         if self.guide_mode == "dataset":
             # 데이터셋 모드: 데이터셋 최다 패턴 기반 기본 가이드 사용
+            # 현재 데이터셋 분석 결과: 84/85개가 W W W A Q Q Q Q Q Q Q Q W W W W W 패턴 사용
             default_guides = {
-                "1box_left": "W W W A Q Q Q Q Q Q Q Q W W W W Q",
+                "1box_left": "W W W A Q Q Q Q Q Q Q Q W W W W W",
                 "1box_right": "W W W D E E E E E E W W W W Q Q Q", 
                 "2box_left": "W W → A A A → W W → D D D",
                 "2box_right": "W → D D D → W W W → A A A"
@@ -2757,8 +2758,9 @@ class MobileVLADataCollector(Node):
                 keys = self._normalize_to_18_keys(self.core_patterns[scenario_id])
                 return " ".join([k.upper() for k in keys])
             # 3) 기본 가이드 (없을 때만 사용)
+            # 현재 데이터셋 분석 결과: 84/85개가 W W W A Q Q Q Q Q Q Q Q W W W W W 패턴 사용
             default_guides = {
-                "1box_left": "W W W A Q Q Q Q Q Q Q Q W W W W Q",
+                "1box_left": "W W W A Q Q Q Q Q Q Q Q W W W W W",
                 "1box_right": "W W W D E E E E E E W W W W Q Q Q", 
                 "2box_left": "W W → A A A → W W → D D D",
                 "2box_right": "W → D D D → W W W → A A A"
