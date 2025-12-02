@@ -664,8 +664,8 @@ class MobileVLADataCollector(Node):
                     self.guide_edit_keys = []
                     self.guide_edit_selection_mode = False
                     
-                    # 가이드 편집 후 자동 테스트 실행 (H 키로 시작하고 선택이 완료된 경우)
-                    if was_from_selection and has_selection:
+                    # 가이드 편집 후 자동 테스트 실행 (선택된 시나리오/패턴/거리가 있으면 항상 실행)
+                    if has_selection:
                         # 가이드 편집 후 자동으로 가이드 테스트 실행
                         self.get_logger().info("")
                         self.get_logger().info("🧪 가이드 저장 완료! 자동으로 가이드 테스트를 시작합니다...")
@@ -686,11 +686,9 @@ class MobileVLADataCollector(Node):
                         )
                         self.auto_measurement_thread.daemon = True
                         self.auto_measurement_thread.start()
-                    # 반복 횟수 입력 모드로 돌아가기 (반복 횟수 입력 모드였던 경우)
-                    elif self.repeat_count_mode or (self.selected_scenario and self.selected_pattern_type and self.selected_distance_level):
-                        self.show_repeat_count_selection()
+                    # 선택 정보가 없는 경우 (매우 드문 케이스, 보통 H키 진입 시 선택함)
                     else:
-                        # H 키로 시작한 경우: 완료 메시지만 표시
+                        # 완료 메시지만 표시
                         self.get_logger().info("")
                         self.get_logger().info("✅ 가이드 편집이 완료되었습니다.")
                         # 선택 상태 초기화
@@ -2663,6 +2661,12 @@ class MobileVLADataCollector(Node):
         # 가이드 저장
         self.core_patterns[combo_key] = normalized_keys
         self.save_core_patterns()
+        
+        # 데이터셋 모드인 경우 자동으로 수동 모드로 전환
+        if self.guide_mode == "dataset":
+            self.guide_mode = "manual"
+            self.save_settings()
+            self.get_logger().info("🔄 가이드가 수정되어 '수동 모드'로 자동 전환되었습니다.")
         
         guide_str = " ".join([k.upper() for k in normalized_keys])
         self.get_logger().info(f"✅ 가이드 저장 완료: {guide_str}")
