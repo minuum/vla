@@ -1,137 +1,136 @@
-#!/usr/bin/env python3
-"""
-시나리오별, 거리별, 패턴별 궤적 패턴 분포 분석
-"""
 import h5py
 from pathlib import Path
-from collections import defaultdict, Counter
-import numpy as np
+from collections import Counter
 
-def infer_key_from_action(action):
-    lx, ly, az = action['linear_x'], action['linear_y'], action['angular_z']
-    if abs(az) > 0.1:
-        return 'R' if az > 0 else 'T'
-    if abs(lx) < 0.1 and abs(ly) < 0.1:
-        return 'SPACE'
-    if lx > 0.1 and abs(ly) <= 0.1:
+def get_action_char_flexible(x, y, z):
+    """Convert action values to key character with flexible threshold"""
+    zero_th = 0.3
+    pos_low = 0.5
+    pos_high = 1.5
+    neg_low = -1.5
+    neg_high = -0.5
+    
+    if abs(x) < zero_th and abs(y) < zero_th and abs(z) < zero_th:
+        return 'STOP'
+    if pos_low <= x <= pos_high and abs(y) < zero_th and abs(z) < zero_th:
         return 'W'
-    if lx < -0.1 and abs(ly) <= 0.1:
-        return 'S'
-    if ly > 0.1 and abs(lx) <= 0.1:
+    if abs(x) < zero_th and pos_low <= y <= pos_high and abs(z) < zero_th:
         return 'A'
-    if ly < -0.1 and abs(lx) <= 0.1:
+    if neg_low <= x <= neg_high and abs(y) < zero_th and abs(z) < zero_th:
+        return 'S'
+    if abs(x) < zero_th and neg_low <= y <= neg_high and abs(z) < zero_th:
         return 'D'
-    if lx > 0.1 and ly > 0.1:
+    if pos_low <= x <= pos_high and pos_low <= y <= pos_high and abs(z) < zero_th:
         return 'Q'
-    if lx > 0.1 and ly < -0.1:
+    if pos_low <= x <= pos_high and neg_low <= y <= neg_high and abs(z) < zero_th:
         return 'E'
-    if lx < -0.1 and ly > 0.1:
+    if neg_low <= x <= neg_high and pos_low <= y <= pos_high and abs(z) < zero_th:
         return 'Z'
-    if lx < -0.1 and ly < -0.1:
+    if neg_low <= x <= neg_high and neg_low <= y <= neg_high and abs(z) < zero_th:
         return 'C'
-    return 'UNK'
+    
+    return f'?({x:.2f},{y:.2f},{z:.2f})'
 
-def extract_trajectory(h5_file):
+
+def extract_pattern(h5_path):
+    """Extract action pattern from H5 file"""
     try:
-        with h5py.File(h5_file, 'r') as f:
+        with h5py.File(h5_path, 'r') as f:
+            if 'actions' not in f:
+                return None
+            
             actions = f['actions'][:]
-            action_event_types = f['action_event_types'][:]
-            if isinstance(action_event_types[0], bytes):
-                action_event_types = [e.decode('utf-8') for e in action_event_types]
-            trajectory = []
-            for idx, ev in enumerate(action_event_types):
-                if ev == 'start_action':
-                    action = {
-                        'linear_x': float(actions[idx][0]),
-                        'linear_y': float(actions[idx][1]),
-                        'angular_z': float(actions[idx][2])
-                    }
-                    key = infer_key_from_action(action)
-                    trajectory.append(key)
-            return ' '.join(trajectory)
+            if len(actions) != 18:
+                return None
+            
+            # Convert frames 1-17 to sequence
+            sequence = []
+            for i in range(1, 18):
+                x, y, z = actions[i][0], actions[i][1], actions[i][2]
+                char = get_action_char_flexible(x, y, z)
+                sequence.append(char)
+            
+            return ' '.join(sequence)
+            
     except Exception as e:
-        print(f"❌ {h5_file.name} 분석 실패: {e}")
         return None
 
-# 모든 h5 파일 분석
-dataset_dir = Path('/home/soda/vla/ROS_action/mobile_vla_dataset')
-h5_files = list(dataset_dir.glob('*.h5'))
 
-# 시나리오별, 거리별, 패턴별로 그룹화
-scenario_pattern_stats = defaultdict(lambda: defaultdict(int))
+def main():
+    dataset_dir = Path("/home/soda/vla/ROS_action/mobile_vla_dataset")
+    
+    # Get all H5 files
+    h5_files = sorted(list(dataset_dir.glob("*.h5")))
+    
+    print("=" * 80)
+    print("데이터셋 패턴 분포 분석")
+    print("=" * 80)
+    print(f"총 파일 수: {len(h5_files)}\n")
+    
+    # Extract patterns
+    patterns = []
+    failed = 0
+    
+    for h5_path in h5_files:
+        pattern = extract_pattern(h5_path)
+        if pattern:
+            patterns.append(pattern)
+        else:
+            failed += 1
+    
+    # Count pattern distribution
+    pattern_counts = Counter(patterns)
+    
+    print(f"분석 완료:")
+    print(f"  - 성공: {len(patterns)}개")
+    print(f"  - 실패: {failed}개")
+    print(f"\n패턴 종류: {len(pattern_counts)}개\n")
+    
+    print("=" * 80)
+    print("패턴 분포")
+    print("=" * 80)
+    
+    # Sort by count (descending)
+    sorted_patterns = sorted(pattern_counts.items(), key=lambda x: x[1], reverse=True)
+    
+    for i, (pattern, count) in enumerate(sorted_patterns, 1):
+        percentage = count / len(patterns) * 100
+        print(f"\n패턴 #{i}: {count}개 ({percentage:.1f}%)")
+        print(f"  {pattern}")
+    
+    print("\n" + "=" * 80)
+    print("요약")
+    print("=" * 80)
+    
+    if len(pattern_counts) == 1:
+        print("✅ 모든 파일이 동일한 패턴을 가지고 있습니다!")
+        print(f"   패턴: {list(pattern_counts.keys())[0]}")
+    else:
+        print(f"⚠️  {len(pattern_counts)}개의 서로 다른 패턴이 발견되었습니다.")
+        print(f"\n가장 많은 패턴: {sorted_patterns[0][0]}")
+        print(f"  - 개수: {sorted_patterns[0][1]}개 ({sorted_patterns[0][1]/len(patterns)*100:.1f}%)")
+        
+        if len(sorted_patterns) > 1:
+            print(f"\n두 번째로 많은 패턴: {sorted_patterns[1][0]}")
+            print(f"  - 개수: {sorted_patterns[1][1]}개 ({sorted_patterns[1][1]/len(patterns)*100:.1f}%)")
+    
+    print("=" * 80)
+    
+    # Save detailed report
+    report_path = dataset_dir / "pattern_distribution_report.txt"
+    with open(report_path, 'w', encoding='utf-8') as f:
+        f.write("Pattern Distribution Report\n")
+        f.write("=" * 80 + "\n\n")
+        f.write(f"Total files analyzed: {len(patterns)}\n")
+        f.write(f"Unique patterns: {len(pattern_counts)}\n\n")
+        
+        for i, (pattern, count) in enumerate(sorted_patterns, 1):
+            percentage = count / len(patterns) * 100
+            f.write(f"Pattern #{i}: {count} files ({percentage:.1f}%)\n")
+            f.write(f"  {pattern}\n\n")
+    
+    print(f"\n💾 상세 리포트 저장: {report_path.name}")
 
-for h5_file in h5_files:
-    name = h5_file.stem
-    # episode_20251119_080007_1box_hori_right_core_medium 형식
-    parts = name.split('_')
-    
-    # 시나리오 추출 (1box_left, 1box_right 등)
-    scenario = None
-    distance = None
-    pattern = None
-    
-    for i, part in enumerate(parts):
-        if part in ['1box', '2box']:
-            if i + 2 < len(parts):
-                direction = parts[i + 2]
-                if direction in ['left', 'right']:
-                    scenario = f"{part}_{direction}"
-                    break
-    
-    # 거리 추출 (close, medium, far)
-    for part in parts:
-        if part in ['close', 'medium', 'far']:
-            distance = part
-            break
-    
-    # 패턴 추출 (core, variant)
-    for part in parts:
-        if part in ['core', 'variant']:
-            pattern = part
-            break
-    
-    if scenario and distance and pattern:
-        trajectory = extract_trajectory(h5_file)
-        if trajectory:
-            key = f"{scenario}__{pattern}__{distance}"
-            scenario_pattern_stats[key][trajectory] += 1
 
-print("=" * 80)
-print("📊 시나리오 × 패턴 × 거리별 궤적 패턴 분석")
-print("=" * 80)
-
-for key in sorted(scenario_pattern_stats.keys()):
-    print(f"\n🎯 {key}:")
-    traj_dict = scenario_pattern_stats[key]
-    sorted_trajs = sorted(traj_dict.items(), key=lambda x: x[1], reverse=True)
-    
-    total = sum(traj_dict.values())
-    for trajectory, count in sorted_trajs:
-        percentage = (count / total) * 100
-        print(f"  • {count}개 ({percentage:.1f}%): {trajectory}")
-        if count == total:
-            print(f"    ✅ 모든 에피소드가 동일한 패턴!")
-
-print("\n" + "=" * 80)
-print("📋 요약: 각 조합별 가장 많은 패턴")
-print("=" * 80)
-
-# 각 조합별로 가장 많은 패턴 확인
-for key in sorted(scenario_pattern_stats.keys()):
-    traj_dict = scenario_pattern_stats[key]
-    if not traj_dict:
-        continue
-    
-    sorted_trajs = sorted(traj_dict.items(), key=lambda x: x[1], reverse=True)
-    most_common = sorted_trajs[0]
-    total = sum(traj_dict.values())
-    
-    print(f"\n{key}:")
-    print(f"  총 {total}개")
-    print(f"  가장 많은 패턴: {most_common[1]}개")
-    print(f"    궤적: {most_common[0]}")
-    if len(sorted_trajs) > 1:
-        print(f"  다른 패턴: {len(sorted_trajs) - 1}개")
-        for traj, count in sorted_trajs[1:]:
-            print(f"    - {count}개: {traj}")
-
+if __name__ == "__main__":
+    main()
