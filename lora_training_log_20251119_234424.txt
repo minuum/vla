@@ -1,0 +1,28 @@
+=========================================
+Mobile VLA LoRA Fine-tuning
+Date: 2025-11-14
+=========================================
+
+📄 Config: ../Mobile_VLA/configs/mobile_vla_20251114_lora.json
+🔧 Device: CUDA
+📦 Model: Kosmos-2 with LoRA
+
+🔍 CUDA 확인...
+  (학습 시작 시 자동 확인)
+
+📊 데이터셋 확인...
+  - Found 237 episodes matching pattern 'episode_2025111*.h5'
+  ✅ Episodes found
+
+🚀 LoRA Fine-tuning 시작...
+   - Using RoboVLMs main.py
+   - Dataset: MobileVLAH5Dataset
+   - LoRA: r=32, alpha=16, dropout=0.1
+   - Epochs: 10
+
+Path /home/billy/25-1kp/vla/RoboVLMs_upstream/wheels/torch-2.3.0-cp310-cp310-linux_aarch64.whl for torch does not exist
+Path /home/billy/25-1kp/vla/RoboVLMs_upstream/wheels/torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl for torchvision does not exist
+Path /home/billy/25-1kp/vla/RoboVLMs_upstream/wheels/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl for torchaudio does not exist
+Error: Cannot import lightning module. Please ensure it is installed.
+Python path: ['/home/billy/25-1kp/vla/RoboVLMs_upstream', '/usr/lib/python310.zip', '/usr/lib/python3.10', '/usr/lib/python3.10/lib-dynload', '/home/billy/.cache/pypoetry/virtualenvs/robovlms-ASlHafON-py3.10/lib/python3.10/site-packages']
+Python executable: /home/billy/.cache/pypoetry/virtualenvs/robovlms-ASlHafON-py3.10/bin/python

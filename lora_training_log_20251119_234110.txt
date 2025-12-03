@@ -1,0 +1,16 @@
+=========================================
+Mobile VLA LoRA Fine-tuning
+Date: 2025-11-14
+=========================================
+
+📄 Config: ../Mobile_VLA/configs/mobile_vla_20251114_lora.json
+🔧 Device: CUDA
+📦 Model: Kosmos-2 with LoRA
+
+🔍 CUDA 확인...
+Path /home/billy/25-1kp/vla/RoboVLMs_upstream/wheels/torch-2.3.0-cp310-cp310-linux_aarch64.whl for torch does not exist
+Path /home/billy/25-1kp/vla/RoboVLMs_upstream/wheels/torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl for torchvision does not exist
+Path /home/billy/25-1kp/vla/RoboVLMs_upstream/wheels/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl for torchaudio does not exist
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'torch'
