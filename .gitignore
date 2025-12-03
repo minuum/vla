@@ -130,3 +130,4 @@ ROS_action/filter_*.py
 ROS_action/find_*.py
 ROS_action/inspect_*.py
 ROS_action/restore_*.py
+*.tar.gz
