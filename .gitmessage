@@ -1,0 +1,10 @@
+# <type>(<scope>): <subject>
+#
+# - <주요 변경 사항 1>
+#   - <상세 내용 및 수치>
+# - <주요 변경 사항 2>
+#   - <상세 내용 및 수치>
+#
+# <추가 설명: 진행률, 통계, 이슈 번호 등>
+#
+# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
