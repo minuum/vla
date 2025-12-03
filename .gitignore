@@ -117,3 +117,16 @@ mobile-vla-omniwheel/
 *.whl
 *.pth
 config/weights/
+
+# Legacy Dataset Directory
+# 목표 패턴과 일치하지 않는 구버전 데이터셋 보관용
+# 504개의 이전 패턴 파일들이 저장되어 있음
+# Git 저장소 크기 관리를 위해 제외
+ROS_action/mobile_vla_dataset_legacy/
+
+# Dataset Analysis Scripts (temporary)
+ROS_action/analyze_*.py
+ROS_action/filter_*.py
+ROS_action/find_*.py
+ROS_action/inspect_*.py
+ROS_action/restore_*.py
