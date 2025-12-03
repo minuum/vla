@@ -72,22 +72,14 @@ class BaseRoboVLM(nn.Module):
         self.kwargs = kwargs
         self.configs = configs
         self.model_name = configs["model"]
-        # 모델 설정 로드: 로컬 경로가 없으면 HF Hub에서 직접 로드
-        vlm_path = self.configs["vlm"]["pretrained_model_name_or_path"]
-        local_config_path = os.path.join(vlm_path, "config.json")
-        try:
-            if os.path.exists(local_config_path):
-                self.model_config = json.load(open(local_config_path, "r"))
-            else:
-                from transformers import AutoConfig
-                self.model_config = AutoConfig.from_pretrained(
-                    vlm_path, trust_remote_code=True
-                ).to_dict()
-        except Exception:
-            from transformers import AutoConfig
-            self.model_config = AutoConfig.from_pretrained(
-                vlm_path, trust_remote_code=True
-            ).to_dict()
+        self.model_config = json.load(
+            open(
+                os.path.join(
+                    self.configs["vlm"]["pretrained_model_name_or_path"], "config.json"
+                ),
+                "r",
+            )
+        )
 
         self.train_setup_configs = train_setup_configs
         self.act_encoder_configs = act_encoder_configs
@@ -98,15 +90,6 @@ class BaseRoboVLM(nn.Module):
         self.tokenizer, self.backbone = self._init_backbone()
         # import pdb;pdb.set_trace()
         self.tokenizer = update_tokenizer(self.tokenizer, self.configs["tokenizer"])
-        # Try to prepare a processor for models (e.g., Kosmos) that need pixel_values
-        if not hasattr(self, "processor") or self.processor is None:
-            try:
-                from transformers import AutoProcessor
-                self.processor = AutoProcessor.from_pretrained(
-                    self.configs["vlm"]["pretrained_model_name_or_path"], trust_remote_code=True
-                )
-            except Exception:
-                self.processor = None
         if self.train_setup_configs.get("reinit", False):
             initialize_param(self.backbone)
         self.act_head, self.fwd_head, self.clip_norm_head = self._init_heads()
@@ -183,6 +166,14 @@ class BaseRoboVLM(nn.Module):
         return state_embeddings
 
     def model_encode_images(self, images):
+        if hasattr(self.model, "vision_model"):
+             vision_outputs = self.model.vision_model(pixel_values=images)
+             image_embeds = self.model.image_to_text_projection(vision_outputs.last_hidden_state)
+             # Debug print and fix
+             if isinstance(image_embeds, tuple):
+                 print(f"DEBUG: model_encode_images returning Tuple! len={len(image_embeds)}")
+                 image_embeds = image_embeds[0]
+             return image_embeds
         raise NotImplementedError
 
     def encode_images(self, images, image_sizes=None):
@@ -272,23 +263,35 @@ class BaseRoboVLM(nn.Module):
 
     @property
     def hidden_size(self):
-        raise NotImplementedError
+        if hasattr(self.model.config, "hidden_size"):
+            return self.model.config.hidden_size
+        elif hasattr(self.model.config, "embed_dim"):
+            return self.model.config.embed_dim
+        return 2048
 
     @property
     def word_embedding(self):
+        if hasattr(self.model, "text_model"):
+            return self.model.text_model.model.embed_tokens
+        if hasattr(self.model, "get_input_embeddings"):
+            return self.model.get_input_embeddings()
         raise NotImplementedError
 
     @property
     def vision_tower(self):
-        raise NotImplementedError
+        if hasattr(self.model, "vision_model"):
+            return self.model.vision_model
+        return None
 
     @property
     def text_tower(self):
-        raise NotImplementedError
+        if hasattr(self.model, "text_model"):
+            return self.model.text_model
+        return None
 
     @property
     def model(self):
-        raise NotImplementedError
+        return self.backbone
 
     @property
     def start_image_token_id(self):
@@ -510,7 +513,7 @@ class BaseRoboVLM(nn.Module):
             self.word_embedding.register_forward_hook(make_inputs_require_grad)
 
         if self.train_setup_configs["lora_enable"]:
-            from llava.train.train import find_all_linear_names
+            from robovlms.utils.lora_utils import find_all_linear_names
             from peft import LoraConfig, get_peft_model
 
             lora_config = LoraConfig(
@@ -522,6 +525,15 @@ class BaseRoboVLM(nn.Module):
                 task_type="CAUSAL_LM",
             )
             print("Adding LoRA adapters...")
+            # For Kosmos2, add prepare_inputs_for_generation if it doesn't exist
+            # This is needed for PEFT compatibility
+            if not hasattr(model, 'prepare_inputs_for_generation'):
+                # Add a dummy method if the model doesn't have it
+                def prepare_inputs_for_generation(self, input_ids, **kwargs):
+                    return {"input_ids": input_ids, **kwargs}
+                import types
+                model.prepare_inputs_for_generation = types.MethodType(prepare_inputs_for_generation, model)
+            
             self.model = get_peft_model(model, lora_config)
         # import pdb; pdb.set_trace()
         if self.train_setup_configs.get("train_text_embedding", False):
@@ -566,7 +578,7 @@ class BaseRoboVLM(nn.Module):
         _keys = list(loss.keys())
 
         for k in _keys:
-            if "loss" in k:
+            if "loss" in k and loss[k] is not None:
                 _loss += loss[k]
 
         loss["loss"] = _loss
@@ -1143,62 +1155,176 @@ class BaseRoboVLM(nn.Module):
             # Some backbones (e.g., Kosmos-2) require pixel_values or image_embeds.
             # Fall back to passing pixel_values directly for Kosmos
             if "pixel_values" in str(e) or "image_embeds" in str(e):
+                # Ensure batch_size is defined (it corresponds to the flattened batch*seq_len dimension)
+                batch_size = lang_x.shape[0]
+                
                 # vision_x is shaped as (bs*seq, 1, C, H, W) for history_type in [pre, post]
                 # Use pixel_values pathway for Kosmos
                 if vision_x.ndim == 5 and vision_x.shape[1] == 1:
-                    pixel_values = vision_x.squeeze(1)
+                    pixel_values = vision_x.squeeze(1)  # (bs*seq, C, H, W)
                 else:
                     pixel_values = vision_x
                 
-                # For Kosmos, use pixel_values only (not both pixel_values and image_embeds)
-                if hasattr(self, 'configs') and self.configs.get('model') == 'kosmos':
-                    # Kosmos는 pixel_values 또는 image_embeds 중 하나만 사용
-                    # pixel_values를 사용하면 내부에서 자동으로 image_embeds를 생성
+                # For Kosmos, we need to create image_embeds_position_mask with proper shape
+                # Get number of image tokens from model config (typically 64 for Kosmos-2)
+                num_image_tokens = getattr(self.model.config, 'latent_query_num', 64)
+                
+                # Store original lang_x length for later use (to trim output_hs)
+                original_lang_x_len = lang_x.shape[1] if lang_x.sum() != 0 else 3
+                
+                # Pre-encode images to get image_embeds with proper dtype control
+                # This avoids dtype mismatch issues in forward_embedding
+                if hasattr(self, 'model_encode_images'):
+                    # Use model_encode_images to get image_embeds directly
+                    image_embeds = self.model_encode_images(pixel_values)  # (bs*seq, num_tokens, hidden_size)
+                    # Ensure image_embeds matches the expected dtype (float32 to avoid Half/Float mismatch)
+                    # Get the dtype from the model's text embedding layer
+                    expected_dtype = next(self.model.text_model.model.embed_tokens.parameters()).dtype
+                    if image_embeds.dtype != expected_dtype:
+                        image_embeds = image_embeds.to(expected_dtype)
+                    # Detach and clone, and set requires_grad=False explicitly to avoid in-place operation error
+                    # The model will use image_embeds to fill inputs_embeds, and detaching prevents
+                    # issues when the model tries to modify inputs_embeds in-place
+                    # detach() creates a leaf variable, and requires_grad_(False) ensures it can be modified in-place
+                    image_embeds = image_embeds.detach().clone().requires_grad_(False)
+                else:
+                    # Fallback: ensure pixel_values is in float32
+                    if pixel_values.dtype != torch.float32:
+                        pixel_values = pixel_values.to(torch.float32)
+                    image_embeds = None
+                
+                if lang_x.sum() == 0:  # All zeros (dummy)
+                    batch_size = lang_x.shape[0]
+                    # Create input_ids with enough length to accommodate image tokens
+                    # Pad to at least num_image_tokens length
+                    dummy_input_ids = torch.ones((batch_size, max(3, num_image_tokens)), dtype=torch.long, device=lang_x.device)
+                    dummy_input_ids[:, 0] = 0  # BOS token
+                    if dummy_input_ids.shape[1] > 1:
+                        dummy_input_ids[:, 1] = 1  # Word token
+                    if dummy_input_ids.shape[1] > 2:
+                        dummy_input_ids[:, 2] = 2  # EOS token
+                    # Fill remaining positions with padding token (0)
+                    if dummy_input_ids.shape[1] > 3:
+                        dummy_input_ids[:, 3:] = 0
+                    simple_attention_mask = torch.ones((batch_size, dummy_input_ids.shape[1]), dtype=torch.bool, device=lang_x.device)
+                    padded_length = dummy_input_ids.shape[1]
+                else:
+                    dummy_input_ids = lang_x
+                    simple_attention_mask = attention_mask
+                    # Pad if needed to accommodate image tokens
+                    batch_size, token_seq_len = dummy_input_ids.shape
+                    padded_length = token_seq_len
+                    if token_seq_len < num_image_tokens:
+                        pad_length = num_image_tokens - token_seq_len
+                        dummy_input_ids = torch.cat([
+                            dummy_input_ids,
+                            torch.zeros((batch_size, pad_length), dtype=torch.long, device=dummy_input_ids.device)
+                        ], dim=1)
+                        simple_attention_mask = torch.cat([
+                            simple_attention_mask,
+                            torch.zeros((batch_size, pad_length), dtype=torch.bool, device=simple_attention_mask.device)
+                        ], dim=1)
+                        padded_length = dummy_input_ids.shape[1]
+                
+                # Create image_embeds_position_mask: first num_image_tokens positions should be True
+                batch_size, token_seq_len = dummy_input_ids.shape
+                image_embeds_position_mask = torch.zeros((batch_size, token_seq_len), dtype=torch.bool, device=pixel_values.device)
+                image_embeds_position_mask[:, :num_image_tokens] = True  # First num_image_tokens positions for image embeddings
+                
+                # Always use pixel_values to avoid in-place operation errors
+                # Strategy: Manually create inputs_embeds and clone it to make it a non-leaf variable.
+                # This allows the Kosmos model to perform in-place operations (assigning image embeddings)
+                # without raising the "leaf Variable that requires grad" error.
+                
+                # 1. Ensure pixel_values is float32
+                if pixel_values.dtype != torch.float32:
+                    pixel_values = pixel_values.to(torch.float32)
+                
+                # 2. Create inputs_embeds manually from input_ids
+                # We need to access the text model's embedding layer
+                text_model = self.model.text_model
+                inputs_embeds = text_model.model.embed_tokens(dummy_input_ids)
+                
+                # 3. Clone inputs_embeds to make it a non-leaf variable (computed variable)
+                inputs_embeds = inputs_embeds.clone()
+                
+                # Initialize action_token_mask for Kosmos
+                batch_size, token_seq_len = inputs_embeds.shape[:2]
+                action_token_mask = torch.zeros((batch_size, token_seq_len), dtype=torch.bool, device=inputs_embeds.device)
+
+                # Add Action Token if needed
+                if self.use_act_queries:
+                    # Action query token 추가
+                    # (bs, 1, hidden_size)
+                    action_query = self.action_token.view(1, 1, -1).expand(batch_size, 1, -1)
                     
-                    # 적절한 input_ids 생성 (빈 텍스트가 아닌 실제 텍스트)
-                    if lang_x.sum() == 0:  # 모든 값이 0인 경우 (더미)
-                        # Kosmos의 기본 토큰들로 최소한의 입력 생성
-                        dummy_input_ids = torch.ones((lang_x.shape[0], 3), dtype=torch.long, device=lang_x.device)
-                        dummy_input_ids[:, 0] = 0  # BOS token (일반적으로 0)
-                        dummy_input_ids[:, 1] = 1  # 단어 토큰
-                        dummy_input_ids[:, 2] = 2  # EOS token (일반적으로 2)
-                        
-                        # 단순한 어텐션 마스크
-                        simple_attention_mask = torch.ones((lang_x.shape[0], 3), dtype=torch.bool, device=lang_x.device)
-                    else:
-                        dummy_input_ids = lang_x
-                        simple_attention_mask = attention_mask
+                    # Ensure dtype matches
+                    if action_query.dtype != inputs_embeds.dtype:
+                        action_query = action_query.to(inputs_embeds.dtype)
+
+                    inputs_embeds = torch.cat([inputs_embeds, action_query], dim=1)
                     
-                    # image_embeds_position_mask 생성 (Kosmos에서 필요할 수 있음)
-                    # pixel_values의 배치 크기를 기반으로 생성
-                    batch_size = pixel_values.shape[0]
-                    # 기본적으로 이미지 임베딩은 텍스트 시작 부분에 위치
-                    image_embeds_position_mask = torch.zeros((batch_size, 3), dtype=torch.bool, device=pixel_values.device)
-                    image_embeds_position_mask[:, 0] = True  # 첫 번째 위치에 이미지 임베딩
+                    # Attention mask 확장
+                    if simple_attention_mask is not None:
+                        simple_attention_mask = torch.cat([
+                            simple_attention_mask,
+                            torch.ones((batch_size, 1), dtype=torch.bool, device=simple_attention_mask.device)
+                        ], dim=1)
                     
+                    # image_embeds_position_mask 확장 (액션 토큰 위치는 이미지가 아님)
+                    if image_embeds_position_mask is not None:
+                        image_embeds_position_mask = torch.cat([
+                            image_embeds_position_mask,
+                            torch.zeros((batch_size, 1), dtype=torch.bool, device=image_embeds_position_mask.device)
+                        ], dim=1)
+
+                    # Action token mask 확장 및 설정
+                    action_token_mask = torch.cat([
+                        action_token_mask,
+                        torch.zeros((batch_size, 1), dtype=torch.bool, device=action_token_mask.device)
+                    ], dim=1)
+                    action_token_mask[:, -1] = True
+                    
+                    # Update padded_length
+                    padded_length += 1
+                
+                # 4. Detach pixel_values to be safe (though model will encode it)
+                pixel_values = pixel_values.detach().clone().requires_grad_(False)
+
+                # Disable AMP for this call to avoid dtype mismatch (Float vs Half)
+                import torch.cuda.amp as amp
+                with amp.autocast(enabled=False):
                     output = self.model(
-                        pixel_values=pixel_values,  # pixel_values만 사용
-                        input_ids=dummy_input_ids,
+                        pixel_values=pixel_values,
+                        input_ids=None, # inputs_embeds is passed, so input_ids is ignored for embedding lookup
+                        inputs_embeds=inputs_embeds, # Passing our safe, non-leaf inputs_embeds
                         attention_mask=simple_attention_mask,
                         image_embeds_position_mask=image_embeds_position_mask,
-                        use_cache=use_cache,
-                        output_hidden_states=True,
-                    )
-                else:
-                    # For other models, call with input_ids and pixel_values
-                    output = self.model(
-                        input_ids=lang_x,
-                        attention_mask=attention_mask,
                         position_ids=position_ids,
                         past_key_values=past_key_values,
-                        pixel_values=pixel_values,
                         use_cache=use_cache,
                         output_hidden_states=True,
                     )
+                
+                # Store padded_length for later use in trimming output_hs
+                self._kosmos_padded_length = padded_length
+                self._kosmos_original_length = original_lang_x_len
+                
             else:
-                raise
+                raise e
 
         output_hs = output.hidden_states[-1].clone()
+        
+        # For Kosmos: adjust action_token_mask to account for image tokens at the beginning
+        # Image tokens are inserted at positions 0:num_image_tokens, so action_token_mask needs offset
+        kosmos_image_offset = 0
+        if hasattr(self, '_kosmos_padded_length') and hasattr(self, '_kosmos_original_length'):
+            num_image_tokens = getattr(self.model.config, 'latent_query_num', 64)
+            kosmos_image_offset = num_image_tokens
+            # Clean up temporary attributes
+            delattr(self, '_kosmos_padded_length')
+            delattr(self, '_kosmos_original_length')
+        
         if history_type == "pre":
             multimodal_embeds = rearrange(
                 multimodal_embeds, "b (l n) d -> (b l) n d", l=seq_len
@@ -1210,9 +1336,94 @@ class BaseRoboVLM(nn.Module):
 
         if action_space == "continuous":
             # tmp_mask = torch.all(multimodal_embeds == self.action_token, dim=-1)
-            action_hs = output_hs[action_token_mask].reshape(
-                bs, seq_len, self.latent_num, -1
-            )
+            # For Kosmos: action_token_mask was created for text positions, but image tokens are at the beginning
+            # So we need to shift the mask by num_image_tokens positions
+            if kosmos_image_offset > 0 and action_token_mask.shape[1] <= output_hs.shape[1] - kosmos_image_offset:
+                # Shift action_token_mask to account for image tokens
+                # Pad with False at the beginning for image token positions
+                shifted_mask = torch.cat([
+                    torch.zeros((action_token_mask.shape[0], kosmos_image_offset), dtype=torch.bool, device=action_token_mask.device),
+                    action_token_mask
+                ], dim=1)
+                # Ensure the mask matches output_hs length
+                if shifted_mask.shape[1] < output_hs.shape[1]:
+                    # Pad with False at the end
+                    pad_length = output_hs.shape[1] - shifted_mask.shape[1]
+                    shifted_mask = torch.cat([
+                        shifted_mask,
+                        torch.zeros((shifted_mask.shape[0], pad_length), dtype=torch.bool, device=shifted_mask.device)
+                    ], dim=1)
+                elif shifted_mask.shape[1] > output_hs.shape[1]:
+                    # Trim to match output_hs
+                    shifted_mask = shifted_mask[:, :output_hs.shape[1]]
+                action_token_mask = shifted_mask
+            else:
+                # Ensure action_token_mask matches output_hs shape (non-Kosmos case or fallback)
+                if action_token_mask.shape[1] != output_hs.shape[1]:
+                    if action_token_mask.shape[1] > output_hs.shape[1]:
+                        action_token_mask = action_token_mask[:, :output_hs.shape[1]]
+                    else:
+                        # Pad with False
+                        pad_length = output_hs.shape[1] - action_token_mask.shape[1]
+                        action_token_mask = torch.cat([
+                            action_token_mask,
+                            torch.zeros((action_token_mask.shape[0], pad_length), dtype=torch.bool, device=action_token_mask.device)
+                        ], dim=1)
+            
+            # action_token_mask가 output_hs와 호환되는지 확인
+            if action_token_mask.shape[1] != output_hs.shape[1]:
+                # output_hs shape에 맞게 action_token_mask 조정
+                if action_token_mask.shape[1] > output_hs.shape[1]:
+                    action_token_mask = action_token_mask[:, :output_hs.shape[1]]
+                else:
+                    # Pad with False
+                    pad_length = output_hs.shape[1] - action_token_mask.shape[1]
+                    action_token_mask = torch.cat([
+                        action_token_mask,
+                        torch.zeros((action_token_mask.shape[0], pad_length), dtype=torch.bool, device=action_token_mask.device)
+                    ], dim=1)
+            
+            # action_token_mask에서 True인 위치 확인
+            if action_token_mask.sum() == 0:
+                # action_token_mask가 모두 False인 경우 - output_hs의 마지막 부분 사용
+                # output_hs shape: (bs*seq_len, seq_length, hidden_size)
+                # 마지막 latent_num 개의 토큰 사용
+                seq_length = output_hs.shape[1]  # 이미지 토큰 수 (64)
+                hidden_size = output_hs.shape[2]  # hidden_size (2048)
+                # output_hs.shape[0]에서 실제 seq_len 계산
+                actual_bs_seq_len = output_hs.shape[0]
+                # bs와 seq_len이 올바른지 확인
+                if actual_bs_seq_len != bs * seq_len:
+                    # output_hs.shape[0]에서 seq_len 역산
+                    inferred_seq_len = actual_bs_seq_len // bs if bs > 0 else actual_bs_seq_len
+                    print(f"WARNING: action_token_mask is all False. output_hs shape: {output_hs.shape}, bs={bs}, seq_len={seq_len} (inferred={inferred_seq_len}), seq_length={seq_length}, Using last {self.latent_num} tokens from output_hs.")
+                    seq_len = inferred_seq_len
+                else:
+                    print(f"WARNING: action_token_mask is all False. output_hs shape: {output_hs.shape}, bs={bs}, seq_len={seq_len}, seq_length={seq_length}, Using last {self.latent_num} tokens from output_hs.")
+                # output_hs를 (bs, seq_len, seq_length, hidden_size)로 reshape
+                # output_hs.shape[0] = bs*seq_len, output_hs.shape[1] = seq_length (이미지 토큰 수)
+                if output_hs.shape[0] == bs * seq_len:
+                    # output_hs: (bs*seq_len, seq_length, hidden_size) -> (bs, seq_len, seq_length, hidden_size)
+                    output_hs_reshaped = output_hs.view(bs, seq_len, seq_length, hidden_size)
+                    # 마지막 latent_num 개의 토큰 사용: (bs, seq_len, latent_num, hidden_size)
+                    action_hs = output_hs_reshaped[:, :, -self.latent_num:, :]
+                    print(f"DEBUG: action_hs shape after reshape: {action_hs.shape}, expected: (bs={bs}, seq_len={seq_len}, latent_num={self.latent_num}, hidden_size={hidden_size})")
+                else:
+                    # fallback: output_hs의 마지막 latent_num 개의 토큰 사용
+                    action_hs = output_hs[:, -self.latent_num:].view(
+                        bs, seq_len, self.latent_num, hidden_size
+                    )
+            else:
+                # Debug
+                masked_hs = output_hs[action_token_mask]
+                print(f"DEBUG: output_hs shape: {output_hs.shape}")
+                print(f"DEBUG: action_token_mask sum: {action_token_mask.sum()}")
+                print(f"DEBUG: masked_hs shape: {masked_hs.shape}")
+                
+                action_hs = masked_hs.reshape(
+                    bs, seq_len, self.latent_num, -1
+                )
+                print(f"DEBUG: action_hs final shape: {action_hs.shape}")
 
         elif action_space == "down_sample":
             action_hs = output_hs

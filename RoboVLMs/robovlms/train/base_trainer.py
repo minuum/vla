@@ -268,7 +268,18 @@ class BaseTrainer(pl.LightningModule):
 
     def _get_loss(self, prediction):
         # print(prediction)
-        loss_arm_act = prediction.get("loss_arm_act", None)
+        # Mobile VLA는 loss_velocity_act 사용
+        loss_velocity_act = prediction.get("loss_velocity_act", None)
+        loss_arm_act = prediction.get("loss_arm_act", None)  # 기존 코드 호환성
+        
+        # loss_velocity_act가 있으면 우선 사용, 없으면 loss_arm_act 사용
+        loss_arm_act = loss_velocity_act if loss_velocity_act is not None else loss_arm_act
+        
+        rmse_velocity_act = None
+        if loss_velocity_act is not None:
+             # MSE loss assumed
+             rmse_velocity_act = torch.sqrt(loss_velocity_act)
+
         loss_gripper_act = prediction.get("loss_gripper_act", None)
         loss_obs = prediction.get("loss_obs_fwd", None)
         loss_hand_obs = prediction.get("loss_hand_obs_fwd", None)
@@ -283,7 +294,8 @@ class BaseTrainer(pl.LightningModule):
 
         clip_l1 = prediction.get("text_l1_clip", None)
 
-        loss = torch.tensor(0.0).to(self.device)
+        # Use tensor with requires_grad=True to avoid gradient error
+        loss = torch.tensor(0.0, requires_grad=True).to(self.device)
         if self.act_pred:
             loss_act = (loss_arm_act if loss_arm_act is not None else 0) + (
                 loss_gripper_act * self.arm_gripper_loss_ratio
@@ -313,6 +325,8 @@ class BaseTrainer(pl.LightningModule):
         output = {
             "loss": loss,
             "loss_act": loss_act,
+            "loss_velocity_act": loss_velocity_act,
+            "rmse_velocity_act": rmse_velocity_act,
             "loss_arm_act": loss_arm_act,
             "loss_gripper_act": loss_gripper_act,
             "acc_arm_act": acc_arm_act,
@@ -537,12 +551,14 @@ class BaseTrainer(pl.LightningModule):
 
             prog_bar_set = {"loss"}
             if self.act_pred:
-                prog_bar_set.add("loss_arm_act")
-                prog_bar_set.add("loss_gripper_act")
-                prog_bar_set.add("acc_arm_act")
-                prog_bar_set.add("acc_gripper_act")
-                prog_bar_set.add("action_l1")
-                prog_bar_set.add("clip_l1")
+                prog_bar_set.add("loss_velocity_act")
+                prog_bar_set.add("rmse_velocity_act")
+                # prog_bar_set.add("loss_arm_act") # Deprecated
+                # prog_bar_set.add("loss_gripper_act") # Deprecated
+                # prog_bar_set.add("acc_arm_act") # Deprecated
+                # prog_bar_set.add("acc_gripper_act") # Deprecated
+                # prog_bar_set.add("action_l1")
+                # prog_bar_set.add("clip_l1")
             if self.fwd_pred:
                 prog_bar_set.add("loss_obs_fwd")
                 if self.fwd_pred_hand:
@@ -622,12 +638,14 @@ class BaseTrainer(pl.LightningModule):
 
         prog_bar_set = {"loss"}
         if self.act_pred:
-            prog_bar_set.add("loss_arm_act")
-            prog_bar_set.add("loss_gripper_act")
-            prog_bar_set.add("acc_arm_act")
-            prog_bar_set.add("acc_gripper_act")
-            prog_bar_set.add("action_l1")
-            prog_bar_set.add("clip_l1")
+            prog_bar_set.add("loss_velocity_act")
+            prog_bar_set.add("rmse_velocity_act")
+            # prog_bar_set.add("loss_arm_act")
+            # prog_bar_set.add("loss_gripper_act")
+            # prog_bar_set.add("acc_arm_act")
+            # prog_bar_set.add("acc_gripper_act")
+            # prog_bar_set.add("action_l1")
+            # prog_bar_set.add("clip_l1")
         if self.fwd_pred:
             prog_bar_set.add("loss_obs")
             if self.fwd_pred_hand:
