@@ -1,17 +1,14 @@
 {
-  "mobile_vla": {
-    "name": "Mobile-VLA",
-    "shape": [
-      10,
+  "frozen_stats": {
+    "context_mean": -0.010298056527972221,
+    "context_std": 0.1534496247768402,
+    "context_shape": [
+      50,
       8,
       64,
       2048
     ],
-    "mean": -0.009063501842319965,
-    "std": 0.14192210137844086,
-    "min": -2.9843225479125977,
-    "max": 3.54840087890625,
-    "norm": 460.2285461425781
-  },
-  "note": "RoboVLMs context extraction TODO"
+    "prediction_mean": 0.4157111942768097,
+    "prediction_std": 0.7613318562507629
+  }
 }
