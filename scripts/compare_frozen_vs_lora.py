@@ -8,7 +8,7 @@ VLM Frozen vs LoRA 비교를 위한 의미 벡터 추출
 1. Case 3 (Frozen) context vector 추출
 2. Case 4 (LoRA) context vector 추출 (학습 후)
 3. LSTM latent space 추출
-4. 유사도 비교 (Cosine, Euclidean, Correlation)
+4. 유사도 비교 (Cosine, Euclidean, Correlation + 고급 메트릭)
 """
 
 import torch
@@ -25,6 +25,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 sys.path.insert(0, "RoboVLMs_upstream")
+sys.path.insert(0, "scripts")
+
+# Import advanced metrics
+try:
+    from advanced_similarity_metrics import compute_all_metrics, interpret_metrics
+    ADVANCED_METRICS_AVAILABLE = True
+except ImportError:
+    print("⚠️  고급 메트릭 모듈을 찾을 수 없습니다. 기본 메트릭만 사용합니다.")
+    ADVANCED_METRICS_AVAILABLE = False
 
 
 def load_model(checkpoint_path, device='cuda'):
@@ -164,6 +173,10 @@ def extract_context_and_latent(model, images, device='cuda'):
             action_masks=action_mask
         )
         
+        # Handle tuple output (actions, gripper_actions)
+        if isinstance(predictions, tuple):
+            predictions = predictions[0]  # Take actions only
+        
         print(f"  Predictions shape: {predictions.shape}")
     
     # Cleanup hook
@@ -182,7 +195,7 @@ def extract_context_and_latent(model, images, device='cuda'):
 
 def compute_similarity_metrics(context1, context2, name1="Model1", name2="Model2"):
     """
-    두 context vector 간 유사도 계산
+    두 context vector 간 유사도 계산 (기본 + 고급 메트릭)
     """
     print(f"\n{'='*70}")
     print(f"유사도 계산: {name1} vs {name2}")
@@ -192,6 +205,7 @@ def compute_similarity_metrics(context1, context2, name1="Model1", name2="Model2
     vec1 = context1.view(-1).numpy()
     vec2 = context2.view(-1).numpy()
     
+    # === 기본 메트릭 ===
     # 1. Cosine Similarity
     cos_sim = 1 - cosine(vec1, vec2)
     
@@ -205,19 +219,23 @@ def compute_similarity_metrics(context1, context2, name1="Model1", name2="Model2
     mse = np.mean((vec1 - vec2) ** 2)
     
     metrics = {
-        'cosine_similarity': float(cos_sim),
-        'euclidean_distance': float(euclidean_dist),
-        'pearson_correlation': float(correlation),
-        'correlation_p_value': float(p_value),
-        'mse': float(mse),
-        'model1_mean': float(vec1.mean()),
-        'model1_std': float(vec1.std()),
-        'model2_mean': float(vec2.mean()),
-        'model2_std': float(vec2.std())
+        'basic': {
+            'cosine_similarity': float(cos_sim),
+            'euclidean_distance': float(euclidean_dist),
+            'pearson_correlation': float(correlation),
+            'correlation_p_value': float(p_value),
+            'mse': float(mse),
+        },
+        'statistics': {
+            'model1_mean': float(vec1.mean()),
+            'model1_std': float(vec1.std()),
+            'model2_mean': float(vec2.mean()),
+            'model2_std': float(vec2.std())
+        }
     }
     
-    # Print results
-    print(f"\n  📊 유사도 메트릭:")
+    # Print basic results
+    print(f"\n  📊 기본 메트릭:")
     print(f"     Cosine Similarity:    {cos_sim:.6f}")
     print(f"     Euclidean Distance:   {euclidean_dist:.6f}")
     print(f"     Pearson Correlation:  {correlation:.6f} (p={p_value:.2e})")
@@ -226,6 +244,26 @@ def compute_similarity_metrics(context1, context2, name1="Model1", name2="Model2
     print(f"\n  📈 통계:")
     print(f"     {name1}: mean={vec1.mean():.6f}, std={vec1.std():.6f}")
     print(f"     {name2}: mean={vec2.mean():.6f}, std={vec2.std():.6f}")
+    
+    # === 고급 메트릭 ===
+    if ADVANCED_METRICS_AVAILABLE:
+        print(f"\n  🔬 고급 메트릭 계산 중...")
+        try:
+            advanced_metrics = compute_all_metrics(context1, context2, name1, name2)
+            metrics['advanced'] = advanced_metrics
+            
+            # Interpretation
+            print(f"\n  💡 메트릭 해석:")
+            interpretation = interpret_metrics(advanced_metrics)
+            for line in interpretation.split('\n'):
+                print(f"     {line}")
+            
+            metrics['interpretation'] = interpretation
+        except Exception as e:
+            print(f"  ⚠️  고급 메트릭 계산 실패: {e}")
+            metrics['advanced'] = None
+    else:
+        metrics['advanced'] = None
     
     return metrics
 
