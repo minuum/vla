@@ -1,0 +1,20 @@
+======================================================================
+ Frozen Baseline Visualization
+======================================================================
+Loading Frozen baseline data...
+  Context shape: (50, 8, 64, 2048)
+  Latent shape: (50, 512)
+
+Creating comprehensive visualization...
+  ✅ Saved: docs/reports/visualizations/frozen_baseline_analysis.png
+
+Creating detailed visualization...
+  ✅ Saved: docs/reports/visualizations/frozen_context_details.png
+
+======================================================================
+✅ 모든 시각화 완료!
+======================================================================
+
+생성된 파일:
+  - docs/reports/visualizations/frozen_baseline_analysis.png
+  - docs/reports/visualizations/frozen_context_details.png
