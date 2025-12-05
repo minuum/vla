@@ -77,8 +77,164 @@
     -   If the dataset is small (~500), we can potentially run all of them or sample 50-100 representative ones.
     -   Need to check the diversity of the collected data.
 
-## Next Steps
--   Write a script to load the model and data.
--   Register the hook.
--   Run inference on samples.
--   Save and visualize `action_hs`.
+## ✅ Non-GPU Validation Tasks (2025-12-04)
+
+### **Priority 1: Model Loading Strategy Analysis** ⚡
+**Goal**: Understand how to load RoboVLMs pretrained model without GPU
+**Status**: 🔍 In Progress
+
+**Tasks**:
+1. ✅ Verify checkpoint structure
+   - Located: `checkpoints/cache/models--robovlms--RoboVLMs`
+   - Status: ⚠️ Incomplete download (only lock files found)
+   
+2. 📝 **Create checkpoint download script (Non-GPU)**
+   ```python
+   # Script: download_robovlms_checkpoint.py
+   # Download from HuggingFace without loading to GPU
+   # Path: docs/RoboVLMs_validation/download_robovlms_checkpoint.py
+   ```
+
+3. 📝 **Analyze checkpoint structure (Non-GPU)**
+   - Extract state_dict keys
+   - Identify VLM parameters vs action head parameters
+   - Document parameter shapes and types
+   - Compare with Kosmos-2 checkpoint structure
+
+### **Priority 2: Sampling Strategy Planning** ⚡
+**Goal**: Design efficient sampling strategy for 500 episodes
+**Status**: ✅ Partially Complete (sampling_test.py exists)
+
+**Analysis**:
+- ✅ Current approach: 100 episodes × 5 samples = 500 frames
+- ✅ Results documented (499 frames, shape (499, 2048))
+- 📝 **TODO**: Design stratified sampling
+  - By task type (left/right/horizontal/vertical)
+  - By difficulty (simple/medium/hard)
+  - By trajectory pattern
+
+**Non-GPU Tasks**:
+1. 📊 **Dataset statistics script** (Non-GPU)
+   ```python
+   # Analyze all H5 files without model inference
+   # Count episodes by type, extract metadata
+   # Generate sampling plan
+   ```
+
+2. 📝 **Sampling strategy document**
+   - Define criteria for representative samples
+   - Balance between diversity and efficiency
+   - Document expected distribution
+
+### **Priority 3: Hook Implementation Planning** ⚡
+**Goal**: Design robust hook mechanism for context vector extraction
+**Status**: ✅ Complete (implemented in analyze_context_vector.py)
+
+**Non-GPU Review Tasks**:
+1. 📖 **Code review** (Non-GPU)
+   - Review hook_fn implementation
+   - Verify tensor detachment and CPU transfer
+   - Check memory efficiency
+
+2. 📝 **Documentation** (Non-GPU)
+   - Document hook registration points
+   - Explain where action_hs is captured
+   - Create flowchart: Image → VLM → action_hs → Action Head
+
+### **Priority 4: Comparison Methodology** ⚡
+**Goal**: Define how to compare Kosmos-2 vs RoboVLMs context vectors
+**Status**: 🆕 New Task
+
+**Non-GPU Planning**:
+1. 📊 **Statistical comparison metrics**
+   - Distribution comparison (KL divergence, Wasserstein distance)
+   - Feature activation patterns
+   - Dead neuron analysis
+   - Correlation analysis
+
+2. 📝 **Visualization plan**
+   - t-SNE/UMAP projection design
+   - Heatmap layout
+   - Distribution plots
+
+3. 📄 **Report template**
+   - Create markdown template for results
+   - Define tables and figures structure
+
+### **Priority 5: Checkpoint Download Status** ⚠️
+**Current Issue**: RoboVLMs checkpoint incomplete
+
+**Investigation** (Non-GPU):
+```bash
+# Check cache structure
+ls -R checkpoints/cache/models--robovlms--RoboVLMs/
+# Expected: snapshots/<hash>/checkpoints/kosmos_ph_oxe-pretrain.pt
+
+# Check existing .pt file
+ls -lh best_robovlms_mobile_model_epoch_1.pt
+# Size: 7.3GB - This might be a finetuned version
+```
+
+**Action Items**:
+1. ⬜ Verify if `best_robovlms_mobile_model_epoch_1.pt` is usable
+2. ⬜ If not, create HuggingFace download script
+3. ⬜ Document checkpoint structure and compatibility
+
+---
+
+## 📋 Immediate Action Plan (No GPU Required)
+
+### **Step 1: Create Dataset Analysis Script** (15 min)
+```bash
+# File: docs/RoboVLMs_validation/analyze_dataset_stats.py
+# Extract metadata from all H5 files
+# Output: dataset_statistics.json
+```
+
+### **Step 2: Create Checkpoint Download Script** (20 min)
+```bash
+# File: docs/RoboVLMs_validation/download_robovlms_checkpoint.py
+# Download from HuggingFace with progress bar
+# Verify integrity
+```
+
+### **Step 3: Create Comparison Metrics Script** (30 min)
+```bash
+# File: docs/RoboVLMs_validation/compare_vectors_metrics.py
+# Load two .npy files (Kosmos vs RoboVLMs contexts)
+# Compute statistical metrics
+# Generate comparison report
+```
+
+### **Step 4: Document Checkpoint Structure** (10 min)
+```bash
+# File: docs/RoboVLMs_validation/CHECKPOINT_STRUCTURE.md
+# Document state_dict structure
+# List parameter names and shapes
+```
+
+### **Step 5: Create Sampling Plan Document** (15 min)
+```bash
+# File: docs/RoboVLMs_validation/SAMPLING_PLAN.md
+# Define stratified sampling strategy
+# List selected episodes with justification
+```
+
+---
+
+## 🎯 GPU-Required Tasks (For Later)
+
+1. Run `analyze_context_vector.py` with RoboVLMs checkpoint
+2. Run `sampling_test.py` with RoboVLMs
+3. Execute full comparison with `compare_context_vectors.py`
+4. Generate t-SNE visualizations
+
+---
+
+## Next Steps (Prioritized)
+1. ✅ **[Non-GPU]** Create dataset statistics script
+2. ✅ **[Non-GPU]** Verify existing checkpoint (`best_robovlms_mobile_model_epoch_1.pt`)
+3. ✅ **[Non-GPU]** Create checkpoint download script (if needed)
+4. ✅ **[Non-GPU]** Document comparison methodology
+5. ⏳ **[GPU Required]** Run context vector extraction
+6. ⏳ **[GPU Required]** Compare vectors and analyze results

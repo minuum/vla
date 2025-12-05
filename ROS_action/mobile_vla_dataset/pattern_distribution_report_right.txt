@@ -1,0 +1,15 @@
+Analyzing 250 files for '1box_hori_right'...
+
+Pattern Distribution:
+================================================================================
+[245 files (98.0%)] W W D E E E E E E E W W Q Q W W W ✅ (MAJORITY)
+[4 files (1.6%)] W W D E E E E E E E W W Q Q Q W W ⚠️
+[1 files (0.4%)] W W D E E E E E E E W W W Q Q W W ⚠️
+
+================================================================================
+Mismatch Details (Files not matching majority pattern):
+  - episode_20251203_211845_1box_hori_right_core_medium.h5: W W D E E E E E E E W W Q Q Q W W
+  - episode_20251203_212231_1box_hori_right_core_medium.h5: W W D E E E E E E E W W Q Q Q W W
+  - episode_20251203_212446_1box_hori_right_core_medium.h5: W W D E E E E E E E W W Q Q Q W W
+  - episode_20251203_212741_1box_hori_right_core_medium.h5: W W D E E E E E E E W W Q Q Q W W
+  - episode_20251203_214634_1box_hori_right_core_medium.h5: W W D E E E E E E E W W W Q Q W W
