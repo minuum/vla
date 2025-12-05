@@ -117,3 +117,4 @@ mobile-vla-omniwheel/
 *.whl
 *.pth
 config/weights/
+checkpoints/
