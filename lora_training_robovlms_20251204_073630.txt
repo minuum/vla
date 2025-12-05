@@ -1,0 +1,3 @@
+Error: Cannot import lightning module. Please ensure it is installed.
+Python path: ['/home/billy/25-1kp/vla/RoboVLMs_upstream', '/home/billy/anaconda3/envs/pyllama/lib/python39.zip', '/home/billy/anaconda3/envs/pyllama/lib/python3.9', '/home/billy/anaconda3/envs/pyllama/lib/python3.9/lib-dynload', '/home/billy/.local/lib/python3.9/site-packages', '/home/billy/anaconda3/envs/pyllama/lib/python3.9/site-packages']
+Python executable: /usr/bin/python

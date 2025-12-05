@@ -1,0 +1,9 @@
+Pattern Distribution Report
+================================================================================
+
+Total files analyzed: 250
+Unique patterns: 1
+
+Pattern #1: 250 files (100.0%)
+  W W A Q Q Q Q Q Q Q W W E E E W W
+
