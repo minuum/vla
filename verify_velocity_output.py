@@ -89,10 +89,27 @@ def verify_velocity_output(checkpoint_path, test_data_dir, num_samples=20):
                 images_tensor = torch.stack(images).unsqueeze(0).to(device)  # (1, 8, 3, 224, 224)
                 
                 # 예측
-                context = model.model.encode_images(images_tensor)
-                actions = model.model.act_head(context)  # (1, 10, 2)
+                context = model.model.encode_images(images_tensor)  # (1, 8, 64, 2048)
                 
-                pred_vel = actions[0, 0, :].cpu().numpy()  # 첫 timestep만
+                # Flatten context for action head
+                batch_size = context.shape[0]
+                context_flat = context.view(batch_size, -1, context.shape[-1])  # (1, 512, 2048)
+                
+                # Action mask
+                action_mask = torch.ones(batch_size, 8, dtype=torch.bool).to(device)
+                
+                # Forward through action head
+                actions = model.model.act_head(
+                    context_flat,
+                    actions=None,
+                    action_masks=action_mask
+                )
+                
+                # Handle tuple output
+                if isinstance(actions, tuple):
+                    actions = actions[0]  # (1, 512, 10, 2)
+                
+                pred_vel = actions[0, 0, 0, :].cpu().numpy()  # First token, first timestep
                 predicted_velocities.append(pred_vel)
                 
                 # Ground truth
