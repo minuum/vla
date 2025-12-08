@@ -118,3 +118,17 @@ mobile-vla-omniwheel/
 *.pth
 config/weights/
 checkpoints/
+
+# 학습 실행 결과 및 체크포인트 (대용량)
+runs/
+*.ckpt
+
+# ONNX 모델
+*.onnx
+
+# VLM 모델 캐시
+.vlms/
+RoboVLMs_upstream/.vlms/
+
+# Robo+ 모델 파일
+Robo+/
