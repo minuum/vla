@@ -1,0 +1,41 @@
+# Mobile VLA 추론 설정 파일
+# 작성일: 2025-12-09
+# 기반: Case 5 (aug_abs) - 100% 방향 정확도 모델
+
+model:
+  name: "kosmos"
+  # Case 5 체크포인트 경로 (실제 경로로 수정 필요)
+  checkpoint: "RoboVLMs_upstream/runs/mobile_vla_kosmos2_aug_abs_20251209/.../last.ckpt"
+  # 또는 Case 4 사용 시:
+  # checkpoint: "RoboVLMs_upstream/runs/mobile_vla_kosmos2_abs_action_20251209/.../last.ckpt"
+
+inference:
+  # 입력 설정
+  window_size: 2  # 메모리 최적화 (원래 8 → 2)
+  image_size: 224
+  
+  # 출력 설정
+  action_dim: 2  # linear_x, linear_y
+  fwd_pred_next_n: 10  # 10개 액션 청크
+  
+  # abs_action 전략 (Case 4, 5)
+  use_abs_action: true  # 필수! 방향을 언어에서 추출
+  
+  # 정규화
+  norm_min: -1.0
+  norm_max: 1.0
+
+control:
+  # 속도 제한 (안전)
+  max_linear_x: 0.5  # m/s
+  max_linear_y: 0.5  # m/s
+  
+  # 타이밍
+  inference_interval: 0.3  # 300ms (학습 데이터 수집 주기와 일치)
+  action_chunk_execution: 1  # 한 번에 실행할 액션 청크 수
+
+# 로깅
+logging:
+  level: "INFO"
+  save_predictions: false
+  output_dir: "inference_logs"
