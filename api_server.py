@@ -15,8 +15,9 @@ import sys
 from pathlib import Path
 
 # RoboVLMs 경로
-ROBOVLMS_PATH = Path(__file__).parent / "RoboVLMs"
+ROBOVLMS_PATH = Path(__file__).parent / "RoboVLMs_upstream"
 sys.path.insert(0, str(ROBOVLMS_PATH))
+
 
 from src.robovlms_mobile_vla_inference import MobileVLAConfig, MobileVLAInferenceSystem
 
