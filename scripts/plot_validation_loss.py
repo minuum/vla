@@ -5,7 +5,15 @@ Validation Loss 그래프 생성 스크립트
 """
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
+
+# 한글 폰트 설정 (깨짐 방지)
+try:
+    plt.rcParams['font.family'] = 'NanumSquare'
+except:
+    plt.rcParams['font.family'] = 'DejaVu Sans'
+plt.rcParams['axes.unicode_minus'] = False
 
 # 데이터
 cases = {
