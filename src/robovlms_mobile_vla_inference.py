@@ -23,9 +23,10 @@ from dataclasses import dataclass
 from collections import deque
 
 # RoboVLMs 경로 추가
-ROBOVLMS_PATH = Path(__file__).parent.parent / "RoboVLMs"
+ROBOVLMS_PATH = Path(__file__).parent.parent / "RoboVLMs_upstream"
 if str(ROBOVLMS_PATH) not in sys.path:
     sys.path.insert(0, str(ROBOVLMS_PATH))
+
 
 
 import transformers
@@ -76,9 +77,16 @@ class MobileVLAConfig:
     action_dim: int = 2  # linear_x, linear_y
     fwd_pred_next_n: int = 10  # 10 action chunk 예측
     
-    # 정규화 설정
+    # 정규화 설정 (모델 출력: [-1, 1])
     norm_min: float = -1.0
     norm_max: float = 1.0
+    
+    # 실제 로봇 속도 범위 (정규화 해제 시 사용)
+    robot_max_linear_x: float = 1.15  # 실제 로봇 최대 속도 (m/s)
+    robot_max_linear_y: float = 1.15  # 실제 로봇 최대 속도 (m/s)
+    
+    # 정규화 해제 전략 ("scale", "minmax", "safe")
+    denormalize_strategy: str = "safe"  # 기본: 안전 모드 (권장)
     
     # abs_action 전략 (Case 4, 5에서 사용)
     use_abs_action: bool = True  # 언어에서 방향 추출, 모델은 크기만 예측
@@ -87,9 +95,9 @@ class MobileVLAConfig:
     inference_interval: float = 0.3  # 300ms (학습 데이터 수집 주기와 일치)
     action_chunk_execution: int = 1  # 한 번에 실행할 action chunk 수
     
-    # 속도 제한 (안전)
-    max_linear_x: float = 0.5  # m/s
-    max_linear_y: float = 0.5  # m/s
+    # 속도 제한 (안전 모드에서 사용되는 최대 속도)
+    max_linear_x: float = 0.5  # m/s - 안전 최대 속도
+    max_linear_y: float = 0.5  # m/s - 안전 최대 속도
 
 
 
@@ -310,9 +318,63 @@ class RoboVLMsInferenceEngine:
         return actions, info
 
     
-    def denormalize_action(self, action: np.ndarray) -> np.ndarray:
-        """액션 정규화 해제 ([-1, 1] -> 실제 속도)"""
-        # 현재는 이미 [-1, 1] 범위로 가정
+    def denormalize_action(
+        self, 
+        action: np.ndarray,
+        strategy: str = None
+    ) -> np.ndarray:
+        """
+        액션 정규화 해제: 모델 출력 [-1, 1] → 실제 로봇 속도
+        
+        Args:
+            action: (N, 2) 모델 출력 액션 [linear_x, linear_y]
+            strategy: 정규화 해제 전략 (config 값 사용 시 None)
+                - "scale": 단순 스케일링 (robot_max * action)
+                - "minmax": Min-Max 역변환 (RoboVLMs 방식)
+                - "safe": 안전 제한 + 스케일링 (기본값, 권장)
+        
+        Returns:
+            denorm_action: 실제 로봇 속도 [m/s]
+        
+        Examples:
+            # scale 방식: action=1.0 → 1.15 m/s
+            # minmax 방식: action=1.0 → 1.15 m/s (동일)
+            # safe 방식: action=1.0 → max_linear (0.5 m/s, 안전 제한)
+        """
+        if strategy is None:
+            strategy = self.config.denormalize_strategy
+        
+        action = action.copy()
+        
+        if strategy == "scale":
+            # Option A: 단순 스케일링
+            # 모델 [-1, 1] → 로봇 [-robot_max, robot_max]
+            action[:, 0] = action[:, 0] * self.config.robot_max_linear_x
+            action[:, 1] = action[:, 1] * self.config.robot_max_linear_y
+            
+        elif strategy == "minmax":
+            # Option B: Min-Max 역변환 (RoboVLMs 방식)
+            # 공식: 0.5 * (action + 1) * (max - min) + min
+            robot_min_x = -self.config.robot_max_linear_x
+            robot_max_x = self.config.robot_max_linear_x
+            robot_min_y = -self.config.robot_max_linear_y
+            robot_max_y = self.config.robot_max_linear_y
+            
+            action[:, 0] = 0.5 * (action[:, 0] + 1) * (robot_max_x - robot_min_x) + robot_min_x
+            action[:, 1] = 0.5 * (action[:, 1] + 1) * (robot_max_y - robot_min_y) + robot_min_y
+            
+        elif strategy == "safe":
+            # Option C: 안전 제한 + 스케일링 (기본값, 권장)
+            # 1. 클리핑으로 안전 보장
+            # 2. 조절 가능한 max_speed 파라미터 사용
+            action = np.clip(action, -1.0, 1.0)
+            action[:, 0] = action[:, 0] * self.config.max_linear_x
+            action[:, 1] = action[:, 1] * self.config.max_linear_y
+            
+        else:
+            raise ValueError(f"알 수 없는 denormalize 전략: {strategy}. "
+                           f"'scale', 'minmax', 'safe' 중 선택")
+        
         return action
 
 
