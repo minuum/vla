@@ -7,13 +7,13 @@
 
 ## 1. 문제 정의 (3분)
 
-### Task: Mobile VLA Navigation
+### Task: Mobile Robot Navigation to Object
 - **Input**: Camera image + "Navigate to the [left/right] bottle"
 - **Output**: Velocity commands (linear_x, angular_z)
-- **Goal**: 정확한 방향으로 이동
+- **Goal**: Bottle 앞까지 도달 (왼쪽/오른쪽으로 회전하며 접근)
 
 ### 연구 질문
-**"어떤 설정이 mobile navigation에 최적인가?"**
+**"어떤 설정이 bottle로의 navigation에 최적인가?"**
 
 ---
 

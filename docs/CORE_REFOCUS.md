@@ -8,10 +8,10 @@
 ## 🎯 우리 태스크의 목적 (본질)
 
 ### Mobile VLA (Vision-Language-Action)
-**Task**: Mobile navigation with language instruction
+**Task**: Navigate to target object with language instruction
 - **Input**: Image + "Navigate to the [left/right] bottle"
 - **Output**: Velocity (linear_x, angular_z)
-- **Goal**: 정확한 방향으로 이동
+- **Goal**: Bottle 앞까지 도달 (왼쪽 또는 오른쪽으로 회전하며 접근)
 
 ### 핵심 질문
 1. **어떤 설정이 가장 성능이 좋은가?**
@@ -126,9 +126,9 @@
 **30분 프레젠테이션 준비**
 
 **구조**:
-1. **문제 정의** (2분)
-   - Task: Mobile navigation
-   - Goal: 정확한 방향 제어
+### 1. 문제 정의 (2분)
+   - Task: Object navigation (bottle)
+   - Goal: Bottle 앞까지 도달
 
 2. **핵심 발견** (10분)
    - Finding 1: No Chunk (98% 개선)
