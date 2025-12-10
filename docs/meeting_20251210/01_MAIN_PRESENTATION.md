@@ -50,6 +50,34 @@
 
 ## 2. 실험 설계
 
+### 전체 Design Space
+
+**변수**:
+- **VLM**: Frozen+LoRA (현재) vs Fine-tuned (향후)
+- **Data**: L+R (500) / R only (250) / L only (250)
+- **Chunk**: 1 (No chunk) / 10 (RoboVLMs 기본)
+- **Strategy**: Baseline / Abs / Aug / Aug+Abs
+
+**전체 조합**: 16개 (Frozen+LoRA 기준)
+- **완료**: 7개 (43.75%)
+- **미수행**: 9개
+
+### 완료된 케이스 (7개)
+
+| ID | Data | Chunk | Strategy | Val Loss | 순위 |
+|:---:|:---|:---:|:---|---:|:---:|
+| **5** 🏆 | L+R (500) | **1** | Baseline | **0.000532** | 1 |
+| 8 | L+R (500) | 1 | Abs | 0.00243 | 2 |
+| 9 | L+R (500) | 1 | Aug+Abs | 0.004 | 3 |
+| 4 | R (250) | 10 | Baseline | 0.016 | 4 |
+| 1 | L+R (500) | 10 | Baseline | 0.027 | 5 |
+| 2 | L+R (500) | 10 | Fixed | 0.048 | 6 |
+| 3 | L+R (500) | 10 | Aug+Abs | 0.050 | 7 |
+
+**시각화**: [docs/visualizations/summary/all_cases_comparison.png]
+
+**전체 조합 상세**: `docs/meeting_20251210/FULL_DESIGN_SPACE.md`
+
 ### 주요 변수
 
 **1. Action Chunking (fwd_pred_next_n)**:
