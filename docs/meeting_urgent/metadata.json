@@ -1,34 +1,11 @@
 {
-  "epoch0": {
-    "checkpoint": "runs/mobile_vla_no_chunk_aug_abs_20251210/kosmos/mobile_vla_finetune/2025-12-10/mobile_vla_no_chunk_aug_abs_20251210/epoch_epoch=00-val_loss=val_loss=0.022.ckpt",
-    "val_loss": 0.022,
-    "left_shape": [
-      10,
-      8,
-      64,
-      2048
-    ],
-    "right_shape": [
-      10,
-      8,
-      64,
-      2048
-    ]
-  },
-  "epoch1": {
-    "checkpoint": "runs/mobile_vla_no_chunk_aug_abs_20251210/kosmos/mobile_vla_finetune/2025-12-10/mobile_vla_no_chunk_aug_abs_20251210/epoch_epoch=01-val_loss=val_loss=0.004.ckpt",
-    "val_loss": 0.004,
-    "left_shape": [
-      10,
-      8,
-      64,
-      2048
-    ],
-    "right_shape": [
-      10,
-      8,
-      64,
-      2048
-    ]
-  }
+  "method": "REAL IMAGE DATA - patch-based features",
+  "shape": [
+    10,
+    8,
+    64,
+    2048
+  ],
+  "epochs": 10,
+  "note": "Features extracted from actual images, not model hidden states"
 }
