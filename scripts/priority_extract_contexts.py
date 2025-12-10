@@ -32,7 +32,7 @@ print()
 # Configuration
 # ============================================================================
 
-FINETU NED_CHECKPOINT = Path("runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-09/mobile_vla_no_chunk_20251209/epoch_epoch=04-val_loss=val_loss=0.001.ckpt")
+FINETUNED_CHECKPOINT = Path("runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-09/mobile_vla_no_chunk_20251209/epoch_epoch=04-val_loss=val_loss=0.001.ckpt")
 DATASET_PATH = Path("ROS_action/mobile_vla_dataset")
 OUTPUT_DIR = Path("docs/latent_space_analysis")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
