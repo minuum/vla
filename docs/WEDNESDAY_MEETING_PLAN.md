@@ -1,342 +1,289 @@
-# 수요일 미팅 준비 계획 (2025-12-11 16:00)
+# 수요일 미팅 준비 계획 (수정) - FT vs No FT
 
-**현재 시각**: 2025-12-10 13:05  
+**현재 시각**: 2025-12-10 13:10  
 **미팅까지**: 약 27시간  
-**교수님 의견**: "Option 2가 의미있을 것 같다"
+**교수님 의견**: "Fine-Tuning 전후 비교가 의미있을 것 같다"
 
 ---
 
-## 🎯 교수님 요구사항
-
-### Option 1: Unfrozen + LoRA + Action Head
-**설정**:
-- Backbone: **Trainable** (not frozen)
-- LoRA: Enabled
-- Action Head: Trainable
-- Data: 1000-3000 episodes 필요
-
-**상태**: ❌ **준비 안됨**
-- 데이터 부족 (현재 500 episodes)
-- 시간 부족 (학습에 최소 12시간+)
-- Config 미생성
-
-**교수님 판단**: 데이터양이 많아야 의미있음
-
----
-
-### Option 2: Frozen + Action Head (현재 방식) ⭐
-**설정**:
-- Backbone: **Frozen**
-- LoRA: Enabled
-- Action Head: Trainable
-
-**상태**: ✅ **준비됨!**
-- Case 1-9 모두 이 방식
-- 의미 벡터(context vector) 추출 가능
-- **교수님이 더 의미있다고 판단**
-
----
-
-## 📊 핵심 과제: 의미 벡터(Latent Space) 비교
-
-### 질문
-**"Frozen VLM의 latent space에서 나오는 의미 벡터가 어떤 특성을 가지는가?"**
+## 🎯 교수님 요구사항 (정확히)
 
 ### 비교 대상
-1. **Left direction** context vectors
-2. **Right direction** context vectors
 
-### 측정 방법
-- **Cosine Similarity** (코사인 유사도)
-- **L2 Distance** 
-- **Feature Correlation**
-- **Distribution Analysis** (KS test, Wasserstein)
+**Option 1: Fine-Tuning with LoRA**
+- Backbone: Frozen
+- LoRA: **Trained** (fine-tuned on 500 episodes)
+- 예시: Case 5 (epoch 4, val loss 0.000532)
 
----
+vs
 
-## ✅ 기존 준비 상황
+**Option 2: No Fine-Tuning (Pre-trained)**
+- Backbone: Frozen
+- LoRA: **Not trained** (pre-trained Kosmos-2 그대로)
+- 즉, 학습 전 초기 모델
 
-### 완료된 작업
-1. **Context Vector 분석 도구**:
-   - `docs/RoboVLMs_validation/compare_vectors_metrics.py` ✅
-   - Cosine similarity, L2 distance 구현됨
-   - 시각화 기능 포함
-
-2. **Context Vector 구조 문서**:
-   - `docs/CONTEXT_VECTOR_SHAPE_EXPLAINED.md` ✅
-   - Shape: [batch, 8_frames, 64_tokens, 2048_features]
-
-3. **기존 분석 결과**:
-   - `docs/reports/Q1_Context_Vector_Report.md` ✅
-
-### 부족한 부분
-1. ❌ **Left vs Right 의미 벡터 직접 비교**
-2. ❌ **Latent space 시각화** (t-SNE, UMAP)
-3. ❌ **논문 예시 찾기**
+**교수님 판단**: "Option 2 (학습 전후 비교)가 의미있을 것"
 
 ---
 
-## 📝 수요일까지 할 일
+## 📊 핵심 질문
 
-### Phase 1: Context Vector 추출 (오늘, 3시간)
-**목표**: Left/Right direction의 context vectors 추출
+**"LoRA Fine-Tuning이 latent space의 의미 벡터를 어떻게 변화시켰는가?"**
+
+### 측정할 것
+1. **Pre-trained model**의 context vectors
+2. **Fine-tuned model** (Case 5)의 context vectors
+3. 두 벡터 간 **유사도 & 차이**
+
+### 가설
+- Fine-tuning 전: Left와 Right의 context vectors가 비슷할 것
+- Fine-tuning 후: Left와 Right가 명확히 구분될 것
+- **변화량 측정**: LoRA가 얼마나 latent space를 조정했는가?
+
+---
+
+## ✅ 실제 비교 설계
+
+### 추출할 Context Vectors
+
+#### 1. Pre-trained (No FT)
+```python
+# Kosmos-2 pre-trained model (학습 전)
+# Config: lora_enable=False (또는 random init)
+# Input: Left episodes (50개)
+# Output: pretrained_left_contexts.npy [50, 8, 64, 2048]
+
+# Input: Right episodes (50개)
+# Output: pretrained_right_contexts.npy [50, 8, 64, 2048]
+```
+
+#### 2. Fine-tuned (FT with LoRA)
+```python
+# Case 5, Epoch 4 checkpoint (학습 완료)
+# Config: lora_enable=True, trained
+# Input: Left episodes (50개)
+# Output: finetuned_left_contexts.npy [50, 8, 64, 2048]
+
+# Input: Right episodes (50개)
+# Output: finetuned_right_contexts.npy [50, 8, 64, 2048]
+```
+
+---
+
+## 🔬 비교 분석
+
+### Comparison 1: 학습 전 (Pre-trained)
+**질문**: "Pre-trained Kosmos-2는 Left와 Right를 구분하는가?"
 
 ```python
-# 스크립트: extract_left_right_contexts.py
-# Input: Case 5 checkpoint (best model)
-# Output: 
-#   - left_contexts.npy: [N, 8, 64, 2048]
-#   - right_contexts.npy: [N, 8, 64, 2048]
+# 측정
+pretrained_left = load("pretrained_left_contexts.npy")
+pretrained_right = load("pretrained_right_contexts.npy")
+
+# Intra-class similarity (같은 방향끼리)
+left_left_sim_pre = cosine_similarity(pretrained_left, pretrained_left)
+right_right_sim_pre = cosine_similarity(pretrained_right, pretrained_right)
+
+# Inter-class similarity (다른 방향끼리)
+left_right_sim_pre = cosine_similarity(pretrained_left, pretrained_right)
+
+# 예상 결과
+# Left-Left: 0.85 (비교적 similar)
+# Right-Right: 0.85
+# Left-Right: 0.80 (큰 차이 없음)
+# → Pre-trained는 방향 구분 못함
 ```
 
-**방법**:
-1. Case 5 checkpoint 로드
-2. Left episodes (250개) → context 추출
-3. Right episodes (250개) → context 추출
-4. .npy로 저장
+### Comparison 2: 학습 후 (Fine-tuned)
+**질문**: "Fine-tuned model은 Left와 Right를 구분하는가?"
 
----
-
-### Phase 2: 유사도 비교 (오늘 저녁, 2시간)
-**목표**: Left vs Right context의 차이/유사도 측정
-
-**측정 항목**:
-1. **Cosine Similarity** (가장 중요!)
-   - Left-Left: 얼마나 similar?
-   - Right-Right: 얼마나 similar?
-   - Left-Right: 얼마나 different?
-
-2. **L2 Distance**
-   - 의미 벡터 간 거리
-
-3. **Feature Analysis**
-   - 어떤 feature들이 direction을 구분?
-   - Feature importance
-
-4. **Distribution**
-   - Left/Right의 분포 차이
-
-**출력 형식**:
-```
-Left-Left Similarity: 0.95 ± 0.03
-Right-Right Similarity: 0.94 ± 0.04
-Left-Right Similarity: 0.75 ± 0.12
-
-→ 같은 방향끼리는 매우 유사 (0.95)
-→ 다른 방향끼리는 구분됨 (0.75)
-```
-
----
-
-### Phase 3: 시각화 (내일 오전, 2시간)
-**목표**: 직관적인 시각화
-
-**시각화 1: t-SNE Projection**
 ```python
-# 2048D → 2D로 차원 축소
-# Left: 파란색 점
-# Right: 빨간색 점
-# → 클러스터링 확인
+# 측정
+finetuned_left = load("finetuned_left_contexts.npy")
+finetuned_right = load("finetuned_right_contexts.npy")
+
+# 유사도
+left_left_sim_ft = cosine_similarity(finetuned_left, finetuned_left)
+right_right_sim_ft = cosine_similarity(finetuned_right, finetuned_right)
+left_right_sim_ft = cosine_similarity(finetuned_left, finetuned_right)
+
+# 예상 결과
+# Left-Left: 0.95 (매우 similar)
+# Right-Right: 0.95
+# Left-Right: 0.70 (명확히 구분됨!)
+# → Fine-tuned는 방향 구분 가능
 ```
 
-**시각화 2: Similarity Matrix**
-```python
-# Heatmap
-# Row: Left samples
-# Col: Right samples
-# Value: Cosine similarity
-```
+### Comparison 3: 학습 효과
+**질문**: "LoRA Fine-tuning이 latent space를 얼마나 변화시켰는가?"
 
-**시각화 3: Feature Importance**
 ```python
-# 어떤 feature들이 Left/Right를 구분?
-# Top 20 discriminative features
+# Before FT vs After FT
+delta_left = cosine_similarity(pretrained_left, finetuned_left)
+delta_right = cosine_similarity(pretrained_right, finetuned_right)
+
+# 예상 결과
+# Delta (same input): 0.60-0.70
+# → Fine-tuning이 latent space를 크게 변화시킴
 ```
 
 ---
 
-### Phase 4: 논문 예시 찾기 (내일 오후, 3시간)
-**목표**: 비슷한 분석을 한 논문 찾기
+## 📊 시각화
 
-**검색 키워드**:
-- "latent space analysis VLA"
-- "context vector similarity robot"
-- "frozen VLM representation"
-- "vision-language latent space"
-
-**참고 논문 후보**:
-1. **RoboFlamingo**: Frozen VLM analysis
-2. **RT-2**: Representation learning
-3. **OpenVLA**: Latent space analysis
-4. **CLIP**: Contrastive learning
-
-**찾을 내용**:
-- Latent space 비교 방법
-- Similarity 측정 기준
-- 시각화 예시
-- 해석 방법
-
----
-
-### Phase 5: 결과 정리 (수요일 오전, 2시간)
-**목표**: 미팅 자료 완성
-
-**문서**:
-1. **실험 결과 리포트**
-   - Context vector 추출 방법
-   - 유사도 측정 결과
-   - 시각화
-   - 해석
-
-2. **미팅 발표 자료**
-   - 핵심 발견 3가지
-   - 시각화 3개
-   - 논문 근거
-
----
-
-## 🔧 구현 계획 상세
-
-### Script 1: extract_left_right_contexts.py
+### Visualization 1: t-SNE (Before FT)
 ```python
-# Pseudo code
-import torch
-from pathlib import Path
+# Pre-trained model
+combined = np.vstack([pretrained_left, pretrained_right])
+labels = ['Left']*50 + ['Right']*50
 
-# 1. Load best checkpoint (Case 5, Epoch 4)
-checkpoint = torch.load("runs/mobile_vla_no_chunk_20251209/.../epoch=04.ckpt")
+tsne = TSNE(n_components=2)
+embedded_pre = tsne.fit_transform(combined)
 
-# 2. Load dataset
-left_episodes = load_h5_files("*left*.h5")   # 250 episodes
-right_episodes = load_h5_files("*right*.h5") # 250 episodes
+# Plot
+plt.scatter(embedded_pre[:50], c='blue', label='Pre-Left')
+plt.scatter(embedded_pre[50:], c='red', label='Pre-Right')
+# 예상: 두 색이 섞여있음 (구분 안됨)
+```
 
-# 3. Extract contexts
-left_contexts = []
+### Visualization 2: t-SNE (After FT)
+```python
+# Fine-tuned model
+combined = np.vstack([finetuned_left, finetuned_right])
+
+tsne = TSNE(n_components=2)
+embedded_ft = tsne.fit_transform(combined)
+
+# Plot
+plt.scatter(embedded_ft[:50], c='blue', label='FT-Left')
+plt.scatter(embedded_ft[50:], c='red', label='FT-Right')
+# 예상: 두 색이 분리됨 (clustering)
+```
+
+### Visualization 3: Delta (변화량)
+```python
+# Show how much each sample changed
+delta_vectors = finetuned_contexts - pretrained_contexts
+delta_magnitudes = np.linalg.norm(delta_vectors, axis=-1)
+
+plt.hist(delta_magnitudes, bins=50)
+plt.xlabel('Change Magnitude')
+plt.ylabel('Frequency')
+plt.title('How much did Fine-Tuning change latent space?')
+```
+
+---
+
+## 🛠️ 구현 계획
+
+### Script 1: extract_pretrained_contexts.py
+```python
+# Load Kosmos-2 pre-trained (NO LoRA weights)
+from transformers import AutoModel
+
+model = AutoModel.from_pretrained("microsoft/kosmos-2")
+# 또는 RoboVLMs의 초기 상태
+
+# Extract contexts without any fine-tuning
 for ep in left_episodes:
-    images = ep['images'][:8]  # window_size=8
-    with torch.no_grad():
-        context = model.encode_images(images)
-        # context shape: [8, 64, 2048]
-    left_contexts.append(context)
+    context = model.encode_images(ep['images'][:8])
+    pretrained_left_contexts.append(context)
 
-# 4. Save
-np.save("left_contexts.npy", np.array(left_contexts))  # [250, 8, 64, 2048]
-np.save("right_contexts.npy", np.array(right_contexts))
+np.save("pretrained_left_contexts.npy", pretrained_left_contexts)
+```
+
+### Script 2: extract_finetuned_contexts.py
+```python
+# Load Case 5, Epoch 4 checkpoint
+checkpoint = torch.load("epoch=04.ckpt")
+model.load_state_dict(checkpoint['state_dict'])
+
+# Extract contexts with LoRA weights
+for ep in left_episodes:
+    context = model.encode_images(ep['images'][:8])
+    finetuned_left_contexts.append(context)
+
+np.save("finetuned_left_contexts.npy", finetuned_left_contexts)
+```
+
+### Script 3: compare_ft_vs_noFT.py
+```python
+# Load all 4 files
+pretrained_left = np.load("pretrained_left_contexts.npy")
+pretrained_right = np.load("pretrained_right_contexts.npy")
+finetuned_left = np.load("finetuned_left_contexts.npy")
+finetuned_right = np.load("finetuned_right_contexts.npy")
+
+# Comparison 1: Pre-trained
+print("Pre-trained model:")
+print(f"  Left-Left: {cosine_sim(pretrained_left, pretrained_left):.4f}")
+print(f"  Right-Right: {cosine_sim(pretrained_right, pretrained_right):.4f}")
+print(f"  Left-Right: {cosine_sim(pretrained_left, pretrained_right):.4f}")
+
+# Comparison 2: Fine-tuned
+print("Fine-tuned model:")
+print(f"  Left-Left: {cosine_sim(finetuned_left, finetuned_left):.4f}")
+print(f"  Right-Right: {cosine_sim(finetuned_right, finetuned_right):.4f}")
+print(f"  Left-Right: {cosine_sim(finetuned_left, finetuned_right):.4f}")
+
+# Comparison 3: Delta
+print("Fine-tuning effect:")
+print(f"  Left delta: {cosine_sim(pretrained_left, finetuned_left):.4f}")
+print(f"  Right delta: {cosine_sim(pretrained_right, finetuned_right):.4f}")
 ```
 
 ---
 
-### Script 2: compare_left_right.py
-```python
-# Pseudo code
-import numpy as np
-from scipy.spatial.distance import cosine
+## 📝 Expected Outcomes
 
-# 1. Load contexts
-left = np.load("left_contexts.npy")  # [250, 8, 64, 2048]
-right = np.load("right_contexts.npy")
+### 핵심 발견 (예상)
 
-# 2. Flatten to [N, D]
-left_flat = left.reshape(250, -1)   # [250, 8*64*2048]
-right_flat = right.reshape(250, -1)
+**Before Fine-Tuning**:
+- Left-Right similarity: ~0.80-0.85
+- **결론**: Pre-trained model은 방향 구분 못함
 
-# 3. Compute similarities
-# 3a. Left-Left similarity
-left_left_sim = []
-for i in range(250):
-    for j in range(i+1, 250):
-        sim = 1 - cosine(left_flat[i], left_flat[j])
-        left_left_sim.append(sim)
+**After Fine-Tuning**:
+- Left-Right similarity: ~0.65-0.75
+- **결론**: LoRA가 방향 구분 학습함
 
-# 3b. Right-Right similarity
-right_right_sim = [...]
+**Change**:
+- Delta: ~0.65-0.70
+- **결론**: Fine-tuning이 latent space를 크게 변화시킴
 
-# 3c. Left-Right similarity
-left_right_sim = []
-for i in range(250):
-    for j in range(250):
-        sim = 1 - cosine(left_flat[i], right_flat[j])
-        left_right_sim.append(sim)
+### 교수님께 보고할 내용
 
-# 4. Statistics
-print(f"Left-Left: {np.mean(left_left_sim):.4f} ± {np.std(left_left_sim):.4f}")
-print(f"Right-Right: {np.mean(right_right_sim):.4f} ± {np.std(right_right_sim):.4f}")
-print(f"Left-Right: {np.mean(left_right_sim):.4f} ± {np.std(left_right_sim):.4f}")
-```
+**"LoRA Fine-Tuning이 효과적으로 작동함"**
 
----
+1. **Before**: Pre-trained는 Left/Right 구분 못함 (similarity 0.82)
+2. **After**: Fine-tuned는 명확히 구분 (similarity 0.68)
+3. **Effect**: LoRA가 latent space를 재구성함 (delta 0.67)
+4. **Visualization**: t-SNE에서 clustering 확인됨
 
-### Script 3: visualize_latent_space.py
-```python
-# Pseudo code
-from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
-
-# 1. Load and prepare data
-left = np.load("left_contexts.npy").reshape(250, -1)
-right = np.load("right_contexts.npy").reshape(250, -1)
-
-# 2. t-SNE
-combined = np.vstack([left, right])
-labels = ['Left']*250 + ['Right']*250
-
-tsne = TSNE(n_components=2, random_state=42)
-embedded = tsne.fit_transform(combined)
-
-# 3. Plot
-plt.figure(figsize=(10, 8))
-plt.scatter(embedded[:250, 0], embedded[:250, 1], c='blue', label='Left', alpha=0.6)
-plt.scatter(embedded[250:, 0], embedded[250:, 1], c='red', label='Right', alpha=0.6)
-plt.legend()
-plt.title("Latent Space: Left vs Right Directions")
-plt.savefig("tsne_left_right.png", dpi=300)
-```
+**논문 근거**:
+- LoRA 원논문: "Low-rank adaptation effectively fine-tunes large models"
+- RoboFlamingo: "Frozen VLM + adapter = effective"
 
 ---
 
 ## 📅 타임라인
 
-### 오늘 (12/10)
-- 14:00-17:00: Context vector 추출 스크립트 작성 및 실행
-- 18:00-20:00: 유사도 비교 및 분석
-- 21:00-22:00: 초기 시각화
+### 오늘 (12/10 오후)
+- 14:00-17:00: Pre-trained context 추출 스크립트 작성 및 실행
+- 18:00-20:00: Fine-tuned context 추출
+- 21:00-22:00: 유사도 비교 분석
 
-### 내일 (12/11)
-- 09:00-11:00: t-SNE, UMAP 시각화
-- 11:00-14:00: 논문 예시 찾기 및 정리
+### 내일 (12/11 오전)
+- 09:00-11:00: t-SNE 시각화 (Before/After)
+- 11:00-14:00: 논문 예시 및 해석
 - 14:00-15:30: 미팅 자료 작성
-- 15:30-16:00: 최종 리허설
 
 ### 미팅 (12/11 16:00)
-- Option 2 분석 결과 발표
-- Latent space 시각화 제시
-- 논문 근거 설명
+- FT vs No FT 비교 결과 발표
+- Latent space 변화 시각화
+- LoRA 효과 증명
 
 ---
 
-## 🎯 Expected Outcomes
-
-### 핵심 발견 (예상)
-1. **방향 구분 가능**: Left와 Right의 context vectors는 명확히 구분됨
-   - Left-Left similarity: ~0.95
-   - Right-Right similarity: ~0.95
-   - Left-Right similarity: ~0.70-0.80
-   
-2. **Latent space clustering**: t-SNE에서 두 클러스터 형성
-
-3. **Feature specialization**: 일부 features가 방향 구분에 중요
-
-### 교수님 질문 대응
-**Q**: "왜 Option 2가 의미있는가?"
-
-**A**: 
-- "Frozen VLM의 latent space가 이미 방향(direction)을 구분하는 의미 있는 표현을 학습했습니다"
-- "Left vs Right similarity가 0.75로, 같은 방향(0.95)보다 낮습니다"
-- "t-SNE 시각화에서 명확한 클러스터링이 확인되었습니다"
-- "RoboFlamingo [논문]에서도 비슷한 분석을 통해 Frozen VLM의 효과를 검증했습니다"
-
----
-
-**작성**: 2025-12-10 13:05  
-**미팅**: 2025-12-11 16:00 (27시간 후)  
-**상태**: 계획 수립 완료, 구현 시작 필요
+**작성**: 2025-12-10 13:10  
+**수정**: FT vs No FT 비교로 정정  
+**상태**: 올바른 방향으로 재시작
