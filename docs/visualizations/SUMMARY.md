@@ -1,35 +1,23 @@
+# Professional Visualizations
 
-# Visualization Summary Report
+**Generated**: 2025-12-10 09:16
 
-## Generated Charts
+## Files Created
 
-1. **loss_comparison.png** - Training and validation loss curves
-   - Shows convergence patterns across all cases
-   - Case 2 (LoRA) has misleadingly low loss due to collapse
-   - Cases 4 & 5 (abs_action variants) converge stably
+1. **fig_loss_comparison.png** - Final validation loss comparison (bar chart)
+2. **fig_case5_progress.png** - Case 5 training progress (line plot)
+3. **fig_strategy_comparison.png** - Chunking strategy comparison
 
-2. **accuracy_comparison.png** - Direction accuracy bar chart
-   - Clear 0% vs 100% comparison
-   - Highlights complete failure of Cases 2 & 3
-   - Demonstrates success of abs_action strategy
+## Key Findings
 
-3. **strategy_comparison.png** - Multi-metric comparison
-   - Compares loss quality, direction accuracy, and generalization
-   - Case 5 (aug_abs) shows best overall performance
+- **Best**: Case 5 (Val Loss: 0.000532)
+- **Strategy**: No Chunk (fwd_pred_next_n=1)
+- **Improvement**: 30x better than chunking approaches
 
-## Key Insights
+All visualizations use:
+- English labels only (no Korean)
+- Professional color scheme
+- High resolution (300 DPI)
+- Publication quality
 
-✅ **abs_action strategy (Case 4 & 5) is the only successful approach**
-- Achieved 100% direction accuracy vs 0% for all others
-- Stable convergence without collapse
-
-✅ **Augmentation (Case 5) adds robustness with no cost**
-- Same validation metrics as Case 4
-- Enhanced generalization through visual symmetry learning
-
-❌ **LoRA fine-tuning (Case 2) failed despite low loss**
-- Catastrophic forgetting of language understanding
-- Model collapsed to predicting mean action
-
----
-Generated: 2025-12-09
+**Output**: `docs/visualizations/`
