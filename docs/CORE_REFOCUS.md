@@ -8,10 +8,10 @@
 ## 🎯 우리 태스크의 목적 (본질)
 
 ### Mobile VLA (Vision-Language-Action)
-**Task**: Navigate to target object with language instruction
-- **Input**: Image + "Navigate to the [left/right] bottle"
+**Task**: Navigate around obstacle with turning direction
+- **Input**: Image + "Navigate around obstacles... on the left/right"
 - **Output**: Velocity (linear_x, angular_z)
-- **Goal**: Bottle 앞까지 도달 (왼쪽 또는 오른쪽으로 회전하며 접근)
+- **Goal**: 장애물(박스)를 왼쪽 또는 오른쪽으로 돌아서 병 앞까지 도착
 
 ### 핵심 질문
 1. **어떤 설정이 가장 성능이 좋은가?**

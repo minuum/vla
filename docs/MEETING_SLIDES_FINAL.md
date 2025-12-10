@@ -7,13 +7,13 @@
 
 ## 1. 문제 정의 (3분)
 
-### Task: Mobile Robot Navigation to Object
-- **Input**: Camera image + "Navigate to the [left/right] bottle"
-- **Output**: Velocity commands (linear_x, angular_z)
-- **Goal**: Bottle 앞까지 도달 (왼쪽/오른쪽으로 회전하며 접근)
+### Task: Obstacle Avoidance Navigation
+- **Input**: Camera image + "Navigate around obstacles... on the left/right"
+- **Output**: Velocity commands (linear_x, angular_z)  
+- **Goal**: 장애물(박스)를 왼쪽 또는 오른쪽으로 돌아서 병 앞까지 도착
 
 ### 연구 질문
-**"어떤 설정이 bottle로의 navigation에 최적인가?"**
+**"어떤 설정이 obstacle을 돌아서 target까지 가는 navigation에 최적인가?"**
 
 ---
 
