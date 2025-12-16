@@ -122,6 +122,7 @@ checkpoints/
 # 학습 실행 결과 및 체크포인트 (대용량)
 runs/
 *.ckpt
+result/
 
 # ONNX 모델
 *.onnx
@@ -132,3 +133,9 @@ RoboVLMs_upstream/.vlms/
 
 # Robo+ 모델 파일
 Robo+/
+
+# Poetry lock file (자동 생성)
+poetry.lock
+
+# Git recovery backup
+git_recovery_backup/
