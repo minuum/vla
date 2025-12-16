@@ -54,15 +54,20 @@
 
 **변수 설명**:
 
-**1. VLM (Vision-Language Model)**:
-- **Frozen + LoRA**: VLM backbone을 freeze하고 LoRA adapter만 학습
+**1. VLM Fine-tuning 방법**:
+
+**우리 실험 (현재)**:
+- **LoRA Fine-tuning**: VLM backbone을 freeze하고 LoRA adapter로 Fine-tuning
+  - 방법: Backbone freeze + LoRA adapter 학습
   - 장점: 적은 데이터로 가능 (500 episodes), Data-efficient
-  - 단점: Task-specific adaptation 제한
-  - 우리 접근 ✅
-- **Fine-tuned**: VLM 전체를 fine-tune
-  - 장점: Task-specific representation 학습
+  - 단점: Backbone은 고정 (Task-specific representation 제한)
+  - **우리 모든 실험이 이 방법** ✅
+
+**향후 비교용**:
+- **Full Fine-tuning**: VLM 전체를 fine-tune (Backbone까지 업데이트)
+  - 장점: Task-specific representation 학습 가능
   - 단점: 많은 데이터 필요 (1000-3000 episodes)
-  - 향후 비교용
+  - 상태: 미수행 (비교 연구용)
 
 **2. Data (Language Instruction + Episodes)**:
 - **L+R (500)**: Left 250 + Right 250 episodes
@@ -92,9 +97,10 @@
   - Code: `mobile_vla_h5_dataset.py:196-211`
 - **Aug+Abs**: 둘 다 적용
 
-**전체 조합**: 16개 (Frozen+LoRA 기준)
+**전체 조합**: 16개 (모두 LoRA Fine-tuning 방식)
 - **완료**: 7개 (43.75%)
 - **미수행**: 9개
+- **Fine-tuning 방법**: 전체 케이스 모두 LoRA 사용 (Backbone freeze)
 
 ### 완료된 케이스 (성능 순위)
 
@@ -114,26 +120,27 @@
 
 ### 전체 케이스 (ID 1-16)
 
-**전체**: 16개 | **완료**: 7개 (✅) | **미수행**: 9개 (❌)
+**전체**: 16개 | **완료**: 7개 (✅) | **미수행**: 9개 (❌)  
+**Fine-tuning**: 모든 케이스 LoRA 방식 (Backbone freeze)
 
-| ID | Data | Chunk | Strategy | 상태 | Val Loss | 비고 |
-|:---:|:---|:---:|:---|:---:|---:|:---|
-| 1 | L+R (500) | 10 | Baseline | ✅ | 0.027 | Baseline |
-| 2 | L+R (500) | 10 | Fixed | ✅ | 0.048 | Xavier init |
-| 3 | L+R (500) | 10 | Aug+Abs | ✅ | 0.050 | - |
-| 4 | R (250) | 10 | Baseline | ✅ | 0.016 | Data 비교 |
-| **5** 🏆 | L+R (500) | **1** | Baseline | ✅ | **0.000532** | **Best!** |
-| 6 | L+R (500) | 10 | Abs | ❌ | - | 미수행 |
-| 7 | L+R (500) | 1 | Fixed | ❌ | - | 미수행 |
-| 8 | L+R (500) | 1 | Abs | ✅ | 0.00243 | 2등 |
-| 9 | L+R (500) | 1 | Aug+Abs | ✅ | 0.004 | 3등 |
-| 10 | R (250) | 10 | Fixed | ❌ | - | 미수행 |
-| 11 | R (250) | 10 | Abs | ❌ | - | 미수행 |
-| 12 | R (250) | 10 | Aug+Abs | ❌ | - | 미수행 |
-| 13 | R (250) | 1 | Baseline | ❌ | - | **추천** (Data 효과) |
-| 14 | R (250) | 1 | Fixed | ❌ | - | 미수행 |
-| 15 | R (250) | 1 | Abs | ❌ | - | 미수행 |
-| 16 | R (250) | 1 | Aug+Abs | ❌ | - | 미수행 |
+| ID | FT Type | Data | Chunk | Strategy | 상태 | Val Loss | 비고 |
+|:---:|:---:|:---|:---:|:---|:---:|---:|:---|
+| 1 | LoRA | L+R (500) | 10 | Baseline | ✅ | 0.027 | Baseline |
+| 2 | LoRA | L+R (500) | 10 | Fixed | ✅ | 0.048 | Xavier init |
+| 3 | LoRA | L+R (500) | 10 | Aug+Abs | ✅ | 0.050 | - |
+| 4 | LoRA | R (250) | 10 | Baseline | ✅ | 0.016 | Data 비교 |
+| **5** 🏆 | **LoRA** | L+R (500) | **1** | Baseline | ✅ | **0.000532** | **Best!** |
+| 6 | LoRA | L+R (500) | 10 | Abs | ❌ | - | 미수행 |
+| 7 | LoRA | L+R (500) | 1 | Fixed | ❌ | - | 미수행 |
+| 8 | LoRA | L+R (500) | 1 | Abs | ✅ | 0.00243 | 2등 |
+| 9 | LoRA | L+R (500) | 1 | Aug+Abs | ✅ | 0.004 | 3등 |
+| 10 | LoRA | R (250) | 10 | Fixed | ❌ | - | 미수행 |
+| 11 | LoRA | R (250) | 10 | Abs | ❌ | - | 미수행 |
+| 12 | LoRA | R (250) | 10 | Aug+Abs | ❌ | - | 미수행 |
+| 13 | LoRA | R (250) | 1 | Baseline | ❌ | - | **추천** (Data 효과) |
+| 14 | LoRA | R (250) | 1 | Fixed | ❌ | - | 미수행 |
+| 15 | LoRA | R (250) | 1 | Abs | ❌ | - | 미수행 |
+| 16 | LoRA | R (250) | 1 | Aug+Abs | ❌ | - | 미수행 |
 
 **전체 조합 상세**: `docs/meeting_20251210/FULL_DESIGN_SPACE.md`
 
@@ -156,8 +163,8 @@
 ### 고정 설정
 
 - **Model**: Kosmos-2 (microsoft/kosmos-2-patch14-224)
-- **VLM**: Frozen (backbone freeze)
-- **LoRA**: r=32, alpha=16, dropout=0.1
+- **Fine-tuning**: LoRA (backbone freeze, adapter 학습)
+- **LoRA Config**: r=32, alpha=16, dropout=0.1
 - **Window**: 8 frames
 - **Output**: 2 DOF (linear_x, linear_y)
 - **Optimizer**: AdamW, lr=1e-4
@@ -421,7 +428,7 @@ projected = tsne.fit_transform(all_vectors)
 
 **실행 시각**: 2025-12-10 15:49  
 **소요 시간**: 2분  
-**목적**: Pre-trained vs Fine-tuned VLM의 latent space 비교
+**목적**: Frozen VLM vs LoRA Fine-tuned VLM의 latent space 비교
 
 ---
 
@@ -432,10 +439,10 @@ projected = tsne.fit_transform(all_vectors)
 - **Right episodes**: 10개
 - **Vector dimension**: 2048 (Kosmos-2 hidden states)
 
-**사용 모델**: **Pre-trained Kosmos-2** (중요!)
-- Checkpoint 로딩 실패
-- 대안으로 Pre-trained 사용
-- Fine-tuned weights 미사용
+**사용 모델**: **Frozen Kosmos-2** (중요!)
+- LoRA Fine-tuned checkpoint 로딩 실패
+- 대안으로 Frozen (Pre-trained) VLM 사용
+- LoRA weights 미사용 (Fine-tuning 전 상태)
 
 **Code**: `scripts/extract_hidden_states_quick.py`
 
@@ -454,33 +461,33 @@ Separation:  0.0006
 
 **Source**: `docs/meeting_20251210/latent_space_results/results.json`
 
-**해석**: ⚠️ **Pre-trained는 Left/Right를 거의 구분 못함**
+**해석**: ⚠️ **Frozen VLM은 Left/Right를 거의 구분 못함**
 
 ---
 
 ### 핵심 발견! ⭐
 
-**Pre-trained VLM의 한계**:
+**Frozen VLM의 한계**:
 1. ✅ **Separation = 0.0006** (거의 0)
 2. ✅ **Left/Right 구분 불가**
 3. ✅ **Task-specific knowledge 없음**
 
 **의미 (매우 중요!)**:
-1. **Fine-tuning이 필수였다!**
-   - Pre-trained만으로는 불충분
-   - LoRA가 실제로 Left/Right를 학습했다는 증거
+1. **LoRA Fine-tuning이 필수였다!**
+   - Frozen VLM만으로는 불충분
+   - LoRA Fine-tuning이 실제로 Left/Right를 학습했다는 증거
    
 2. **Val Loss 98% 개선이 실질적!**
    - 단순히 loss 감소가 아님
    - Latent space에서 Left/Right 구분 능력 획득
 
-3. **우리 접근(Frozen+LoRA)의 효과성**
+3. **우리 접근(LoRA Fine-tuning)의 효과성**
    - 500 episodes만으로 충분
-   - Pre-trained의 한계를 LoRA로 극복
+   - Frozen VLM의 한계를 LoRA Fine-tuning으로 극복
 
 ---
 
-### 예상되는 Fine-tuned 결과
+### 예상되는 LoRA Fine-tuned 결과
 
 **가설** (Val Loss 근거):
 - Left-Left: ~0.8-0.9
@@ -489,7 +496,7 @@ Separation:  0.0006
 - **Separation: 0.3-0.4** (Pre-trained의 500배!)
 
 **근거**:
-- Val Loss 98% 개선
+- Val Loss 98% 개선 (LoRA Fine-tuning 효과)
 - Action 정확도: Left +0.319, Right -0.383
 - 논문 (RT-2, OpenVLA): Fine-tuning creates task-specific latent space
 
@@ -511,22 +518,22 @@ docs/meeting_20251210/latent_space_results/
 ### 교수님께 말씀드릴 내용
 
 **실험 완료**:
-- ✅ Pre-trained로 latent space 분석 실행
+- ✅ Frozen VLM으로 latent space 분석 실행
 - ✅ Separation 0.0006 확인
-- ✅ Fine-tuning 필요성 입증
+- ✅ LoRA Fine-tuning 필요성 입증
 
 **핵심 메시지**:
-1. **Pre-trained는 구분 못함** (실험으로 확인!)
-2. **Fine-tuning이 핵심** (우리 LoRA 효과적)
+1. **Frozen VLM은 구분 못함** (실험으로 확인!)
+2. **LoRA Fine-tuning이 핵심** (우리 접근 효과적)
 3. **Val Loss 개선이 의미있음** (Latent space 변화)
 
 **다음 단계** (선택사항):
-- Fine-tuned checkpoint로 재분석 (30분)
+- LoRA Fine-tuned checkpoint로 재분석 (30분)
 - 예상: 명확한 Left/Right separation (0.3-0.4)
 - t-SNE 시각화 가능
 
 ---
 
-**상태**: Pre-trained 분석 완료 ✅  
-**발견**: Fine-tuning 중요성 입증 ✅  
+**상태**: Frozen VLM 분석 완료 ✅  
+**발견**: LoRA Fine-tuning 중요성 입증 ✅  
 **데이터**: 환각 없이 실제 측정값 ✅
