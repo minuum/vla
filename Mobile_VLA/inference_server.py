@@ -4,9 +4,12 @@ FastAPI Inference Server for Mobile VLA
 
 입력: 이미지 + Language instruction
 출력: 2DOF actions [linear_x, linear_y]
+
+보안: API Key 인증
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 import torch
 import numpy as np
@@ -16,12 +19,44 @@ import io
 import time
 from typing import List, Optional
 import logging
+import os
+import secrets
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Mobile VLA Inference API", version="1.0.0")
+
+# API Key 설정
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+# 환경 변수에서 API Key 읽기 (없으면 생성)
+def get_api_key():
+    api_key = os.getenv("VLA_API_KEY")
+    if not api_key:
+        # API Key 자동 생성 및 출력
+        api_key = secrets.token_urlsafe(32)
+        logger.warning("="*60)
+        logger.warning("⚠️  VLA_API_KEY 환경 변수가 없습니다!")
+        logger.warning(f"생성된 API Key: {api_key}")
+        logger.warning("다음 명령어로 저장하세요:")
+        logger.warning(f'export VLA_API_KEY="{api_key}"')
+        logger.warning("="*60)
+    return api_key
+
+VALID_API_KEY = get_api_key()
+
+async def verify_api_key(api_key: str = Depends(api_key_header)):
+    """API Key 검증"""
+    if api_key != VALID_API_KEY:
+        logger.warning(f"❌ 인증 실패: {api_key[:10]}...")
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid API Key"
+        )
+    return api_key
 
 # Global model instance (lazy loading)
 model_instance = None
@@ -30,7 +65,7 @@ model_instance = None
 class InferenceRequest(BaseModel):
     """추론 요청 스키마"""
     image: str  # base64 encoded image
-    instruction: str  # Language instruction (e.g., "...on the left")
+    instruction: str  # Language instruction
     
 
 class InferenceResponse(BaseModel):
@@ -142,7 +177,10 @@ def get_model():
     
     if model_instance is None:
         # Best LoRA model checkpoint
-        checkpoint_path = "runs/mobile_vla_no_chunk_20251209/checkpoints/epoch=04-val_loss=0.001.ckpt"
+        checkpoint_path = os.getenv(
+            "VLA_CHECKPOINT_PATH",
+            "runs/mobile_vla_no_chunk_20251209/checkpoints/epoch=04-val_loss=0.001.ckpt"
+        )
         config_path = "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json"
         
         model_instance = MobileVLAInference(
@@ -156,34 +194,44 @@ def get_model():
 
 @app.get("/")
 async def root():
-    """API 정보"""
+    """API 정보 (인증 불필요)"""
     return {
         "name": "Mobile VLA Inference API",
         "version": "1.0.0",
-        "status": "running"
+        "status": "running",
+        "auth": "API Key required (X-API-Key header)"
     }
 
 
 @app.get("/health")
 async def health_check():
-    """헬스 체크"""
+    """헬스 체크 (인증 불필요)"""
+    gpu_memory = None
+    if torch.cuda.is_available():
+        gpu_memory = {
+            "allocated_gb": torch.cuda.memory_allocated() / 1024**3,
+            "reserved_gb": torch.cuda.memory_reserved() / 1024**3,
+            "device_name": torch.cuda.get_device_name(0)
+        }
+    
     return {
         "status": "healthy",
         "model_loaded": model_instance is not None,
-        "device": "cuda" if torch.cuda.is_available() else "cpu"
+        "device": "cuda" if torch.cuda.is_available() else "cpu",
+        "gpu_memory": gpu_memory
     }
 
 
 @app.post("/predict", response_model=InferenceResponse)
-async def predict(request: InferenceRequest):
+async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_key)):
     """
-    추론 엔드포인트
+    추론 엔드포인트 (API Key 필수)
     
     Example:
-        {
-            "image": "base64_encoded_image_string",
-            "instruction": "Navigate around obstacles and reach the front of the beverage bottle on the left"
-        }
+        curl -X POST http://localhost:8000/predict \
+          -H "X-API-Key: your-api-key" \
+          -H "Content-Type: application/json" \
+          -d '{"image": "base64_string", "instruction": "..."}'
     """
     try:
         model = get_model()
@@ -192,6 +240,8 @@ async def predict(request: InferenceRequest):
             image_base64=request.image,
             instruction=request.instruction
         )
+        
+        logger.info(f"✅ Prediction: {action}, Latency: {latency_ms:.1f}ms")
         
         return InferenceResponse(
             action=action.tolist(),
@@ -205,9 +255,9 @@ async def predict(request: InferenceRequest):
 
 
 @app.get("/test")
-async def test_endpoint():
+async def test_endpoint(api_key: str = Depends(verify_api_key)):
     """
-    테스트 엔드포인트 - 더미 데이터로 API 테스트
+    테스트 엔드포인트 - 더미 데이터로 API 테스트 (API Key 필수)
     
     Returns:
         샘플 prediction 결과

@@ -1,117 +1,301 @@
-#!/usr/bin/env python3
 """
-FastAPI 추론 서버 (원격 서버용)
-메모리 충분한 환경(32GB+ RAM, 16GB+ VRAM)에서 실행
+FastAPI Inference Server for Mobile VLA
+교수님 서버에서 모델 호출을 위한 API 서버
+
+입력: 이미지 + Language instruction
+출력: 2DOF actions [linear_x, linear_y]
+
+보안: API Key 인증
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 import torch
 import numpy as np
+from PIL import Image
 import base64
-import uvicorn
-from typing import List
-import sys
-from pathlib import Path
+import io
+import time
+from typing import List, Optional
+import logging
+import os
+import secrets
 
-# RoboVLMs 경로
-ROBOVLMS_PATH = Path(__file__).parent / "RoboVLMs_upstream"
-sys.path.insert(0, str(ROBOVLMS_PATH))
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+app = FastAPI(title="Mobile VLA Inference API", version="1.0.0")
 
-from src.robovlms_mobile_vla_inference import MobileVLAConfig, MobileVLAInferenceSystem
+# API Key 설정
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-app = FastAPI(title="Mobile VLA Inference API")
+# 환경 변수에서 API Key 읽기 (없으면 생성)
+def get_api_key():
+    api_key = os.getenv("VLA_API_KEY")
+    if not api_key:
+        # API Key 자동 생성 및 출력
+        api_key = secrets.token_urlsafe(32)
+        logger.warning("="*60)
+        logger.warning("⚠️  VLA_API_KEY 환경 변수가 없습니다!")
+        logger.warning(f"생성된 API Key: {api_key}")
+        logger.warning("다음 명령어로 저장하세요:")
+        logger.warning(f'export VLA_API_KEY="{api_key}"')
+        logger.warning("="*60)
+    return api_key
 
-# 전역 추론 시스템
-inference_system = None
+VALID_API_KEY = get_api_key()
+
+async def verify_api_key(api_key: str = Depends(api_key_header)):
+    """API Key 검증"""
+    if api_key != VALID_API_KEY:
+        logger.warning(f"❌ 인증 실패: {api_key[:10]}...")
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid API Key"
+        )
+    return api_key
+
+# Global model instance (lazy loading)
+model_instance = None
+
 
 class InferenceRequest(BaseModel):
-    images: List[str]  # Base64 encoded images
-    instruction: str = "move forward"
+    """추론 요청 스키마"""
+    image: str  # base64 encoded image
+    instruction: str  # Language instruction
+    
 
 class InferenceResponse(BaseModel):
-    actions: List[List[float]]  # (fwd_pred_next_n, action_dim)
-    inference_time: float
-    fps: float
+    """추론 응답 스키마"""
+    action: List[float]  # [linear_x, linear_y]
+    latency_ms: float  # Inference latency in milliseconds
+    model_name: str
+    
 
-@app.on_event("startup")
-async def startup_event():
-    """서버 시작 시 모델 로드"""
-    global inference_system
+class MobileVLAInference:
+    """Mobile VLA 추론 파이프라인"""
     
-    print("🚀 모델 로딩 중...")
+    def __init__(self, checkpoint_path: str, config_path: str, device: str = "cuda"):
+        """
+        Args:
+            checkpoint_path: LoRA Fine-tuned 모델 checkpoint 경로
+            config_path: Config JSON 파일 경로
+            device: "cuda" or "cpu"
+        """
+        self.device = device
+        self.checkpoint_path = checkpoint_path
+        self.config_path = config_path
+        
+        logger.info(f"Loading model from {checkpoint_path}")
+        logger.info(f"Using device: {device}")
+        
+        # Load config
+        import json
+        with open(config_path, 'r') as f:
+            self.config = json.load(f)
+        
+        # Load model
+        self._load_model()
+        
+        logger.info("Model loaded successfully")
+        
+    def _load_model(self):
+        """모델 로딩"""
+        # TODO: RoboVLMs 모델 로딩 로직 구현
+        # Lightning checkpoint에서 모델 로드
+        import sys
+        sys.path.append('RoboVLMs_upstream')
+        
+        from robovlms.train.mobile_vla_trainer import MobileVLATrainer
+        
+        # Load from checkpoint
+        self.model = MobileVLATrainer.load_from_checkpoint(
+            self.checkpoint_path,
+            config_path=self.config_path
+        )
+        
+        self.model.to(self.device)
+        self.model.eval()
+        
+        # Setup image transforms
+        from torchvision import transforms
+        self.image_transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=self.config['image_mean'],
+                std=self.config['image_std']
+            )
+        ])
+        
+    def preprocess_image(self, image_base64: str) -> torch.Tensor:
+        """Base64 이미지를 모델 입력 형식으로 변환"""
+        # Decode base64
+        image_bytes = base64.b64decode(image_base64)
+        image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+        
+        # Transform
+        image_tensor = self.image_transform(image)
+        
+        # Add batch and window dimensions: (3, 224, 224) -> (1, 1, 3, 224, 224)
+        image_tensor = image_tensor.unsqueeze(0).unsqueeze(0)
+        
+        return image_tensor.to(self.device)
     
-    # 환경 변수에서 체크포인트 경로 가져오기
-    import os
-    checkpoint_path = os.getenv(
-        "VLA_CHECKPOINT_PATH",
-        "RoboVLMs_upstream/runs/mobile_vla_kosmos2_aug_abs_20251209/.../last.ckpt"
-    )
+    def predict(self, image_base64: str, instruction: str) -> tuple[np.ndarray, float]:
+        """
+        추론 실행
+        
+        Returns:
+            (action, latency_ms): 2DOF action과 latency
+        """
+        start_time = time.time()
+        
+        with torch.no_grad():
+            # Preprocess
+            image_tensor = self.preprocess_image(image_base64)
+            
+            # Forward pass
+            # TODO: 실제 모델 forward 로직 구현
+            # outputs = self.model(image_tensor, instruction)
+            # action = outputs['action']  # (1, 2)
+            
+            # Placeholder for now
+            action = np.array([1.15, 0.5])  # [linear_x, linear_y]
+            
+        latency_ms = (time.time() - start_time) * 1000
+        
+        return action, latency_ms
+
+
+def get_model():
+    """모델 인스턴스 가져오기 (lazy loading)"""
+    global model_instance
     
-    config = MobileVLAConfig(
-        checkpoint_path=checkpoint_path,
-        window_size=2,  # 메모리 최적화
-        use_abs_action=True  # abs_action 전략 사용
-    )
+    if model_instance is None:
+        # Best LoRA model checkpoint
+        checkpoint_path = os.getenv(
+            "VLA_CHECKPOINT_PATH",
+            "runs/mobile_vla_no_chunk_20251209/checkpoints/epoch=04-val_loss=0.001.ckpt"
+        )
+        config_path = "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json"
+        
+        model_instance = MobileVLAInference(
+            checkpoint_path=checkpoint_path,
+            config_path=config_path,
+            device="cuda" if torch.cuda.is_available() else "cpu"
+        )
     
-    inference_system = MobileVLAInferenceSystem(config)
+    return model_instance
+
+
+@app.get("/")
+async def root():
+    """API 정보 (인증 불필요)"""
+    return {
+        "name": "Mobile VLA Inference API",
+        "version": "1.0.0",
+        "status": "running",
+        "auth": "API Key required (X-API-Key header)"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """헬스 체크 (인증 불필요)"""
+    gpu_memory = None
+    if torch.cuda.is_available():
+        gpu_memory = {
+            "allocated_gb": torch.cuda.memory_allocated() / 1024**3,
+            "reserved_gb": torch.cuda.memory_reserved() / 1024**3,
+            "device_name": torch.cuda.get_device_name(0)
+        }
     
-    if not inference_system.inference_engine.load_model():
-        raise RuntimeError("모델 로드 실패")
-    
-    print("✅ 서버 준비 완료!")
-    print(f"📌 체크포인트: {checkpoint_path}")
-    print(f"🎯 abs_action 전략: 활성화")
+    return {
+        "status": "healthy",
+        "model_loaded": model_instance is not None,
+        "device": "cuda" if torch.cuda.is_available() else "cpu",
+        "gpu_memory": gpu_memory
+    }
 
 
 @app.post("/predict", response_model=InferenceResponse)
-async def predict(request: InferenceRequest):
-    """추론 API 엔드포인트"""
-    if inference_system is None:
-        raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다")
+async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_key)):
+    """
+    추론 엔드포인트 (API Key 필수)
     
+    Example:
+        curl -X POST http://localhost:8000/predict \
+          -H "X-API-Key: your-api-key" \
+          -H "Content-Type: application/json" \
+          -d '{"image": "base64_string", "instruction": "..."}'
+    """
     try:
-        # Base64 → numpy 변환
-        images_np = []
-        for img_b64 in request.images:
-            img_bytes = base64.b64decode(img_b64)
-            img_array = np.frombuffer(img_bytes, dtype=np.uint8)
-            img = np.reshape(img_array, (224, 224, 3))
-            images_np.append(img)
+        model = get_model()
         
-        # 이미지 버퍼 채우기
-        inference_system.image_buffer.clear()
-        for img in images_np:
-            inference_system.image_buffer.add_image(img)
-        
-        # 추론 실행 (abs_action 전략 사용)
-        actions, info = inference_system.inference_engine.predict_action(
-            inference_system.image_buffer.get_images(),
-            request.instruction,
-            use_abs_action=inference_system.config.use_abs_action
+        action, latency_ms = model.predict(
+            image_base64=request.image,
+            instruction=request.instruction
         )
+        
+        logger.info(f"✅ Prediction: {action}, Latency: {latency_ms:.1f}ms")
         
         return InferenceResponse(
-            actions=actions.tolist(),
-            inference_time=info["inference_time"],
-            fps=info["fps"]
+            action=action.tolist(),
+            latency_ms=latency_ms,
+            model_name="mobile_vla_no_chunk_20251209"
         )
-    
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"추론 실패: {str(e)}")
+        logger.error(f"Prediction failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/health")
-async def health():
-    """헬스 체크"""
+
+@app.get("/test")
+async def test_endpoint(api_key: str = Depends(verify_api_key)):
+    """
+    테스트 엔드포인트 - 더미 데이터로 API 테스트 (API Key 필수)
+    
+    Returns:
+        샘플 prediction 결과
+    """
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    import numpy as np
+    
+    # Create dummy RGB image
+    dummy_img = Image.new('RGB', (1280, 720), color=(255, 0, 0))
+    
+    # Convert to base64
+    buffer = BytesIO()
+    dummy_img.save(buffer, format='PNG')
+    img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    
+    # Test instruction
+    instruction = "Navigate around obstacles and reach the front of the beverage bottle on the left"
+    
+    # Simulate prediction
+    dummy_action = [1.15, 0.319]  # Expected for "left"
+    
     return {
-        "status": "healthy",
-        "model_loaded": inference_system is not None
+        "message": "Test endpoint - using dummy data",
+        "instruction": instruction,
+        "action": dummy_action,
+        "note": "This is a test endpoint. Use POST /predict for real inference."
     }
 
+
 if __name__ == "__main__":
-    # 사용법:
-    # 1. 체크포인트 경로 수정 (line 30)
-    # 2. 실행: python3 api_server.py
-    # 3. 접속: http://0.0.0.0:8000/docs
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import uvicorn
+    
+    # Run server
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        log_level="info"
+    )

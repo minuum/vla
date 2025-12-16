@@ -27,17 +27,26 @@ logger = logging.getLogger(__name__)
 class VLAClient:
     """A5000 FastAPI 클라이언트"""
     
-    def __init__(self, api_server: str = None):
+    def __init__(self, api_server: str = None, api_key: str = None):
         """
         Args:
             api_server: A5000 서버 URL (예: "http://192.168.1.100:8000")
+            api_key: API Key (보안 인증용)
         """
         self.api_server = api_server or os.getenv(
             "VLA_API_SERVER",
             "http://localhost:8000"  # 기본값
         )
         
+        self.api_key = api_key or os.getenv("VLA_API_KEY")
+        
+        if not self.api_key:
+            logger.warning("⚠️  VLA_API_KEY 환경 변수가 설정되지 않았습니다!")
+            logger.warning("   일부 엔드포인트는 API Key가 필요합니다")
+        
         logger.info(f"🔗 VLA API 서버: {self.api_server}")
+        if self.api_key:
+            logger.info(f"🔑 API Key: {self.api_key[:10]}...")
         
         # Health check
         self._check_server()
@@ -99,6 +108,11 @@ class VLAClient:
         pil_img.save(buffer, format='PNG')
         img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         
+        # Headers에 API Key 추가
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+        
         # API 호출
         try:
             start_time = time.time()
@@ -109,6 +123,7 @@ class VLAClient:
                     "image": img_base64,
                     "instruction": instruction
                 },
+                headers=headers,
                 timeout=10
             )
             
@@ -124,6 +139,10 @@ class VLAClient:
                 logger.debug(f"Action: {action}")
                 
                 return action, total_latency
+            elif response.status_code == 403:
+                logger.error("❌ API Key 인증 실패!")
+                logger.error("   VLA_API_KEY 환경 변수를 확인하세요")
+                raise RuntimeError("Authentication failed: Invalid API Key")
             else:
                 raise RuntimeError(
                     f"API 호출 실패: {response.status_code}\n{response.text}"
