@@ -139,3 +139,4 @@ poetry.lock
 
 # Git recovery backup
 git_recovery_backup/
+secrets.sh

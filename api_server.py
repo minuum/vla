@@ -268,10 +268,6 @@ def get_model():
             "chunk10_epoch8": {
                 "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=08-val_loss=val_loss=0.312.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_chunk10_20251217.json"
-            },
-            "no_chunk_epoch4": {
-                "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-09/mobile_vla_no_chunk_20251209/epoch_epoch=04-val_loss=val_loss=0.001.ckpt",
-                "config": "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json"
             }
         }
         
@@ -363,13 +359,6 @@ async def list_models(api_key: str = Depends(verify_api_key)):
             "description": "Chunk10 Epoch 8 (val_loss=0.312)",
             "fwd_pred_next_n": 10,
             "recommended": False
-        },
-        "no_chunk_epoch4": {
-            "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-09/mobile_vla_no_chunk_20251209/epoch_epoch=04-val_loss=val_loss=0.001.ckpt",
-            "config": "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json",
-            "description": "No Chunk Epoch 4 (val_loss=0.001)",
-            "fwd_pred_next_n": 1,
-            "recommended": False
         }
     }
     
@@ -396,7 +385,7 @@ async def switch_model(request: ModelSwitchRequest, api_key: str = Depends(verif
     global model_instance
     
     try:
-        available_models = ["chunk5_epoch6", "chunk10_epoch8", "no_chunk_epoch4"]
+        available_models = ["chunk5_epoch6", "chunk10_epoch8"]
         
         if request.model_name not in available_models:
             raise HTTPException(
