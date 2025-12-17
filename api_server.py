@@ -3,9 +3,10 @@ FastAPI Inference Server for Mobile VLA
 교수님 서버에서 모델 호출을 위한 API 서버
 
 입력: 이미지 + Language instruction
-출력: 2DOF actions [linear_x, linear_y]
+출력: 2DOF actions [linear_x, angular_z]
 
 보안: API Key 인증
+교수님 합의: Chunk=1,5,10 모델 지원 (첫 번째 액션만 실행)
 """
 
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -70,9 +71,10 @@ class InferenceRequest(BaseModel):
 
 class InferenceResponse(BaseModel):
     """추론 응답 스키마"""
-    action: List[float]  # [linear_x, linear_y]
+    action: List[float]  # [linear_x, angular_z]
     latency_ms: float  # Inference latency in milliseconds
     model_name: str
+    chunk_size: int  # 모델의 chunk size (fwd_pred_next_n)
     
 
 class MobileVLAInference:
@@ -104,71 +106,71 @@ class MobileVLAInference:
         
     def _load_model(self):
         """모델 로딩"""
-        # TODO: RoboVLMs 모델 로딩 로직 구현
-        # Lightning checkpoint에서 모델 로드
         import sys
-        sys.path.append('RoboVLMs_upstream')
+        from pathlib import Path
+        
+        # Add RoboVLMs to path
+        robovlms_path = str(Path(__file__).parent / 'RoboVLMs_upstream')
+        if robovlms_path not in sys.path:
+            sys.path.insert(0, robovlms_path)
         
         from robovlms.train.mobile_vla_trainer import MobileVLATrainer
         
-        # Load from checkpoint
+        # Load from Lightning checkpoint
+        logger.info(f"Loading checkpoint: {self.checkpoint_path}")
+        logger.info(f"Using config: {self.config_path}")
+        
         self.model = MobileVLATrainer.load_from_checkpoint(
             self.checkpoint_path,
-            config_path=self.config_path
+            config_path=self.config_path,
+            strict=False  # Allow missing keys
         )
         
         self.model.to(self.device)
         self.model.eval()
+        logger.info(f"Model loaded on {self.device}")
         
-        # Setup image transforms
-        from torchvision import transforms
-        self.image_transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=self.config['image_mean'],
-                std=self.config['image_std']
-            )
-        ])
+        # Get model info
+        self.fwd_pred_next_n = self.config.get('fwd_pred_next_n', 1)
+        self.action_dim = self.config.get('action_dim', 2)
+        logger.info(f"Model: Chunk={self.fwd_pred_next_n}, Action_dim={self.action_dim}")
         
-    def preprocess_image(self, image_base64: str) -> torch.Tensor:
-        """Base64 이미지를 모델 입력 형식으로 변환"""
+    def preprocess_image(self, image_base64: str) -> Image.Image:
+        """Base64 이미지를 PIL Image로 변환"""
         # Decode base64
         image_bytes = base64.b64decode(image_base64)
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        
-        # Transform
-        image_tensor = self.image_transform(image)
-        
-        # Add batch and window dimensions: (3, 224, 224) -> (1, 1, 3, 224, 224)
-        image_tensor = image_tensor.unsqueeze(0).unsqueeze(0)
-        
-        return image_tensor.to(self.device)
+        return image
     
     def predict(self, image_base64: str, instruction: str) -> tuple[np.ndarray, float]:
         """
         추론 실행
         
         Returns:
-            (action, latency_ms): 2DOF action [linear_x, linear_y]와 latency
+            (action, latency_ms): 2DOF action [linear_x, angular_z]와 latency
         """
         start_time = time.time()
         
         with torch.no_grad():
-            # Preprocess
-            image_tensor = self.preprocess_image(image_base64)
+            # Preprocess image
+            pil_image = self.preprocess_image(image_base64)
             
-            # Forward pass
-            # TODO: 실제 모델 forward 로직 구현
-            # outputs = self.model(image_tensor, instruction)
-            # action = outputs['action']  # (1, 2)
+            # Model forward (RoboVLMs style)
+            # MobileVLATrainer.predict() expects PIL Image and instruction
+            outputs = self.model.predict(
+                image=pil_image,
+                instruction=instruction
+            )
             
-            # Placeholder for now
-            action = np.array([1.15, 0.319])  # [linear_x, linear_y]
+            # Extract action
+            # outputs['actions']: [batch_size, fwd_pred_next_n, action_dim]
+            # We only use the first action (index 0)
+            actions = outputs['actions']  # (1, fwd_pred_next_n, 2)
+            first_action = actions[0, 0, :].cpu().numpy()  # [linear_x, angular_z]
             
         latency_ms = (time.time() - start_time) * 1000
         
-        return action, latency_ms
+        return first_action, latency_ms
 
 
 def get_model():
@@ -176,12 +178,37 @@ def get_model():
     global model_instance
     
     if model_instance is None:
-        # Best LoRA model checkpoint
-        checkpoint_path = os.getenv(
-            "VLA_CHECKPOINT_PATH",
-            "runs/mobile_vla_no_chunk_20251209/checkpoints/epoch=04-val_loss=0.001.ckpt"
-        )
-        config_path = "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json"
+        # 환경 변수로 모델 선택 가능
+        model_name = os.getenv("VLA_MODEL_NAME", "chunk5_epoch6")
+        
+        # 모델별 체크포인트 및 config 경로
+        model_configs = {
+            "chunk5_epoch6": {
+                "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json"
+            },
+            "chunk10_epoch8": {
+                "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=08-val_loss=val_loss=0.312.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_chunk10_20251217.json"
+            },
+            "no_chunk_epoch4": {
+                "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-09/mobile_vla_no_chunk_20251209/epoch_epoch=04-val_loss=val_loss=0.001.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json"
+            }
+        }
+        
+        # Get model config
+        if model_name not in model_configs:
+            logger.warning(f"Unknown model '{model_name}', defaulting to 'chunk5_epoch6'")
+            model_name = "chunk5_epoch6"
+        
+        config = model_configs[model_name]
+        checkpoint_path = os.getenv("VLA_CHECKPOINT_PATH", config["checkpoint"])
+        config_path = os.getenv("VLA_CONFIG_PATH", config["config"])
+        
+        logger.info(f"Loading model: {model_name}")
+        logger.info(f"Checkpoint: {checkpoint_path}")
+        logger.info(f"Config: {config_path}")
         
         model_instance = MobileVLAInference(
             checkpoint_path=checkpoint_path,
@@ -209,9 +236,6 @@ async def health_check():
     gpu_memory = None
     if torch.cuda.is_available():
         gpu_memory = {
-            "allocated_gb": torch.cuda.memory_allocated() / 1024**3,
-            "reserved_gb": torch.cuda.memory_reserved() / 1024**3,
-            "device_name": torch.cuda.get_device_name(0)
         }
     
     return {
@@ -220,6 +244,27 @@ async def health_check():
         "device": "cuda" if torch.cuda.is_available() else "cpu",
         "gpu_memory": gpu_memory
     }
+
+
+@app.get("/model/info")
+async def model_info(api_key: str = Depends(verify_api_key)):
+    """모델 정보 조회 (API Key 필수)"""
+    try:
+        model = get_model()
+        
+        return {
+            "model_name": os.getenv("VLA_MODEL_NAME", "chunk5_epoch6"),
+            "checkpoint_path": model.checkpoint_path,
+            "config_path": model.config_path,
+            "fwd_pred_next_n": model.fwd_pred_next_n,
+            "action_dim": model.action_dim,
+            "freeze_backbone": model.config.get('freeze_backbone', True),
+            "lora_enable": model.config.get('lora_enable', False),
+            "device": model.device
+        }
+    except Exception as e:
+        logger.error(f"Failed to get model info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/predict", response_model=InferenceResponse)
@@ -246,7 +291,8 @@ async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_k
         return InferenceResponse(
             action=action.tolist(),
             latency_ms=latency_ms,
-            model_name="mobile_vla_no_chunk_20251209"
+            model_name=os.getenv("VLA_MODEL_NAME", "chunk5_epoch6"),
+            chunk_size=model.fwd_pred_next_n
         )
         
     except Exception as e:
@@ -279,7 +325,7 @@ async def test_endpoint(api_key: str = Depends(verify_api_key)):
     instruction = "Navigate around obstacles and reach the front of the beverage bottle on the left"
     
     # Simulate prediction (2 DOF)
-    dummy_action = [1.15, 0.319]  # [linear_x, linear_y]
+    dummy_action = [1.15, 0.319]  # [linear_x, angular_z]
     
     return {
         "message": "Test endpoint - using dummy data",
