@@ -206,38 +206,33 @@ class MobileVLAInference:
             )
             
             # Extract action from prediction
-            # prediction should have 'action' key
             logger.info(f"Prediction keys: {prediction.keys()}")
             
             if 'action' in prediction:
                 action_output = prediction['action']
                 logger.info(f"Action type: {type(action_output)}")
                 
-                # Handle tuple (velocity, gripper) - we only need velocity
+                # Handle tuple format - first element is velocity (linear_x, linear_y)
                 if isinstance(action_output, tuple):
-                    logger.info(f"Action is tuple with {len(action_output)} elements")
-                    # First element should be velocity (linear_x, linear_y)
-                    action_output = action_output[0]
-                    logger.info(f"Using first element, shape: {action_output.shape if hasattr(action_output, 'shape') else type(action_output)}")
+                    logger.info(f"Action is tuple, extracting velocity")
+                    action_output = action_output[0]  # velocity only
+                    logger.info(f"Velocity shape: {action_output.shape if hasattr(action_output, 'shape') else type(action_output)}")
                 
-                # Now extract from tensor
-                # Expected shapes:
-                # - (B, seq_len, fwd_pred_next_n, action_dim) = (1, 1, 5, 2)
-                # - (B, fwd_pred_next_n, action_dim)
-                # - (B, action_dim)
+                # Extract from tensor
+                # Expected: (B, seq_len, fwd_pred_next_n, 2) where 2 = [linear_x, linear_y]
                 if isinstance(action_output, torch.Tensor):
                     logger.info(f"Action tensor shape: {action_output.shape}")
                     if action_output.dim() == 4:
-                        # (B, seq_len, fwd_pred_next_n, action_dim) -> take first of everything
-                        first_action = action_output[0, 0, 0, :].cpu().numpy()  # [linear_x, linear_y]
+                        # (B, seq_len, fwd_pred_next_n, 2) -> take first action
+                        first_action = action_output[0, 0, 0, :].cpu().numpy()
                     elif action_output.dim() == 3:
-                        # (B, fwd_pred_next_n, action_dim) -> take first action
+                        # (B, fwd_pred_next_n, 2) -> take first action
                         first_action = action_output[0, 0, :].cpu().numpy()
                     elif action_output.dim() == 2:
-                        # (B, action_dim) -> take first batch
+                        # (B, 2) -> take first batch
                         first_action = action_output[0, :].cpu().numpy()
                     elif action_output.dim() == 1:
-                        # (action_dim,) -> use directly
+                        # (2,) -> use directly
                         first_action = action_output.cpu().numpy()
                     else:
                         logger.error(f"Unexpected action tensor shape: {action_output.shape}")
