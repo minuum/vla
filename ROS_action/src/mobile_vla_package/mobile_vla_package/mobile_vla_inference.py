@@ -19,7 +19,11 @@ from queue import Queue
 class MobileVLAInference(Node):
     """
     Mobile VLA 모델을 사용한 추론 노드
-    단일 이미지를 받아서 18프레임의 액션 시퀀스를 예측
+    
+    이미지를 받아서 단일 액션을 예측 (Reactive control)
+    모델의 fwd_pred_next_n (chunk size)와 무관하게 첫 번째 액션만 사용
+    
+    Output: 2 DOF [linear_x, linear_y]
     """
     
     def __init__(self):
@@ -154,32 +158,35 @@ class MobileVLAInference(Node):
             self.get_logger().error(f"Error preprocessing image: {e}")
             return None
     
-    def predict_actions(self, inputs: dict) -> List[List[float]]:
-        """18프레임 액션 시퀀스 예측"""
+    def predict_action(self, inputs: dict) -> List[float]:
+        """
+        단일 액션 예측 (Chunk size와 무관)
+        
+        모델의 fwd_pred_next_n이 1, 5, 10 어느 것이든 동작
+        첫 번째 액션만 반환하여 Reactive control 구현
+        
+        Returns:
+            [linear_x, linear_y]: 2 DOF 액션
+        """
         try:
             with torch.no_grad():
                 # 모델 추론
                 outputs = self.model(**inputs)
                 
                 # 액션 헤드에서 예측값 추출
-                action_logits = outputs.action_logits  # [batch_size, 18, 3]
+                # Shape: [batch_size, fwd_pred_next_n, 2]
+                action_logits = outputs.action_logits
                 
-                # 시퀀스 길이 확인 및 조정
-                if action_logits.shape[1] < 18:
-                    # 패딩으로 18프레임 맞추기
-                    padding = torch.zeros(action_logits.shape[0], 18 - action_logits.shape[1], 3, device=self.device)
-                    action_logits = torch.cat([action_logits, padding], dim=1)
-                elif action_logits.shape[1] > 18:
-                    # 18프레임으로 자르기
-                    action_logits = action_logits[:, :18, :]
+                # 첫 번째 액션만 추출 (Chunk와 무관)
+                first_action = action_logits[0, 0, :]  # [2] - [linear_x, linear_y]
                 
                 # CPU로 이동하고 numpy로 변환
-                actions = action_logits.cpu().numpy()[0]  # [18, 3]
+                action = first_action.cpu().numpy()
                 
-                return actions.tolist()
+                return action.tolist()
                 
         except Exception as e:
-            self.get_logger().error(f"Error predicting actions: {e}")
+            self.get_logger().error(f"Error predicting action: {e}")
             return None
     
     def inference_worker(self):
@@ -201,20 +208,20 @@ class MobileVLAInference(Node):
                     if inputs is None:
                         continue
                     
-                    # 액션 예측
-                    actions = self.predict_actions(inputs)
-                    if actions is None:
+                    # 액션 예측 (단일 액션)
+                    action = self.predict_action(inputs)
+                    if action is None:
                         continue
                     
                     # 추론 시간 계산
                     inference_time = time.time() - start_time
                     
                     # 결과 발행
-                    self.publish_inference_result(actions, inference_time, timestamp)
+                    self.publish_inference_result(action, inference_time, timestamp)
                     
-                    # 첫 번째 액션 실행
-                    if actions:
-                        self.execute_action(actions[0])
+                    # 액션 실행
+                    if action:
+                        self.execute_action(action)
                     
                     self.is_processing = False
                     self.publish_status("ready")
@@ -228,36 +235,47 @@ class MobileVLAInference(Node):
                 time.sleep(0.1)
     
     def execute_action(self, action: List[float]):
-        """단일 액션 실행"""
+        """
+        단일 액션 실행
+        
+        Args:
+            action: [linear_x, linear_y] (2 DOF)
+        """
         try:
             # 액션을 Twist 메시지로 변환
             twist = Twist()
-            twist.linear.x = float(action[0])  # linear_x
-            twist.linear.y = float(action[1])  # linear_y
-            twist.angular.z = float(action[2])  # angular_z
+            twist.linear.x = float(action[0])   # linear_x
+            twist.linear.y = float(action[1])   # linear_y
+            twist.angular.z = 0.0               # 우리 태스크에서는 사용 안 함
             
             # 액션 발행
             self.action_pub.publish(twist)
             
+            self.get_logger().info(
+                f"Action executed: linear_x={action[0]:.3f}, linear_y={action[1]:.3f}"
+            )
+            
         except Exception as e:
             self.get_logger().error(f"Error executing action: {e}")
     
-    def publish_inference_result(self, actions: List[List[float]], inference_time: float, timestamp):
+    def publish_inference_result(self, action: List[float], inference_time: float, timestamp):
         """추론 결과 발행"""
         try:
             result = {
                 "timestamp": timestamp.sec + timestamp.nanosec * 1e-9,
                 "inference_time": inference_time,
-                "actions": actions,
-                "task": self.current_task,
-                "frame_count": len(actions)
+                "action": action,  # [linear_x, angular_z]
+                "task": self.current_task
             }
             
             msg = String()
             msg.data = json.dumps(result)
             self.inference_result_pub.publish(msg)
             
-            self.get_logger().info(f"Inference completed: {inference_time:.3f}s, {len(actions)} frames")
+            self.get_logger().info(
+                f"Inference completed: {inference_time:.3f}s, "
+                f"Action: [x={action[0]:.3f}, y={action[1]:.3f}]"
+            )
             
         except Exception as e:
             self.get_logger().error(f"Error publishing inference result: {e}")

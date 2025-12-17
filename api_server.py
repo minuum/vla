@@ -150,7 +150,7 @@ class MobileVLAInference:
         추론 실행
         
         Returns:
-            (action, latency_ms): 2DOF action과 latency
+            (action, latency_ms): 2DOF action [linear_x, linear_y]와 latency
         """
         start_time = time.time()
         
@@ -164,7 +164,7 @@ class MobileVLAInference:
             # action = outputs['action']  # (1, 2)
             
             # Placeholder for now
-            action = np.array([1.15, 0.5])  # [linear_x, linear_y]
+            action = np.array([1.15, 0.319])  # [linear_x, linear_y]
             
         latency_ms = (time.time() - start_time) * 1000
         
@@ -278,8 +278,8 @@ async def test_endpoint(api_key: str = Depends(verify_api_key)):
     # Test instruction
     instruction = "Navigate around obstacles and reach the front of the beverage bottle on the left"
     
-    # Simulate prediction
-    dummy_action = [1.15, 0.319]  # Expected for "left"
+    # Simulate prediction (2 DOF)
+    dummy_action = [1.15, 0.319]  # [linear_x, linear_y]
     
     return {
         "message": "Test endpoint - using dummy data",
