@@ -3,10 +3,12 @@ FastAPI Inference Server for Mobile VLA
 교수님 서버에서 모델 호출을 위한 API 서버
 
 입력: 이미지 + Language instruction
-출력: 2DOF actions [linear_x, angular_z]
+출력: 2DOF actions [linear_x, linear_y]  # 학습 데이터 기준
 
 보안: API Key 인증
 교수님 합의: Chunk=1,5,10 모델 지원 (첫 번째 액션만 실행)
+
+Note: 학습 시 linear_x, linear_y로 학습했음 (실제 로봇 제어 시 linear_y를 angular_z로 매핑 필요)
 """
 
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -71,7 +73,7 @@ class InferenceRequest(BaseModel):
 
 class InferenceResponse(BaseModel):
     """추론 응답 스키마"""
-    action: List[float]  # [linear_x, angular_z]
+    action: List[float]  # [linear_x, linear_y]  # 학습 데이터 기준
     latency_ms: float  # Inference latency in milliseconds
     model_name: str
     chunk_size: int  # 모델의 chunk size (fwd_pred_next_n)
@@ -147,26 +149,107 @@ class MobileVLAInference:
         추론 실행
         
         Returns:
-            (action, latency_ms): 2DOF action [linear_x, angular_z]와 latency
+            (action, latency_ms): 2DOF action [linear_x, linear_y]와 latency (학습 데이터 기준)
         """
         start_time = time.time()
         
         with torch.no_grad():
-            # Preprocess image
+            # Preprocess image (base64 -> PIL)
             pil_image = self.preprocess_image(image_base64)
             
-            # Model forward (RoboVLMs style)
-            # MobileVLATrainer.predict() expects PIL Image and instruction
-            outputs = self.model.predict(
-                image=pil_image,
-                instruction=instruction
+            # Load Kosmos processor
+            from transformers import AutoProcessor
+            processor = AutoProcessor.from_pretrained(
+                self.config.get('model_path', '.vlms/kosmos-2-patch14-224')
             )
             
-            # Extract action
-            # outputs['actions']: [batch_size, fwd_pred_next_n, action_dim]
-            # We only use the first action (index 0)
-            actions = outputs['actions']  # (1, fwd_pred_next_n, 2)
-            first_action = actions[0, 0, :].cpu().numpy()  # [linear_x, angular_z]
+            # Prepare inputs (Kosmos format)
+            # Image normalization is handled by processor
+            inputs = processor(
+                images=pil_image,
+                text=instruction,
+                return_tensors="pt"
+            )
+            
+            # Move to device
+            for key in inputs:
+                if isinstance(inputs[key], torch.Tensor):
+                    inputs[key] = inputs[key].to(self.device)
+            
+            # Add batch dimension if needed
+            if inputs['pixel_values'].dim() == 3:
+                inputs['pixel_values'] = inputs['pixel_values'].unsqueeze(0)  # (1, C, H, W)
+            
+            # Add temporal dimension (window_size=1 for single image inference)
+            if inputs['pixel_values'].dim() == 4:
+                inputs['pixel_values'] = inputs['pixel_values'].unsqueeze(1)  # (1, 1, C, H, W)
+            
+            # Prepare inputs for model.inference()
+            # Based on BaseTrainer.inference_step()
+            rgb = inputs['pixel_values']  # (B, T, C, H, W)
+            language = inputs['input_ids']  # (B, seq_len)
+            text_mask = inputs['attention_mask']  # (B, seq_len)
+            
+            # Call model.inference() like in BaseTrainer
+            # Note: self.model is MobileVLATrainer (Lightning module)
+            # The actual model is in trainer_model.model
+            # BaseRoboVLM.inference() uses vision_x and lang_x (not rgb and language)
+            prediction = self.model.model.inference(
+                vision_x=rgb,
+                lang_x=language,
+                attention_mask=text_mask,
+                action_labels=None,
+                action_mask=None,
+                caption_labels=None,
+                caption_mask=None,
+                vision_gripper=None
+            )
+            
+            # Extract action from prediction
+            # prediction should have 'action' key
+            logger.info(f"Prediction keys: {prediction.keys()}")
+            
+            if 'action' in prediction:
+                action_output = prediction['action']
+                logger.info(f"Action type: {type(action_output)}")
+                
+                # Handle tuple (velocity, gripper) - we only need velocity
+                if isinstance(action_output, tuple):
+                    logger.info(f"Action is tuple with {len(action_output)} elements")
+                    # First element should be velocity (linear_x, linear_y)
+                    action_output = action_output[0]
+                    logger.info(f"Using first element, shape: {action_output.shape if hasattr(action_output, 'shape') else type(action_output)}")
+                
+                # Now extract from tensor
+                # Expected shapes:
+                # - (B, seq_len, fwd_pred_next_n, action_dim) = (1, 1, 5, 2)
+                # - (B, fwd_pred_next_n, action_dim)
+                # - (B, action_dim)
+                if isinstance(action_output, torch.Tensor):
+                    logger.info(f"Action tensor shape: {action_output.shape}")
+                    if action_output.dim() == 4:
+                        # (B, seq_len, fwd_pred_next_n, action_dim) -> take first of everything
+                        first_action = action_output[0, 0, 0, :].cpu().numpy()  # [linear_x, linear_y]
+                    elif action_output.dim() == 3:
+                        # (B, fwd_pred_next_n, action_dim) -> take first action
+                        first_action = action_output[0, 0, :].cpu().numpy()
+                    elif action_output.dim() == 2:
+                        # (B, action_dim) -> take first batch
+                        first_action = action_output[0, :].cpu().numpy()
+                    elif action_output.dim() == 1:
+                        # (action_dim,) -> use directly
+                        first_action = action_output.cpu().numpy()
+                    else:
+                        logger.error(f"Unexpected action tensor shape: {action_output.shape}")
+                        raise ValueError(f"Unexpected action tensor shape: {action_output.shape}")
+                else:
+                    logger.error(f"Action is not a tensor: {type(action_output)}")
+                    raise ValueError(f"Action must be a torch.Tensor, got: {type(action_output)}")
+            else:
+                logger.error(f"No 'action' key in prediction. Keys: {list(prediction.keys())}")
+                raise ValueError("Could not find action in prediction output")
+            
+            logger.info(f"Extracted action (linear_x, linear_y): {first_action}")
             
         latency_ms = (time.time() - start_time) * 1000
         
