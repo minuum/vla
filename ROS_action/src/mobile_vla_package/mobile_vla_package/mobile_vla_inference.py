@@ -246,7 +246,7 @@ class MobileVLAInference(Node):
             twist = Twist()
             twist.linear.x = float(action[0])   # linear_x
             twist.linear.y = float(action[1])   # linear_y
-            twist.angular.z = 0.0               # 우리 태스크에서는 사용 안 함
+            twist.angular.z = 0.0               # 사용 안 함
             
             # 액션 발행
             self.action_pub.publish(twist)

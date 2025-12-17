@@ -83,8 +83,8 @@ class MobileVLAAPIClient(Node):
                 # 액션 실행 (2 DOF)
                 twist = Twist()
                 twist.linear.x = float(action[0])   # linear_x
-                twist.linear.y = float(action[1])   # linear_y
-                twist.angular.z = 0.0               # 우리 태스크에서는 사용 안 함
+                twist.linear.y = float(action[1])   # linear_y (데이터셋 기준)
+                twist.angular.z = 0.0               # 사용 안 함
                 self.cmd_vel_pub.publish(twist)
                 
                 self.get_logger().info(
