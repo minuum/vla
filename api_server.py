@@ -267,6 +267,100 @@ async def model_info(api_key: str = Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/model/list")
+async def list_models(api_key: str = Depends(verify_api_key)):
+    """사용 가능한 모델 목록 조회 (API Key 필수)"""
+    # 모델별 체크포인트 및 config 경로 (get_model 함수와 동일)
+    model_configs = {
+        "chunk5_epoch6": {
+            "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
+            "config": "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json",
+            "description": "Chunk5 Epoch 6 - Best model (val_loss=0.067)",
+            "fwd_pred_next_n": 5,
+            "recommended": True
+        },
+        "chunk10_epoch8": {
+            "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=08-val_loss=val_loss=0.312.ckpt",
+            "config": "Mobile_VLA/configs/mobile_vla_chunk10_20251217.json",
+            "description": "Chunk10 Epoch 8 (val_loss=0.312)",
+            "fwd_pred_next_n": 10,
+            "recommended": False
+        },
+        "no_chunk_epoch4": {
+            "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-09/mobile_vla_no_chunk_20251209/epoch_epoch=04-val_loss=val_loss=0.001.ckpt",
+            "config": "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json",
+            "description": "No Chunk Epoch 4 (val_loss=0.001)",
+            "fwd_pred_next_n": 1,
+            "recommended": False
+        }
+    }
+    
+    current_model = os.getenv("VLA_MODEL_NAME", "chunk5_epoch6")
+    
+    return {
+        "available_models": model_configs,
+        "current_model": current_model,
+        "model_loaded": model_instance is not None
+    }
+
+
+class ModelSwitchRequest(BaseModel):
+    """모델 전환 요청 스키마"""
+    model_name: str  # chunk5_epoch6, chunk10_epoch8, no_chunk_epoch4
+
+
+@app.post("/model/switch")
+async def switch_model(request: ModelSwitchRequest, api_key: str = Depends(verify_api_key)):
+    """모델 전환 (API Key 필수)
+    
+    서버 재시작 없이 런타임에 모델 변경 가능
+    """
+    global model_instance
+    
+    try:
+        available_models = ["chunk5_epoch6", "chunk10_epoch8", "no_chunk_epoch4"]
+        
+        if request.model_name not in available_models:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid model name. Available: {available_models}"
+            )
+        
+        logger.info(f"🔄 Switching model to: {request.model_name}")
+        
+        # 기존 모델 메모리 해제
+        if model_instance is not None:
+            del model_instance
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            model_instance = None
+        
+        # 환경 변수 업데이트
+        os.environ["VLA_MODEL_NAME"] = request.model_name
+        
+        # 새 모델 로드
+        new_model = get_model()
+        
+        logger.info(f"✅ Model switched successfully to: {request.model_name}")
+        
+        return {
+            "status": "success",
+            "previous_model": os.getenv("VLA_MODEL_NAME", "chunk5_epoch6"),
+            "current_model": request.model_name,
+            "model_info": {
+                "checkpoint_path": new_model.checkpoint_path,
+                "fwd_pred_next_n": new_model.fwd_pred_next_n,
+                "action_dim": new_model.action_dim,
+                "device": new_model.device
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to switch model: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 @app.post("/predict", response_model=InferenceResponse)
 async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_key)):
     """
