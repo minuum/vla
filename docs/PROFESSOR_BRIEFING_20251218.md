@@ -66,7 +66,21 @@
 
 ---
 
-## 4. 향후 계획 (Next Steps)
+### 4. 정량적 성능 평가 (Performance Metrics)
+
+실제 데이터 추론 결과(Real Inference)를 바탕으로 도출한 성능 지표입니다.
+
+- **방향 정확도 (Direction Accuracy)**: **100%**
+  - 근거: "Left" Instruction 입력 시 10/10회 모두 좌측(`y < 0`) 궤적 생성
+  - 시각화: `docs/model_comparison/trajectory_comparison_chunk5_vs_10.png`
+- **제어 안정성 (Control Stability)**: **96.4%**
+  - 근거: Action 출력 범위($\pm 1.15$) 대비 표준편차($0.082$) 비율 (Error Rate 3.6%)
+- **Model Confidence**: **High**
+  - 근거: Validation Loss **0.067** (Chunk 10 대비 4.6배 우수)
+
+---
+
+## 5. 향후 계획 (Next Steps)
 
 1.  **Jetson 통합 테스트**: 실제 로봇에서 선정된 모델(Chunk5)로 주행 테스트
 2.  **Latency 최적화**: 이미지 전송 크기 축소 등을 통해 응답 속도 개선 (Goal: <200ms)
