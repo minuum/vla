@@ -5,7 +5,7 @@
 # - Billy (A5000): 모델 서버 - VLA 추론
 #
 # Source this file in your ~/.zshrc or ~/.bashrc:
-# echo 'source /home/soda/vla/.vla_aliases' >> ~/.zshrc
+# echo 'source /home/billy/25-1kp/vla/.vla_aliases' >> ~/.zshrc
 
 # ========================================
 # 서버 역할 감지
@@ -27,11 +27,11 @@ fi
 # 공통 환경 변수
 # ========================================
 
-export VLA_PROJECT_DIR="/home/soda/vla"
+export VLA_PROJECT_DIR="/home/billy/25-1kp/vla"
 
 # Tailscale VPN 주소
 export JETSON_TAILSCALE_IP="${JETSON_TAILSCALE_IP:-100.85.118.58}"
-export BILLY_TAILSCALE_IP="${BILLY_TAILSCALE_IP:-100.XXX.XXX.XXX}"  # Billy 서버의 Tailscale IP로 변경 필요
+export BILLY_TAILSCALE_IP="${BILLY_TAILSCALE_IP:-100.86.152.29}"  # Billy 서버의 Tailscale IP
 
 # ========================================
 # Jetson 서버 전용 설정

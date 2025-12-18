@@ -213,7 +213,7 @@ def main():
     models = [
         "chunk5_epoch6",   # Recommended
         "chunk10_epoch8",
-        "no_chunk_epoch4"
+        # "no_chunk_epoch4"  # Not yet registered in API server
     ]
     
     results = []

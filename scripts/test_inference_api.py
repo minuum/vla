@@ -22,6 +22,16 @@ class InferenceAPITester:
         self.base_url = base_url
         self.results = []
         
+        # API Key 설정
+        import os
+        self.api_key = os.getenv("VLA_API_KEY")
+        if not self.api_key:
+            print("⚠️ Warning: VLA_API_KEY not set. Some tests may fail.")
+        
+        self.headers = {
+            "X-API-Key": self.api_key
+        } if self.api_key else {}
+        
     def print_section(self, title: str):
         """섹션 출력"""
         print("\n" + "="*60)
@@ -73,7 +83,7 @@ class InferenceAPITester:
         self.print_section("3. Testing GET /test")
         
         try:
-            response = requests.get(f"{self.base_url}/test")
+            response = requests.get(f"{self.base_url}/test", headers=self.headers)
             
             print(f"Status: {response.status_code}")
             
@@ -125,7 +135,8 @@ class InferenceAPITester:
             response = requests.post(
                 f"{self.base_url}/predict",
                 json=payload,
-                timeout=10
+                headers=self.headers,
+                timeout=30
             )
             latency = (time.time() - start_time) * 1000
             
@@ -169,7 +180,8 @@ class InferenceAPITester:
             response = requests.post(
                 f"{self.base_url}/predict",
                 json=payload,
-                timeout=10
+                headers=self.headers,
+                timeout=30
             )
             latency = (time.time() - start_time) * 1000
             

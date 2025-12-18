@@ -140,3 +140,6 @@ poetry.lock
 # Git recovery backup
 git_recovery_backup/
 secrets.sh
+JETSON_HANDOFF_INFO.txt
+ROS_action/mobile_vla_dataset/*.h5
+api_test_results.json

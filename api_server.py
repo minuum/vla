@@ -53,6 +53,12 @@ VALID_API_KEY = get_api_key()
 
 async def verify_api_key(api_key: str = Depends(api_key_header)):
     """API Key 검증"""
+    if api_key is None:
+        logger.warning("❌ 인증 실패: API Key가 제공되지 않음")
+        raise HTTPException(
+            status_code=403,
+            detail="API Key required. Please provide X-API-Key header."
+        )
     if api_key != VALID_API_KEY:
         logger.warning(f"❌ 인증 실패: {api_key[:10]}...")
         raise HTTPException(
@@ -482,7 +488,7 @@ async def test_endpoint(api_key: str = Depends(verify_api_key)):
     dummy_img.save(buffer, format='PNG')
     img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
     
-    # Test instruction
+    # Test instruction (Unified with training data)
     instruction = "Navigate around obstacles and reach the front of the beverage bottle on the left"
     
     # Simulate prediction (2 DOF)

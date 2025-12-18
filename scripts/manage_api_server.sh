@@ -9,7 +9,7 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-PROJECT_DIR="/home/soda/vla"
+PROJECT_DIR="/home/billy/25-1kp/vla"
 LOG_FILE="$PROJECT_DIR/logs/api_server.log"
 PID_FILE="$PROJECT_DIR/logs/api_server.pid"
 
