@@ -151,23 +151,36 @@ class MobileVLAAPIClient(Node):
                     pass # 로그 너무 많아서 생략
 
     def get_latest_image_via_service(self, max_retries: int = 3):
-        """서비스로 카메라 이미지 가져오기 (Deadlock-free version)"""
+        """서비스로 카메라 이미지 가져오기 (Deadlock-free & Safe Timeout)"""
         for attempt in range(max_retries):
             try:
                 self.get_logger().info(f"📸 [시도 {attempt+1}/{max_retries}] 이미지 서비스 요청...")
                 request = GetImage.Request()
                 future = self.get_image_client.call_async(request)
                 
-                # ✅ KEY FIX: spin_until_future_complete 대신 future.result() 사용
-                # 별도 스레드에서 호출되므로, 메인 스레드의 Executor가 처리를 완료할 때까지 안전하게 대기 가능
-                response = future.result(timeout=2.0)
+                # ✅ KEY FIX: threading.Event를 사용하여 안전하게 타임아웃 대기
+                # Future.result()에는 timeout 인자가 없으므로 이 방식이 필수입니다.
+                event = threading.Event()
+                def done_callback(f):
+                    event.set()
+                future.add_done_callback(done_callback)
                 
-                if response and response.image.data:
-                    cv_image = self.cv_bridge.imgmsg_to_cv2(response.image, "bgr8")
-                    self.get_logger().info(f"✅ 이미지 수신 성공 ({cv_image.shape})")
-                    return cv_image
+                # 타임아웃 대기 (2.0초)
+                if event.wait(timeout=2.0):
+                    response = future.result()
+                    if response and response.image.data:
+                        cv_image = self.cv_bridge.imgmsg_to_cv2(response.image, "bgr8")
+                        self.get_logger().info(f"✅ 이미지 수신 성공 ({cv_image.shape})")
+                        return cv_image
+                    else:
+                        self.get_logger().warn(f"⚠️ [시도 {attempt+1}] 빈 이미지 수신")
                 else:
-                    self.get_logger().warn(f"⚠️ [시도 {attempt+1}] 빈 이미지 수신")
+                    self.get_logger().warn(f"⚠️ [시도 {attempt+1}] 서비스 호출 타임아웃 (2.0s)")
+                    # Future 취소 시도
+                    try:
+                        future.cancel()
+                    except:
+                        pass
                     
             except Exception as e:
                 self.get_logger().error(f"❌ [시도 {attempt+1}] 서비스 호출 에러: {e}")
