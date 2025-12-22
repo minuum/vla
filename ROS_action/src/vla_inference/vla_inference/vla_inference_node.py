@@ -42,7 +42,7 @@ class VLAInferenceNode(Node):
         self.model_loaded = False
         
         # 추론 설정
-        self.inference_interval = 0.5  # 0.5초마다 추론
+        self.inference_interval = 0.3  # 0.3초마다 추론 (데이터 수집 burst 시간과 동기화)
         self.last_inference_time = 0.0
         self.confidence_threshold = 0.7
         

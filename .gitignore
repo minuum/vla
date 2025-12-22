@@ -117,3 +117,29 @@ mobile-vla-omniwheel/
 *.whl
 *.pth
 config/weights/
+checkpoints/
+
+# 학습 실행 결과 및 체크포인트 (대용량)
+runs/
+*.ckpt
+result/
+
+# ONNX 모델
+*.onnx
+
+# VLM 모델 캐시
+.vlms/
+RoboVLMs_upstream/.vlms/
+
+# Robo+ 모델 파일
+Robo+/
+
+# Poetry lock file (자동 생성)
+poetry.lock
+
+# Git recovery backup
+git_recovery_backup/
+secrets.sh
+JETSON_HANDOFF_INFO.txt
+ROS_action/mobile_vla_dataset/*.h5
+api_test_results.json

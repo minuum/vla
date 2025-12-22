@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "total_files": 500,
+    "left_files": 250,
+    "right_files": 250
+  },
+  "random_baseline": {
+    "mse": 0.33154612761946156,
+    "rmse": 0.5758004234276505,
+    "mse_linear": 0.332580901811888,
+    "mse_angular": 0.33051135342703497,
+    "mean_abs_error": 0.4981940095600041
+  },
+  "data_statistics": {
+    "left": {
+      "mean_linear": 1.0222220420837402,
+      "mean_angular": 0.3194444477558136,
+      "std_linear": 0.36141011118888855,
+      "std_angular": 0.8403270840644836
+    },
+    "right": {
+      "mean_linear": 1.0222220420837402,
+      "mean_angular": -0.38333332538604736,
+      "std_linear": 0.36141011118888855,
+      "std_angular": 0.76666659116745
+    }
+  },
+  "comparison": {
+    "our_val_loss": 0.027,
+    "our_rmse": 0.17,
+    "random_rmse": 0.5758004234276505,
+    "improvement_percent": 70.47588138473111,
+    "is_better_than_random": true
+  }
+}
