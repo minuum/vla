@@ -1,0 +1,27 @@
+#!/bin/bash
+# Jetson Quick Start - SSH 터널을 통한 API 서버 접속
+# Billy 서버 Port: 10022 (기본 22가 아님!)
+
+echo "🚀 Jetson VLA API 연결 - Quick Start"
+echo "========================================"
+echo ""
+echo "1️⃣  SSH 터널 생성 (Port 10022 사용!)"
+echo "   ssh -N -f -L 8000:localhost:8000 billy@100.86.152.29 -p 10022"
+echo ""
+echo "2️⃣  API 테스트"
+echo "   export VLA_API_SERVER='http://localhost:8000'"
+echo "   export VLA_API_KEY='your-secret-key'"
+echo "   curl -H \"X-API-Key: \${VLA_API_KEY}\" http://localhost:8000/health"
+echo ""
+echo "3️⃣  ROS2 Client 실행"
+echo "   source /opt/ros/humble/setup.bash"
+echo "   source ~/ros2_ws/install/setup.bash"
+echo "   ros2 run mobile_vla_package api_client_node"
+echo ""
+echo "========================================"
+echo ""
+echo "⚠️  중요: Billy 서버는 Port 10022를 사용합니다!"
+echo "📚 자세한 내용: docs/SSH_TUNNEL_GUIDE.md"
+echo ""
+echo "자동 실행하려면:"
+echo "   bash scripts/jetson_ssh_tunnel.sh"
