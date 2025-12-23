@@ -83,6 +83,7 @@ class InferenceResponse(BaseModel):
     latency_ms: float  # Inference latency in milliseconds
     model_name: str
     chunk_size: int  # 모델의 chunk size (fwd_pred_next_n)
+    full_chunk: Optional[List[List[float]]] = None  # Future trajectory
     
 
 class MobileVLAInference:
@@ -229,17 +230,21 @@ class MobileVLAInference:
                 if isinstance(action_output, torch.Tensor):
                     logger.info(f"Action tensor shape: {action_output.shape}")
                     if action_output.dim() == 4:
-                        # (B, seq_len, fwd_pred_next_n, 2) -> take first action
-                        first_action = action_output[0, 0, 0, :].cpu().numpy()
+                        # (B, seq_len, fwd_pred_next_n, 2) -> take first batch
+                        full_chunk = action_output[0, 0, :, :].cpu().numpy()
+                        first_action = full_chunk[0]
                     elif action_output.dim() == 3:
-                        # (B, fwd_pred_next_n, 2) -> take first action
-                        first_action = action_output[0, 0, :].cpu().numpy()
+                        # (B, fwd_pred_next_n, 2) -> take first batch
+                        full_chunk = action_output[0, :, :].cpu().numpy()
+                        first_action = full_chunk[0]
                     elif action_output.dim() == 2:
-                        # (B, 2) -> take first batch
+                        # (B, 2) -> single action
                         first_action = action_output[0, :].cpu().numpy()
+                        full_chunk = np.expand_dims(first_action, axis=0)
                     elif action_output.dim() == 1:
                         # (2,) -> use directly
                         first_action = action_output.cpu().numpy()
+                        full_chunk = np.expand_dims(first_action, axis=0)
                     else:
                         logger.error(f"Unexpected action tensor shape: {action_output.shape}")
                         raise ValueError(f"Unexpected action tensor shape: {action_output.shape}")
@@ -251,10 +256,11 @@ class MobileVLAInference:
                 raise ValueError("Could not find action in prediction output")
             
             logger.info(f"Extracted action (linear_x, linear_y): {first_action}")
+            logger.info(f"Full chunk shape: {full_chunk.shape}")
             
         latency_ms = (time.time() - start_time) * 1000
         
-        return first_action, latency_ms
+        return first_action, full_chunk, latency_ms
 
 
 def get_model():
@@ -448,18 +454,19 @@ async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_k
     try:
         model = get_model()
         
-        action, latency_ms = model.predict(
+        action, full_chunk, latency_ms = model.predict(
             image_base64=request.image,
             instruction=request.instruction
         )
         
-        logger.info(f"✅ Prediction: {action}, Latency: {latency_ms:.1f}ms")
+        logger.info(f"✅ Prediction: {action}, Chunk: {full_chunk.shape}, Latency: {latency_ms:.1f}ms")
         
         return InferenceResponse(
             action=action.tolist(),
             latency_ms=latency_ms,
             model_name=os.getenv("VLA_MODEL_NAME", "chunk5_epoch6"),
-            chunk_size=model.fwd_pred_next_n
+            chunk_size=model.fwd_pred_next_n,
+            full_chunk=full_chunk.tolist()
         )
         
     except Exception as e:
