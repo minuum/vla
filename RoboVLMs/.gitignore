@@ -200,3 +200,7 @@ runs/
 .DS_Store?
 
 /home/billy/25-1kp/vla/Robo+/Mobile_VLA/augmented_dataset
+
+# Memory test logs
+memory_*.txt
+inspect_*.py
