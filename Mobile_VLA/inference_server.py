@@ -23,7 +23,7 @@ import os
 import secrets
 
 # Import ActionBuffer
-from action_buffer import ActionBuffer
+from Mobile_VLA.action_buffer import ActionBuffer
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -328,9 +328,9 @@ def get_model():
         # Best LoRA model checkpoint
         checkpoint_path = os.getenv(
             "VLA_CHECKPOINT_PATH",
-            "runs/mobile_vla_no_chunk_20251209/checkpoints/epoch=04-val_loss=0.001.ckpt"
+            "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt"
         )
-        config_path = "Mobile_VLA/configs/mobile_vla_no_chunk_20251209.json"
+        config_path = "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json"
         
         model_instance = MobileVLAInference(
             checkpoint_path=checkpoint_path,
@@ -395,7 +395,10 @@ async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_k
         return InferenceResponse(
             action=action.tolist(),
             latency_ms=latency_ms,
-            model_name="mobile_vla_no_chunk_20251209"
+            model_name="mobile_vla_chunk5_20251217",
+            strategy="receding_horizon",
+            source="inferred",
+            buffer_status={}
         )
         
     except Exception as e:
