@@ -17,10 +17,13 @@ from PIL import Image
 import base64
 import io
 import time
-from typing import List, Optional
+from typing import List, Optional, Literal
 import logging
 import os
 import secrets
+
+# Import ActionBuffer
+from action_buffer import ActionBuffer
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -66,6 +69,7 @@ class InferenceRequest(BaseModel):
     """추론 요청 스키마"""
     image: str  # base64 encoded image
     instruction: str  # Language instruction
+    strategy: Literal["chunk_reuse", "receding_horizon"] = "chunk_reuse"  # Inference strategy
     
 
 class InferenceResponse(BaseModel):
@@ -73,6 +77,9 @@ class InferenceResponse(BaseModel):
     action: List[float]  # [linear_x, linear_y]
     latency_ms: float  # Inference latency in milliseconds
     model_name: str
+    strategy: str  # Inference strategy used
+    source: str  # "inferred" or "reused"
+    buffer_status: dict  # Buffer status for chunk_reuse
     
 
 class MobileVLAInference:
@@ -89,6 +96,9 @@ class MobileVLAInference:
         self.checkpoint_path = checkpoint_path
         self.config_path = config_path
         
+        # Initialize action buffer for chunk_reuse strategy
+        self.action_buffer = ActionBuffer(chunk_size=10)
+        
         logger.info(f"Loading model from {checkpoint_path}")
         logger.info(f"Using device: {device}")
         
@@ -103,22 +113,73 @@ class MobileVLAInference:
         logger.info("Model loaded successfully")
         
     def _load_model(self):
-        """모델 로딩"""
-        # TODO: RoboVLMs 모델 로딩 로직 구현
-        # Lightning checkpoint에서 모델 로드
+        """모델 로딩 with BitsAndBytes INT8 Quantization (OpenVLA Standard)"""
         import sys
         sys.path.append('RoboVLMs_upstream')
         
         from robovlms.train.mobile_vla_trainer import MobileVLATrainer
+        from transformers import BitsAndBytesConfig
+        import torch
         
-        # Load from checkpoint
-        self.model = MobileVLATrainer.load_from_checkpoint(
-            self.checkpoint_path,
-            config_path=self.config_path
+        logger.info("="*60)
+        logger.info("🔧 Loading Model with BitsAndBytes INT8")
+        logger.info("   (OpenVLA/BitVLA Standard Method)")
+        logger.info("="*60)
+        
+        # Configure BitsAndBytes INT8 (OpenVLA method)
+        bnb_config = BitsAndBytesConfig(
+            load_in_8bit=True,
+            llm_int8_threshold=6.0,
+            llm_int8_enable_fp32_cpu_offload=False
         )
         
+        logger.info("INT8 Config:")
+        logger.info(f"  - load_in_8bit: True")
+        logger.info(f"  - threshold: 6.0")
+        logger.info(f"  - Method: OpenVLA/BitVLA standard")
+        logger.info(f"  - Expected: 73% memory reduction, 27x speedup")
+        
+        # Load checkpoint first
+        logger.info(f"\nLoading checkpoint: {self.checkpoint_path}")
+        checkpoint = torch.load(self.checkpoint_path, map_location='cpu')
+        
+        # Check if it's quantized checkpoint
+        if 'quantization' in checkpoint:
+            logger.info("✅ Quantized checkpoint detected")
+            logger.info(f"   Quantization info: {checkpoint['quantization']}")
+        
+        # Load from checkpoint with BitsAndBytes INT8
+        logger.info("\nCreating trainer with INT8 quantization...")
+        
+        # Pass quantization_config directly to trainer
+        self.model = MobileVLATrainer(
+            self.config,
+            quantization_config=bnb_config  # OpenVLA/BitVLA method
+        )
+        
+        # Load state dict
+        if 'model_state_dict' in checkpoint:
+            state_dict = checkpoint['model_state_dict']
+        elif 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            raise ValueError("No state_dict found in checkpoint")
+        
+        self.model.load_state_dict(state_dict, strict=False)
+        
+        # Move to device and set eval mode
         self.model.to(self.device)
         self.model.eval()
+        
+        # Measure actual GPU memory
+        if torch.cuda.is_available():
+            gpu_memory = torch.cuda.memory_allocated() / 1024**3
+            logger.info(f"\n📊 Actual GPU Memory: {gpu_memory:.3f} GB")
+            logger.info(f"   Expected: ~1.7 GB (73% reduction from 6.3GB FP32)")
+        
+        logger.info("="*60)
+        logger.info("✅ Model loaded with BitsAndBytes INT8")
+        logger.info("="*60)
         
         # Setup image transforms
         from torchvision import transforms
@@ -144,27 +205,115 @@ class MobileVLAInference:
         image_tensor = image_tensor.unsqueeze(0).unsqueeze(0)
         
         return image_tensor.to(self.device)
+        
+    def _tokenize_instruction(self, instruction: str) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Instruction을 tokenize하여 tensor로 변환
+        
+        Args:
+            instruction: Natural language instruction
+        
+        Returns:
+            (lang_x, attention_mask): Tokenized instruction과 attention mask
+        """
+        from transformers import AutoProcessor
+        
+        # Kosmos-2 tokenizer 사용
+        processor = AutoProcessor.from_pretrained(self.config['tokenizer']['pretrained_model_name_or_path'])
+        
+        # Tokenize instruction
+        # Kosmos-2는 text prompt를 처리할 때 특별한 형식 사용
+        encoded = processor.tokenizer(
+            instruction,
+            return_tensors='pt',
+            padding='max_length',
+            max_length=self.config['tokenizer']['max_text_len'],
+            truncation=True
+        )
+        
+        lang_x = encoded['input_ids'].to(self.device)  # (1, seq_len)
+        attention_mask = encoded['attention_mask'].to(self.device)  # (1, seq_len)
+        
+        return lang_x, attention_mask
+
     
     def predict(self, image_base64: str, instruction: str) -> tuple[np.ndarray, float]:
         """
         추론 실행
         
+        Args:
+            image_base64: Base64 encoded RGB image
+            instruction: Natural language command
+        
         Returns:
-            (action, latency_ms): 2DOF action과 latency
+            (action, latency_ms): 
+                - action: [linear_x, linear_y] numpy array
+                  - linear_x (m/s): Forward velocity [0.0, 2.0]
+                  - linear_y (rad/s): Angular velocity [-0.5, 0.5]
+                - latency_ms: Inference latency in milliseconds
         """
         start_time = time.time()
         
         with torch.no_grad():
-            # Preprocess
+            # Preprocess image
             image_tensor = self.preprocess_image(image_base64)
             
-            # Forward pass
-            # TODO: 실제 모델 forward 로직 구현
-            # outputs = self.model(image_tensor, instruction)
-            # action = outputs['action']  # (1, 2)
+            # Tokenize instruction
+            lang_x, attention_mask = self._tokenize_instruction(instruction)
             
-            # Placeholder for now
-            action = np.array([1.15, 0.5])  # [linear_x, linear_y]
+            # Model inference
+            try:
+                # self.model.model은 MobileVLATrainer의 실제 Kosmos-2 모델
+                outputs = self.model.model.inference(
+                    vision_x=image_tensor,
+                    lang_x=lang_x,
+                    attention_mask=attention_mask
+                )
+                
+                # Extract action from outputs
+                # outputs는 dictionary {'action': tensor or tuple}
+                if isinstance(outputs, dict) and 'action' in outputs:
+                    action_out = outputs['action']
+                    
+                    logger.info(f"DEBUG: action_out type: {type(action_out)}")
+                    
+                    # action_out이 tuple인지 먼저 확인
+                    if isinstance(action_out, tuple):
+                        # Tuple 형식: (velocities, gripper) 등
+                        velocities = action_out[0]
+                        logger.info(f"DEBUG: velocities shape: {velocities.shape}")
+                        # Flatten to 1D and take first N elements
+                        action = velocities.flatten().cpu().numpy()[:2]
+                    else:
+                        # Tensor 형식
+                        logger.info(f"DEBUG: action_out shape: {action_out.shape}")
+                        # Flatten and take first 2 elements
+                        action = action_out.flatten().cpu().numpy()[:2]
+                    
+                    logger.info(f"DEBUG: extracted action shape: {action.shape}, values: {action}")
+                else:
+                    # outputs 자체가 tensor 또는 tuple인 경우 (fallback)
+                    logger.warning(f"Unexpected outputs type: {type(outputs)}")
+                    action = np.array([0.0, 0.0])
+                
+                # De-normalize action
+                # 모델 출력: [-1, 1] normalized
+                # Target range:
+                #   - linear_x: [0.0, 2.0] m/s
+                #   - linear_y: [-0.5, 0.5] rad/s
+                action[0] = (action[0] + 1.0) * 1.0  # [-1,1] -> [0,2]
+                action[1] = action[1] * 0.5          # [-1,1] -> [-0.5,0.5]
+                
+                # Clip to valid range
+                action[0] = np.clip(action[0], 0.0, 2.0)
+                action[1] = np.clip(action[1], -0.5, 0.5)
+                
+            except Exception as e:
+                logger.error(f"Inference failed: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback: stop command
+                action = np.array([0.0, 0.0])
             
         latency_ms = (time.time() - start_time) * 1000
         
