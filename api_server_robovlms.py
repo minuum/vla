@@ -25,7 +25,7 @@ from pathlib import Path
 import sys
 
 # RoboVLMs 경로 추가
-ROBOVLMS_PATH = Path(__file__).parent / "RoboVLMs_upstream"
+ROBOVLMS_PATH = Path(__file__).parent / "RoboVLMs"
 if str(ROBOVLMS_PATH) not in sys.path:
     sys.path.insert(0, str(ROBOVLMS_PATH))
 
