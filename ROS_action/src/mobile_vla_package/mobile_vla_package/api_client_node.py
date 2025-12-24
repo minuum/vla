@@ -1,350 +1,165 @@
 #!/usr/bin/env python3
-"""
-Mobile VLA API Client - RoboVLMs Style & Multi-threaded Safe
-"""
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.callback_groups import ReentrantCallbackGroup
-import sys, tty, termios
-import os
-import time
-import threading
-import requests
-import base64
-import cv2
-import numpy as np
-from collections import deque
-
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
-from geometry_msgs.msg import Twist
+from mobile_vla_interfaces.srv import VLACommand
+from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from camera_interfaces.srv import GetImage
+import numpy as np
+import threading
+import time
+import os
+import sys
+
+# Add RoboVLMs to path for pipeline import
+ROBOVLMS_PATH = "/home/soda/vla/RoboVLMs"
+sys.path.append(ROBOVLMS_PATH)
 
 try:
-    from pop.driving import Driving
-    ROBOT_AVAILABLE = True
-except ImportError:
-    # print("Warning: pop.driving not available. Using ROS only.")
-    ROBOT_AVAILABLE = False
-
+    from inference_pipeline import MobileVLAInferencePipeline
+except ImportError as e:
+    print(f"Error importing inference_pipeline: {e}")
+    # We will crash later if we can't import, but let's try to proceed 
+    # so we can see logs if it's just a path issue.
 
 class MobileVLAAPIClient(Node):
     def __init__(self):
         super().__init__('mobile_vla_api_client')
         
-        # ✅ KEY FIX: ReentrantCallbackGroup 사용 (데드락 방지)
-        self.callback_group = ReentrantCallbackGroup()
+        # --- Configuration ---
+        self.ckpt_path = self.declare_parameter("ckpt_path", "/home/soda/vla/ROS_action/last.ckpt").value
+        # Use Mock mode by default for now to avoid loading issues in ROS environment without explicit configuration
+        self.mock_mode = self.declare_parameter("mock", True).value 
         
-        # 액션 매핑
-        self.WASD_TO_CONTINUOUS = {
-            'w': {"linear_x": 1.15, "linear_y": 0.0, "angular_z": 0.0},
-            'a': {"linear_x": 0.0, "linear_y": 1.15, "angular_z": 0.0},
-            's': {"linear_x": -1.15, "linear_y": 0.0, "angular_z": 0.0},
-            'd': {"linear_x": 0.0, "linear_y": -1.15, "angular_z": 0.0},
-            'q': {"linear_x": 1.15, "linear_y": 1.15, "angular_z": 0.0},
-            'e': {"linear_x": 1.15, "linear_y": -1.15, "angular_z": 0.0},
-            'z': {"linear_x": -1.15, "linear_y": 1.15, "angular_z": 0.0},
-            'c': {"linear_x": -1.15, "linear_y": -1.15, "angular_z": 0.0},
-            ' ': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 0.0}
-        }
-        self.STOP_ACTION = {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 0.0}
+        self.log_info(f"Initializing On-Device Inference Node (Mock={self.mock_mode})...")
+
+        # Initialize Inference Pipeline
+        try:
+             self.inference_pipeline = MobileVLAInferencePipeline(
+                checkpoint_path=self.ckpt_path,
+                mock_mode=self.mock_mode
+            )
+             self.log_info("Inference Pipeline initialized successfully.")
+        except Exception as e:
+            self.get_logger().error(f"Failed to initialize pipeline: {e}")
+            # If pipeline fails, we can't really function, but maybe we stay alive to report error?
+            # For now, let's exit.
+            sys.exit(1)
+
+        # Service
+        self.srv = self.create_service(
+            VLACommand, 
+            '/execute_vla_command', 
+            self.handle_vla_command,
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
+        )
         
-        self.default_instruction = "Navigate around obstacles and reach the front of the beverage bottle on the left"
-        
-        self.inference_mode = False
-        self.inference_count = 0
-        self.success_count = 0
-        self.fail_count = 0
-        self.latency_history = deque(maxlen=100)
-        self.last_action = [0.0, 0.0]
-        
-        self.api_server_url = os.getenv("VLA_API_SERVER", "http://localhost:8000")
-        self.api_key = os.getenv("VLA_API_KEY", "")
-        
-        if ROBOT_AVAILABLE:
-            try:
-                self.driver = Driving()
-                self.throttle = 50
-            except Exception as e:
-                self.get_logger().error(f"Failed to init driving: {e}")
-                self.driver = None
-        else:
-            self.driver = None
-        
-        # ✅ KEY FIX: 모든 클라이언트/퍼블리셔에 callback_group 적용
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10, callback_group=self.callback_group)
-        self.get_image_client = self.create_client(GetImage, 'get_image_service', callback_group=self.callback_group)
-        
+        # Image Subscriber
+        self.latest_image = None
+        self.image_lock = threading.Lock()
         self.cv_bridge = CvBridge()
         
-        # 서비스 대기
-        self.wait_for_service()
-        
-        self.print_welcome()
-        
-        # 키보드 스레드
-        self.keyboard_thread = threading.Thread(target=self.keyboard_loop)
-        self.keyboard_thread.daemon = True
-        self.keyboard_thread.start()
-        
-        # ✅ KEY FIX: Timer 대신 별도 스레드로 추론 루프 실행 (데드락 완전 회피)
-        self.inference_thread = threading.Thread(target=self.inference_loop)
-        self.inference_thread.daemon = True
-        self.inference_thread.start()
-        
-        self.get_logger().info(f"✅ 시스템 준비 완료! API: {self.api_server_url}")
+        self.image_sub = self.create_subscription(
+            Image,
+            '/camera/image_raw',
+            self.image_callback,
+            1, # Keep queue size small
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
+        )
+        self.log_info("Node initialized and waiting for commands...")
 
-    def wait_for_service(self):
+    def log_info(self, msg):
+        self.get_logger().info(msg)
+
+    def image_callback(self, msg):
+        """Update latest image"""
         try:
-            while not self.get_image_client.wait_for_service(timeout_sec=5.0):
-                self.get_logger().info('get_image_service 서비스 대기 중...')
-                if not rclpy.ok():
-                    sys.exit()
-            self.get_logger().info('✅ get_image_service 서비스 연결 완료!')
+            # self.log_info("Received image")
+            cv_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            # Convert to PIL Image for pipeline
+            from PIL import Image as PILImage
+            import cv2
+            rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+            pil_image = PILImage.fromarray(rgb_image)
+            
+            with self.image_lock:
+                self.latest_image = pil_image
         except Exception as e:
-            self.get_logger().error(f"❌ 서비스 연결 실패: {e}")
+            self.get_logger().error(f"Image processing error: {e}")
 
-    def print_welcome(self):
-        self.get_logger().info("=" * 60)
-        self.get_logger().info("🤖 Mobile VLA API Client - Multi-Threaded")
-        self.get_logger().info("=" * 60)
-        self.get_logger().info("📋 조작: W/A/S/D(이동), Space(정지), I(추론), R(테스트), T(진단)")
-        self.get_logger().info("=" * 60)
+    def handle_vla_command(self, request, response):
+        """Handle Service Request: Execute Action Inference"""
+        start_time = time.time()
+        instruction = request.instruction
+        rel_state = np.array(request.rel_state) 
+        
+        self.log_info(f"Received command: '{instruction}'")
 
-    def keyboard_loop(self):
-        while rclpy.ok():
-            key = self.get_key()
-            self.handle_key_input(key)
-            time.sleep(0.01)
-    
-    def get_key(self):
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
+        # 1. Get Image
+        current_image = None
+        with self.image_lock:
+            if self.latest_image is not None:
+                current_image = self.latest_image.copy()
+        
+        if current_image is None:
+            self.get_logger().error("No image available!")
+            
+            # If in mock mode, maybe we can fake an image?
+            if self.mock_mode:
+                self.get_logger().warn("Mock mode: Creating dummy image")
+                from PIL import Image as PILImage
+                current_image = PILImage.new('RGB', (224, 224), color='blue')
+            else:
+                response.success = False
+                response.message = "No image received from camera"
+                return response
+
+        # 2. Run Inference
         try:
-            tty.setraw(fd)
-            key = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        return key
-    
-    def handle_key_input(self, key: str):
-        if key == '\x03':  # Ctrl+C
-            rclpy.shutdown()
-            sys.exit()
-        elif key == 'i':
-            self.inference_mode = not self.inference_mode
-            status = "🟢 ON" if self.inference_mode else "🔴 OFF"
-            self.get_logger().info(f"🎮 추론 모드: {status}")
-            if not self.inference_mode:
-                self.publish_cmd_vel(self.STOP_ACTION, "inference_off")
-        elif key == 'r':
-            # 별도 스레드에서 실행 (키보드 루프 블로킹 방지)
-            threading.Thread(target=self.run_single_inference_test).start()
-        elif key == 't':
-            threading.Thread(target=self.run_system_test).start()
-        elif key in self.WASD_TO_CONTINUOUS:
-            if not self.inference_mode:
-                action = self.WASD_TO_CONTINUOUS[key]
-                self.publish_cmd_vel(action, f"manual_{key}")
-                if key != ' ':
-                    pass # 로그 너무 많아서 생략
-
-    def get_latest_image_via_service(self, max_retries: int = 3):
-        """서비스로 카메라 이미지 가져오기 (Deadlock-free & Safe Timeout)"""
-        for attempt in range(max_retries):
-            try:
-                self.get_logger().info(f"📸 [시도 {attempt+1}/{max_retries}] 이미지 서비스 요청...")
-                request = GetImage.Request()
-                future = self.get_image_client.call_async(request)
-                
-                # ✅ KEY FIX: threading.Event를 사용하여 안전하게 타임아웃 대기
-                # Future.result()에는 timeout 인자가 없으므로 이 방식이 필수입니다.
-                event = threading.Event()
-                def done_callback(f):
-                    event.set()
-                future.add_done_callback(done_callback)
-                
-                # 타임아웃 대기 (2.0초)
-                if event.wait(timeout=2.0):
-                    response = future.result()
-                    if response and response.image.data:
-                        cv_image = self.cv_bridge.imgmsg_to_cv2(response.image, "bgr8")
-                        self.get_logger().info(f"✅ 이미지 수신 성공 ({cv_image.shape})")
-                        return cv_image
-                    else:
-                        self.get_logger().warn(f"⚠️ [시도 {attempt+1}] 빈 이미지 수신")
-                else:
-                    self.get_logger().warn(f"⚠️ [시도 {attempt+1}] 서비스 호출 타임아웃 (2.0s)")
-                    # Future 취소 시도
-                    try:
-                        future.cancel()
-                    except:
-                        pass
-                    
-            except Exception as e:
-                self.get_logger().error(f"❌ [시도 {attempt+1}] 서비스 호출 에러: {e}")
-                
-            time.sleep(0.5)
+            self.log_info("Running inference...")
+            inference_start = time.time()
             
-        return None
-
-    def inference_loop(self):
-        """추론 루프 (별도 스레드)"""
-        while rclpy.ok():
-            if self.inference_mode:
-                try:
-                    # 1. 카메라 이미지 획득 (여기서 result() 대기하므로 안전)
-                    image = self.get_latest_image_via_service(max_retries=1)
-                    
-                    if image is not None:
-                        # 2. 리사이즈
-                        resized = cv2.resize(image, (224, 224))
-                        # 3. 추론 호출
-                        self.run_inference(resized)
-                    
-                except Exception as e:
-                    self.get_logger().error(f"추론 루프 에러: {e}")
-                    
-            time.sleep(0.1) # 10Hz
-
-    def run_inference(self, image: np.ndarray):
-        try:
-            _, buffer = cv2.imencode('.jpg', image)
-            img_b64 = base64.b64encode(buffer).decode('utf-8')
-            
-            headers = {}
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
-            
-            response = requests.post(
-                f"{self.api_server_url}/predict",
-                json={"image": img_b64, "instruction": self.default_instruction},
-                headers=headers,
-                timeout=1.0
+            result = self.inference_pipeline.predict(
+                image=current_image,
+                instruction=instruction,
+                rel_state=rel_state
             )
             
-            if response.status_code == 200:
-                data = response.json()
-                action_list = data["action"]
-                latency = data["latency_ms"]
-                
-                self.inference_count += 1
-                self.success_count += 1
-                self.latency_history.append(latency)
-                
-                action = {
-                    "linear_x": float(action_list[0]),
-                    "linear_y": float(action_list[1]),
-                    "angular_z": 0.0
-                }
-                
-                self.publish_cmd_vel(action, "inference")
-                
-                if self.inference_count % 10 == 0:
-                    avg = sum(self.latency_history) / len(self.latency_history)
-                    self.get_logger().info(
-                        f"✅ [INFERENCE#{self.inference_count}] Latency: {latency:.0f}ms (avg: {avg:.0f}ms) | ACTION: {action_list}"
-                    )
-            else:
-                self.fail_count += 1
-                
+            inference_time = time.time() - inference_start
+            self.log_info(f"Inference completed in {inference_time:.3f}s")
+            
+            # 3. Parse Output
+            pred_linear_y = result.get("linear_y", np.zeros(10))
+            pred_gripper = result.get("gripper", np.zeros(10))
+            
+            # Convert to list for ROS msg
+            response.action_linear_y = pred_linear_y.tolist()
+            response.action_gripper = pred_gripper.tolist()
+            response.success = True
+            response.message = f"Inference successful (Time: {inference_time:.3f}s)"
+            
         except Exception as e:
-            self.fail_count += 1
-            if self.fail_count % 10 == 0:
-                self.get_logger().error(f"추론 실패: {e}")
+            self.get_logger().error(f"Inference failed: {e}")
+            import traceback
+            traceback.print_exc()
+            response.success = False
+            response.message = f"Inference failed: {str(e)}"
 
-    def run_single_inference_test(self):
-        self.get_logger().info("🧪 추론 테스트 (단일)")
-        image = self.get_latest_image_via_service()
-        if image is None: 
-            self.get_logger().error("❌ 이미지 획득 실패")
-            return
-            
-        resized = cv2.resize(image, (224, 224))
-        self.get_logger().info(f"📡 API 요청: {self.api_server_url}")
-        
-        try:
-            _, buffer = cv2.imencode('.jpg', resized)
-            img_b64 = base64.b64encode(buffer).decode('utf-8')
-            
-            headers = {}
-            if self.api_key: headers["X-API-Key"] = self.api_key
-            
-            start = time.time()
-            resp = requests.post(
-                f"{self.api_server_url}/predict",
-                json={"image": img_b64, "instruction": self.default_instruction},
-                headers=headers, timeout=5.0
-            )
-            elap = (time.time() - start) * 1000
-            
-            if resp.status_code == 200:
-                data = resp.json()
-                self.get_logger().info(f"✅ 성공! Action: {data['action']}, Latency: {data['latency_ms']:.0f}ms")
-                action = {"linear_x": float(data['action'][0]), "linear_y": float(data['action'][1]), "angular_z": 0.0}
-                self.publish_cmd_vel(action, "test")
-            else:
-                self.get_logger().error(f"❌ 실패: {resp.status_code} {resp.text}")
-        except Exception as e:
-            self.get_logger().error(f"❌ 예외: {e}")
-
-    def run_system_test(self):
-        self.get_logger().info("🧪 시스템 테스트")
-        # 1. Camera
-        img = self.get_latest_image_via_service()
-        self.get_logger().info(f"📸 카메라: {'✅ OK' if img is not None else '❌ FAIL'}")
-        # 2. API
-        try:
-            r = requests.get(f"{self.api_server_url}/health", timeout=2.0)
-            if r.status_code == 200:
-                d = r.json()
-                loaded = d.get("model_loaded", False)
-                self.get_logger().info(f"📡 API 서버: 연결됨, 모델={'✅ 로드됨' if loaded else '⚠️ 미로드'}")
-            else:
-                self.get_logger().info(f"📡 API 서버: 응답 코드 {r.status_code}")
-        except:
-             self.get_logger().info("📡 API 서버: 연결 실패")
-
-    def publish_cmd_vel(self, action: dict, source: str):
-        twist = Twist()
-        twist.linear.x = float(action["linear_x"])
-        twist.linear.y = float(action["linear_y"])
-        twist.angular.z = float(action.get("angular_z", 0.0))
-        self.cmd_pub.publish(twist)
-        
-        if ROBOT_AVAILABLE and self.driver:
-            try:
-                if any(abs(v) > 0.1 for v in action.values()):
-                    if abs(action.get("angular_z", 0.0)) > 0.1:
-                        self.driver.spin(int(action["angular_z"] * self.throttle))
-                    elif abs(action["linear_x"]) > 0.1 or abs(action["linear_y"]) > 0.1:
-                        angle = np.degrees(np.arctan2(action["linear_y"], action["linear_x"]))
-                        self.driver.move(int(angle), self.throttle)
-                else:
-                    self.driver.stop()
-            except Exception:
-                pass
-
+        return response
 
 def main(args=None):
     rclpy.init(args=args)
     node = MobileVLAAPIClient()
-    
-    # ✅ KEY FIX: MultiThreadedExecutor 사용
     executor = MultiThreadedExecutor()
     executor.add_node(node)
     
     try:
         executor.spin()
     except KeyboardInterrupt:
-        pass
+        node.get_logger().info('Shutting down API Client Node...')
     finally:
-        if ROBOT_AVAILABLE and node.driver:
-            node.driver.stop()
         node.destroy_node()
         rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
