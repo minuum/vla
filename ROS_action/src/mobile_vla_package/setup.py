@@ -35,6 +35,7 @@ setup(
             'robovlms_controller = mobile_vla_package.robovlms_controller:main',
             'robovlms_monitor = mobile_vla_package.robovlms_monitor:main',
             'api_client_node = mobile_vla_package.api_client_node:main',
+            'vla_inference_node = mobile_vla_package.mobile_vla_inference_node:main',
         ]
     },
 )
