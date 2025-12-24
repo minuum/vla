@@ -1,197 +1,347 @@
-# VLA API Server - Quick Start Guide
+# Mobile VLA API Server - Quick Start Guide
 
-빠르게 API 서버를 시작하고 테스트하는 방법입니다.
+**Branch**: `inference-integration`  
+**Quantization**: BitsAndBytes INT8  
+**Target**: Jetson Orin / RTX GPU
 
-## 🚀 빠른 시작
+---
 
-### 1. Aliases 설정 (최초 1회만)
+## 🚀 Quick Start (5분 설치)
 
+### 1. Clone Repository
 ```bash
-# .zshrc에 추가
-echo 'source /home/soda/vla/.vla_aliases' >> ~/.zshrc
-source ~/.zshrc
-
-# 또는 현재 세션에만 적용
-source /home/soda/vla/.vla_aliases
+git clone git@github.com-vla:minuum/vla.git
+cd vla
+git checkout inference-integration
 ```
 
-### 2. 서버 시작
-
+### 2. Install Dependencies
 ```bash
-vla-start
+# Python 3.10+ required
+pip install -r requirements-inference.txt
 ```
 
-### 3. 테스트
-
+### 3. Download Model (Already included)
 ```bash
-# 빠른 health check
-vla-curl-health
-
-# 전체 테스트
-vla-test
+# Chunk5 Best model이 이미 포함되어 있음
+ls runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/
+# epoch_epoch=06-val_loss=val_loss=0.067.ckpt 확인
 ```
 
-## 📋 주요 명령어
-
-| 명령어 | 설명 |
-|--------|------|
-| `vla-help` | 모든 명령어 보기 |
-| `vla-start` | 서버 시작 |
-| `vla-stop` | 서버 중지 |
-| `vla-restart` | 서버 재시작 |
-| `vla-status` | 서버 상태 확인 |
-| `vla-logs` | 로그 보기 (실시간) |
-| `vla-test` | API 전체 테스트 |
-| `vla-health` | Health check만 |
-| `vla-curl-health` | Health check (빠름) |
-| `vla-ps` | 프로세스 확인 |
-
-## 🔧 환경 변수
-
-서버가 시작되면 자동으로 API Key가 생성됩니다. 
-생성된 API Key는 로그에서 확인할 수 있습니다:
-
+### 4. Set API Key
 ```bash
-vla-logs  # 또는
-cat logs/api_server.log | grep "API Key"
+# Option 1: Export
+export VLA_API_KEY="your-secret-api-key-here"
+
+# Option 2: Use secrets.sh
+echo 'export VLA_API_KEY="your-secret-api-key-here"' > secrets.sh
+source secrets.sh
 ```
 
-현재 설정 확인:
+### 5. Start Server
 ```bash
-vla-env
+# Foreground (for testing)
+python3 -m uvicorn Mobile_VLA.inference_server:app --host 0.0.0.0 --port 8000
+
+# Background (for production)
+nohup python3 -m uvicorn Mobile_VLA.inference_server:app \
+  --host 0.0.0.0 --port 8000 > logs/api_server.log 2>&1 &
 ```
 
-## 📊 서버 상태 확인
-
+### 6. Test
 ```bash
-# 상세 상태
-vla-status
-
-# 간단한 확인
-vla-ps
-
-# 실시간 모니터링
-watch -n 1 vla-status
-```
-
-## 🧪 API 테스트 방법
-
-### 1. Health Check (인증 불필요)
-```bash
+# Health check
 curl http://localhost:8000/health
-```
 
-### 2. Test Endpoint (API Key 필요)
-```bash
-curl -X GET http://localhost:8000/test \
-  -H "X-API-Key: YOUR_API_KEY"
-```
-
-### 3. Predict Endpoint (API Key 필요)
-Python 스크립트 예시:
-```python
-import requests
-import base64
-from PIL import Image
-from io import BytesIO
-
-# 이미지 준비
-img = Image.new('RGB', (1280, 720), color=(0, 128, 255))
-buffer = BytesIO()
-img.save(buffer, format='PNG')
-img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-
-# API 호출
-response = requests.post(
-    "http://localhost:8000/predict",
-    headers={"X-API-Key": "YOUR_API_KEY"},
-    json={
-        "image": img_base64,
-        "instruction": "Navigate to the left box"
-    }
-)
-
-print(response.json())
-```
-
-## 🔍 문제 해결
-
-### 서버가 시작되지 않을 때
-```bash
-# 로그 확인
-vla-logs
-
-# 또는
-cat logs/api_server.log
-
-# 기존 프로세스 확인 및 종료
-vla-ps
-pkill -9 -f api_server.py
-
-# 재시작
-vla-start
-```
-
-### 포트가 이미 사용 중
-```bash
-# 포트 8000 사용 확인
-lsof -i :8000
-netstat -tuln | grep 8000
-
-# 해당 프로세스 종료 후 재시작
-```
-
-### API Key 오류
-```bash
-# 환경 변수 확인
-vla-env
-
-# 로그에서 생성된 API Key 확인
-cat logs/api_server.log | grep "API Key"
-
-# 환경 변수 설정
-export VLA_API_KEY="your-api-key-here"
-```
-
-## 📖 자세한 문서
-
-- `scripts/README.md` - 스크립트 상세 설명
-- `BILLY_SERVER_START_GUIDE.md` - 서버 설정 가이드
-
-## 💡 유용한 팁
-
-```bash
-# 서버 자동 재시작 (cron)
-*/5 * * * * pgrep -f api_server.py || /home/soda/vla/scripts/manage_api_server.sh start
-
-# 원격 서버 테스트
-export VLA_API_SERVER="http://223.194.115.11:8000"
-vla-test
-
-# GPU 모니터링 (Jetson)
-vla-gpu
-```
-
-## 🎯 일반적인 워크플로우
-
-```bash
-# 1. 프로젝트로 이동
-vla-cd
-
-# 2. 서버 시작
-vla-start
-
-# 3. 상태 확인
-vla-status
-
-# 4. 테스트
-vla-test
-
-# 5. 작업 완료 후 (선택사항)
-vla-stop
+# Quick test
+python3 scripts/test_api_inference_complete.py
 ```
 
 ---
 
-**작성**: 2025-12-17  
-**버전**: 1.0
+## 📋 System Requirements
+
+### Minimum
+- **OS**: Ubuntu 20.04+ / Jetson Linux
+- **Python**: 3.10+
+- **GPU**: NVIDIA GPU with CUDA 11.8+
+- **Memory**: 16GB RAM
+- **GPU Memory**: 4GB+ (INT8 uses ~1.8GB)
+
+### Recommended
+- **GPU**: RTX 3060 12GB+ or Jetson Orin 16GB
+- **CUDA**: 12.0+
+- **Memory**: 32GB RAM
+
+### Jetson Specific
+- **Jetson Orin 16GB**: ✅ Perfect match
+- **Jetson Xavier 16GB**: ✅ Compatible
+- **Jetson Nano**: ❌ Insufficient memory
+
+---
+
+## 🔧 Configuration
+
+### Default Settings
+```python
+# inference_server.py
+checkpoint_path = "runs/.../epoch_epoch=06-val_loss=val_loss=0.067.ckpt"
+config_path = "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json"
+```
+
+### Custom Model (Optional)
+```bash
+# Environment variable로 변경 가능
+export VLA_CHECKPOINT_PATH="/path/to/your/model.ckpt"
+export VLA_CONFIG_PATH="/path/to/your/config.json"
+```
+
+---
+
+## 📊 Performance
+
+### Billy Server (RTX A5000)
+- **GPU Memory**: 1.80 GB
+- **Inference**: 495 ms/call
+- **Rate**: 2.0 Hz
+- **18 consecutive**: 9.6 seconds
+
+### Expected on Jetson Orin
+- **GPU Memory**: ~1.8 GB (same)
+- **Inference**: 500-600 ms/call
+- **Rate**: 1.7-2.0 Hz
+- **18 consecutive**: 10-11 seconds
+
+---
+
+## 🌐 API Usage
+
+### Health Check
+```bash
+curl http://localhost:8000/health
+```
+
+Response:
+```json
+{
+    "status": "healthy",
+    "model_loaded": true,
+    "device": "cuda",
+    "gpu_memory": {
+        "allocated_gb": 1.80,
+        "device_name": "NVIDIA RTX A5000"
+    }
+}
+```
+
+### Inference
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "base64_encoded_image",
+    "instruction": "Move forward to the target"
+  }'
+```
+
+Response:
+```json
+{
+    "action": [0.5, 0.0],
+    "latency_ms": 495.6,
+    "model_name": "mobile_vla_chunk5_20251217",
+    "strategy": "receding_horizon",
+    "source": "inferred",
+    "buffer_status": {}
+}
+```
+
+---
+
+## 🐍 Python Client Example
+
+```python
+import requests
+import base64
+from PIL import Image
+import io
+
+# API 설정
+API_URL = "http://localhost:8000"
+API_KEY = "your-api-key"
+
+# 이미지 로드
+image = Image.open("robot_view.jpg")
+buffered = io.BytesIO()
+image.save(buffered, format="PNG")
+img_b64 = base64.b64encode(buffered.getvalue()).decode()
+
+# Inference 요청
+response = requests.post(
+    f"{API_URL}/predict",
+    headers={"X-API-Key": API_KEY},
+    json={
+        "image": img_b64,
+        "instruction": "Move forward"
+    }
+)
+
+result = response.json()
+action = result["action"]  # [linear_x, linear_y]
+print(f"Action: {action}")
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### 1. ModuleNotFoundError: bitsandbytes
+```bash
+pip install bitsandbytes==0.43.1
+```
+
+### 2. CUDA out of memory
+```bash
+# GPU memory 확인
+nvidia-smi
+
+# 다른 프로세스 종료
+pkill -f python
+```
+
+### 3. Import error: action_buffer
+```bash
+# 이미 수정됨 (from Mobile_VLA.action_buffer import ActionBuffer)
+# 최신 코드 pull 필요
+git pull origin inference-integration
+```
+
+### 4. Checkpoint not found
+```bash
+# 경로 확인
+ls runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/
+
+# 환경 변수로 지정
+export VLA_CHECKPOINT_PATH="/path/to/your/checkpoint.ckpt"
+```
+
+---
+
+## 🎯 Production Deployment
+
+### 1. Systemd Service (Optional)
+```bash
+# /etc/systemd/system/vla-api.service
+[Unit]
+Description=Mobile VLA API Server
+After=network.target
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/vla
+Environment="VLA_API_KEY=your-secret-key"
+ExecStart=/usr/bin/python3 -m uvicorn Mobile_VLA.inference_server:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable vla-api
+sudo systemctl start vla-api
+```
+
+### 2. Docker (Optional)
+```dockerfile
+FROM nvcr.io/nvidia/pytorch:23.10-py3
+
+WORKDIR /app
+COPY requirements-inference.txt .
+RUN pip install -r requirements-inference.txt
+
+COPY . .
+EXPOSE 8000
+
+CMD ["python3", "-m", "uvicorn", "Mobile_VLA.inference_server:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+---
+
+## 📚 Documentation
+
+- **API Spec**: `docs/API_SPECIFICATION_INT8.md`
+- **Architecture**: `docs/BITSANDBYTES_ARCHITECTURE_20251224.md`
+- **Performance**: `docs/ROBOT_DRIVING_18STEPS_TEST_20251224.md`
+- **Comparison**: `docs/QUANTIZATION_FINAL_COMPARISON_20251224.md`
+
+---
+
+## 🔐 Security
+
+### API Key Management
+```bash
+# Generate secure key
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Store in environment
+export VLA_API_KEY="generated-key"
+
+# Or use secrets.sh (gitignored)
+echo 'export VLA_API_KEY="generated-key"' > secrets.sh
+source secrets.sh
+```
+
+### Network Security
+- **Recommended**: Use Tailscale VPN
+- **Alternative**: Firewall rules (allow only specific IPs)
+- **Not recommended**: Expose to public internet
+
+---
+
+## 🎉 Verification
+
+### Quick Test
+```bash
+# 1. Health check
+curl http://localhost:8000/health
+
+# 2. Single inference
+python3 scripts/test_api_inference_complete.py
+
+# 3. 18 consecutive (robot simulation)
+python3 scripts/test_robot_driving_18steps.py
+```
+
+### Expected Results
+- ✅ Health: `"status": "healthy"`
+- ✅ GPU Memory: ~1.8 GB
+- ✅ Latency: ~500 ms
+- ✅ 18 consecutive: ~9-10 seconds
+
+---
+
+## 📞 Support
+
+### Logs
+```bash
+# Server logs
+tail -f logs/api_server.log
+
+# Test logs
+ls logs/*.log
+```
+
+### Common Issues
+1. **GPU not detected**: Check CUDA installation
+2. **Slow inference**: Check GPU utilization (nvidia-smi)
+3. **Memory leak**: Monitor GPU memory over time
+
+---
+
+**Last Updated**: 2025-12-24  
+**Branch**: inference-integration  
+**Status**: Production Ready ✅
