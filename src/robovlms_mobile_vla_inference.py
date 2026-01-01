@@ -32,8 +32,9 @@ if str(ROBOVLMS_PATH) not in sys.path:
 import transformers
 
 print(f"📦 Transformers version: {transformers.__version__}")
-if transformers.__version__ != "4.41.2":
-    print(f"⚠️ Warning: transformers version mismatch. Found {transformers.__version__}, expected 4.41.2 from RoboVLMs/pyproject.toml")
+if transformers.__version__ not in ["4.35.0", "4.41.2"]:
+    print(f"⚠️ Warning: transformers version mismatch. Found {transformers.__version__}")
+    print(f"   Expected 4.35.0 (INT8 support) or 4.41.2 (RoboVLMs default)")
 
 
 def extract_direction_from_instruction(instruction: str) -> float:
