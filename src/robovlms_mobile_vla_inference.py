@@ -176,8 +176,16 @@ class RoboVLMsInferenceEngine:
         
         try:
             import gc
-            from robovlms.train.mobile_vla_trainer import MobileVLATrainer
-            from robovlms.data.data_utils import get_text_function
+            # Robo+ 디렉토리 구조에 맞게 수정
+            import sys
+            from pathlib import Path
+            
+            # Robo+ 경로 추가
+            robo_plus_path = Path(__file__).parent.parent / "Robo+"
+            if str(robo_plus_path) not in sys.path:
+                sys.path.insert(0, str(robo_plus_path))
+            
+            from Mobile_VLA.core.train_core.mobile_vla_trainer import MobileVLATrainer
             
             # CUDA 캐시 정리
             if torch.cuda.is_available():
@@ -186,31 +194,62 @@ class RoboVLMsInferenceEngine:
             
             # 체크포인트를 CPU로 먼저 로드 (메모리 피크 감소)
             print("📥 체크포인트 로딩 (CPU)...")
-            self.model = MobileVLATrainer.load_from_checkpoint(
-                self.config.checkpoint_path,
-                map_location='cpu'
+            checkpoint = torch.load(self.config.checkpoint_path, map_location='cpu')
+            
+            # config에서 필요한 정보 추출
+            ckpt_config = checkpoint.get('config', {})
+            model_name = ckpt_config.get('model_name', 'microsoft/kosmos-2-patch14-224')
+            action_dim = ckpt_config.get('action_dim', self.config.action_dim)
+            window_size = ckpt_config.get('window_size', self.config.window_size)
+            chunk_size = ckpt_config.get('chunk_size', self.config.fwd_pred_next_n)
+            
+            print(f"📝 모델 설정: model_name={model_name}, action_dim={action_dim}, window_size={window_size}, chunk_size={chunk_size}")
+            
+            # MobileVLATrainer 생성 (모델만 필요)
+            print("🔧 MobileVLATrainer 초기화...")
+            trainer = MobileVLATrainer(
+                model_name=model_name,
+                action_dim=action_dim,
+                window_size=window_size,
+                chunk_size=chunk_size,
+                device='cpu'  # 먼저 CPU에 로드
             )
+            
+            # 체크포인트의 state_dict 로드
+            print("📦 State dict 로딩...")
+            trainer.model.load_state_dict(checkpoint['model_state_dict'])
             
             # FP16 변환 (CPU에서)
             print("🔄 FP16 변환 중...")
-            self.model = self.model.half()
-            self.model.eval()
+            trainer.model = trainer.model.half()
+            trainer.model.eval()
             
             # GPU로 전송
             print(f"🎮 GPU로 전송 중... (디바이스: {self.device})")
-            self.model = self.model.to(self.device)
+            trainer.model = trainer.model.to(self.device)
+            
+            # 모델과 토크나이저 저장
+            self.model = trainer.model
+            self.tokenizer = trainer.processor.tokenizer  # AutoProcessor에서 tokenizer 추출
+            
+            # text_fn 정의 (간단한 토크나이징)
+            def simple_text_fn(texts):
+                """간단한 텍스트 토크나이징"""
+                inputs = trainer.processor(
+                    text=texts,
+                    return_tensors='pt',
+                    padding=True,
+                    truncation=True,
+                    max_length=256
+                )
+                return inputs['input_ids'], inputs['attention_mask']
+            
+            self.text_fn = simple_text_fn
+            self.processor = trainer.processor
             
             # 다시 한번 캐시 정리
             torch.cuda.empty_cache()
             gc.collect()
-            
-            # 토크나이저 및 text_fn 설정
-            self.tokenizer = self.model.model.tokenizer
-            self.text_fn = get_text_function(
-                self.tokenizer, 
-                self.config.model_name, 
-                max_length=256
-            )
             
             print("✅ 모델 로드 완료!")
             
@@ -268,36 +307,29 @@ class RoboVLMsInferenceEngine:
         # 언어 토크나이징
         text_tokens, text_mask = self.tokenize_instruction(instruction)
         
-        # forward_continuous 호출 (학습 코드와 동일한 방식)
-        result = self.model.model.forward_continuous(
-            images,
-            text_tokens,
-            attention_mask=text_mask,
-            action_labels=None,
-            action_mask=None,
-            mode='eval'
+        # MobileVLATrainer의 모델 forward 호출
+        # 입력: pixel_values (B, T, C, H, W), input_ids, attention_mask
+        # 출력: {'predicted_actions': (B, chunk_size, action_dim), ...}
+        result = self.model(
+            pixel_values=images,  # (1, window_size, 3, H, W)
+            input_ids=text_tokens,
+            attention_mask=text_mask
         )
         
-        # 결과 처리
-        if isinstance(result, tuple):
+        # 결과 처리 - MobileVLATrainer는 dict 반환
+        if isinstance(result, dict):
+            actions = result['predicted_actions']  # (B, chunk_size, action_dim)
+        elif isinstance(result, tuple):
             actions = result[0]
         else:
             actions = result
         
-        # Handle tuple output
-        if isinstance(actions, tuple):
-            actions = actions[0]
+        # 배치 차원 제거: (1, chunk_size, action_dim) -> (chunk_size, action_dim)
+        if actions.dim() == 3:
+            actions = actions[0]  # (chunk_size, action_dim)
         
-        # 액션 추출: (B, seq_len, chunk_size, action_dim)
-        # 첫 번째 timestep의 action chunk 사용
-        if len(actions.shape) == 4:
-            # (1, seq_len, chunk_size, 2) -> (chunk_size, 2)
-            actions = actions[0, 0, :, :].cpu().numpy()
-        elif len(actions.shape) == 3:
-            # (1, chunk_size, 2) -> (chunk_size, 2)
-            actions = actions[0, :, :].cpu().numpy()
-        else:
-            actions = actions.cpu().numpy()
+        # numpy로 변환
+        actions = actions.cpu().numpy()  # (chunk_size, action_dim)
         
         # abs_action 적용: [linear_x, abs_linear_y] -> [linear_x, linear_y * direction]
         if use_abs_action and direction != 0.0:
