@@ -13,9 +13,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.11"
-torch = { path = "wheels/torch-2.3.0-cp310-cp310-linux_aarch64.whl" }
-torchvision = { path = "wheels/torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl" }
-torchaudio = { path = "wheels/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl" }
+torch = { path = "wheels/torch-2.3.0-jetson.whl" }
+torchvision = { path = "wheels/torchvision-0.18.0-jetson.whl" }
+torchaudio = { path = "wheels/torchaudio-2.3.0-jetson.whl" }
 pytorch-lightning = "^1.8.6"
 pyyaml = "^6.0"
 lightning = "^2.2.5"
