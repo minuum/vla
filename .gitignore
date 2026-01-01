@@ -143,3 +143,6 @@ secrets.sh
 JETSON_HANDOFF_INFO.txt
 ROS_action/mobile_vla_dataset/*.h5
 api_test_results.json
+# Jetson PyTorch wheels (large files - 206MB)
+RoboVLMs/wheels/*.whl
+Robo+/Mobile_VLA/wheels/*.whl
