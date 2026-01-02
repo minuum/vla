@@ -302,7 +302,7 @@ def main():
     parser.add_argument(
         '--data-dir',
         type=str,
-        default='/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset',
+        default='/home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset',
         help='Path to calibration dataset'
     )
     parser.add_argument(

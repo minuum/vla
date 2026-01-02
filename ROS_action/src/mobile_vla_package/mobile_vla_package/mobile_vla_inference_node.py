@@ -13,11 +13,22 @@ import rclpy
 from rclpy.node import Node
 import sys, tty, termios
 import time
+import os  # 메모리 측정용
+import json # 데이터 저장용
 import numpy as np
 import cv2
 import threading
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
+
+# 메모리 프로파일링 자료구조용
+try:
+    import psutil
+    PROFILING_AVAILABLE = True
+except ImportError:
+    PROFILING_AVAILABLE = False
+    print("Warning: psutil not found. Memory profiling disabled.")
 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from geometry_msgs.msg import Twist
@@ -26,7 +37,12 @@ from cv_bridge import CvBridge
 from camera_interfaces.srv import GetImage
 
 # 로컬 추론 엔진 import
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+# ROS2 실행 환경 대응을 위해 절대 경로 추가
+project_root = "/home/soda/vla"
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+# 이제 import 가능
 from src.robovlms_mobile_vla_inference import (
     MobileVLAConfig,
     RoboVLMsInferenceEngine,
@@ -43,13 +59,39 @@ except ImportError:
 
 class MobileVLAInferenceNode(Node):
     """Mobile VLA 추론 노드"""
-    
+
     def __init__(self):
         super().__init__('mobile_vla_inference_node')
         
+        # =================================================================
+        # 📊 [설정] 메모리 프로파일링 모드 (사용자 요청 기능)
+        # =================================================================
+        self.ENABLE_MEMORY_PROFILING = True  # True로 설정 시 그래프 생성
+        self.memory_stats = {'step': [], 'cpu': [], 'gpu': []}
+        
+        # 🏎️ [설정] 이동 궤적 시각화
+        self.trajectory_stats = {'step': [], 'x': [0.0], 'y': [0.0], 'action_x': [], 'action_y': []}
+        self.profiling_dir = Path("/home/soda/vla/docs/memory_analysis")
+        
+        if self.ENABLE_MEMORY_PROFILING and PROFILING_AVAILABLE:
+            try:
+                self.profiling_dir.mkdir(parents=True, exist_ok=True)
+                self.get_logger().info(f"📊 메모리 분석 활성화됨: {self.profiling_dir}")
+            except Exception as e:
+                self.get_logger().warn(f"⚠️ 프로파일링 폴더 생성 실패: {e}")
+                self.ENABLE_MEMORY_PROFILING = False
+        else:
+            self.ENABLE_MEMORY_PROFILING = False
+        
+        # 🔧 [설정] 좌표계 보정 (데이터셋 분석 결과 기반)
+        # 분석 결과: 데이터는 X>0=FORWARD, 하지만 모델은 X<0 출력
+        self.INVERT_X_AXIS = True  # X축 부호 반전 (후진→전진 수정)
+        self.INVERT_Y_AXIS = False # Y축은 유지 (현재 정상)
+        
         # 추론 설정
-        self.inference_active = False
-        self.current_instruction = "Navigate to the target"
+        self.declare_parameter('auto_start', False)
+        self.inference_active = self.get_parameter('auto_start').get_parameter_value().bool_value
+        self.current_instruction = "Navigate to the left bottle"  # 구체화
        
         # 로봇 제어
         if ROBOT_AVAILABLE:
@@ -70,14 +112,13 @@ class MobileVLAInferenceNode(Node):
         
         # Camera service
         self.get_image_client = self.create_client(GetImage, 'get_image_service')
-        while not self.get_image_client.wait_for_service(timeout_sec=5.0):
-            self.get_logger().info('get_image_service 대기 중...')
-            if not rclpy.ok():
-                sys.exit()
+        # 서비스 대기 (Blocking 제거, Warning만 출력) - Dry Run 테스트용
+        if not self.get_image_client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().warn('⚠️ get_image_service를 찾을 수 없습니다. 나중에 다시 시도합니다.')
+        else:
+            self.get_logger().info('✅ Camera service 연결 완료!')
         
-        self.get_logger().info('✅ Camera service 연결 완료!')
-        
-        # 추론 엔진 초기화 (lazy loading)
+        # 추론 엔진 초기화 (lazy loading -> init loading)
         self.inference_engine = None
         self.image_buffer = None
         self.config = None
@@ -86,11 +127,21 @@ class MobileVLAInferenceNode(Node):
         self.inference_interval = 0.3
         self.last_inference_time = 0
         
+        # 액션 증폭 계수 (모델 출력이 너무 작을 경우 증폭)
+        # 액션 증폭 계수 (모델 출력이 너무 작을 경우 증폭)
+        self.declare_parameter('action_gain', 60.0)
+        self.action_gain = self.get_parameter('action_gain').get_parameter_value().double_value
+        self.get_logger().info(f"⚡ Action Gain: {self.action_gain}")
+        
         # 통계
         self.total_inferences = 0
         self.inference_times = []
         
         self.get_logger().info("🤖 Mobile VLA 추론 노드 준비 완료!")
+        
+        # 모델 로딩 시도
+        self.init_inference_engine()
+        
         self.get_logger().info("📋 조작 방법:")
         self.get_logger().info("   S: 추론 시작/중지")
         self.get_logger().info("   1-4: 시나리오 선택 (언어 지시문 변경)")
@@ -115,8 +166,8 @@ class MobileVLAInferenceNode(Node):
         try:
         # Config 설정
             self.config = MobileVLAConfig(
-                # Fine-tuned 모델 체크포인트
-                checkpoint_path="runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
+                # Fine-tuned 모델 체크포인트 (절대 경로 필수)
+                checkpoint_path="/home/soda/vla/runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
                 window_size=2,
                 fwd_pred_next_n=10,
                 use_abs_action=True,
@@ -163,7 +214,8 @@ class MobileVLAInferenceNode(Node):
                     return None
             
             response = future.result()
-            if response and response.success:
+            # GetImage.srv에는 success 필드가 없음, image 필드만 존재
+            if response and response.image.header.frame_id:  # 간단한 유효성 검사
                 # ROS Image -> OpenCV
                 cv_image = self.cv_bridge.imgmsg_to_cv2(
                     response.image, 
@@ -173,49 +225,61 @@ class MobileVLAInferenceNode(Node):
                 rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
                 return rgb_image
             else:
-                self.get_logger().warn("⚠️ 이미지 취득 실패")
+                self.get_logger().warn("⚠️ 이미지 취득 실패 (빈 응답)")
                 return None
                 
         except Exception as e:
             self.get_logger().error(f"❌ 이미지 취득 에러: {e}")
             return None
     
-    def publish_cmd_vel(self, action: np.ndarray):
-        """로봇 제어 명령 발행 (data_collector와 동일한 방식)"""
+    def execute_step_action(self, action: np.ndarray):
+        """로봇 제어 명령 발행 (data_collector 스타일: move -> sleep -> stop)"""
         linear_x = float(action[0])
         linear_y = float(action[1])
         
-        # 1. ROS2 Twist 메시지 발행
+        # 🔧 좌표계 보정 (2026-01-02 분석 결과 반영)
+        if self.INVERT_X_AXIS:
+            linear_x = -linear_x
+        if self.INVERT_Y_AXIS:
+            linear_y = -linear_y
+        
+        # 1. ROS2 Twist 메시지 발행 (시각화용)
         msg = Twist()
         msg.linear.x = linear_x
         msg.linear.y = linear_y
-        msg.linear.z = 0.0
-        msg.angular.x = 0.0
-        msg.angular.y = 0.0
-        msg.angular.z = 0.0
-        
         self.cmd_pub.publish(msg)
         
-        # 2. 하드웨어 드라이버 제어 (data_collector 방식)
-        # 속도 크기가 아닌 방향(angle)을 계산하여 고정 속도(throttle)로 이동
+        # 2. 하드웨어 드라이버 제어
+        # Deadzone: 0.15 (data_collector는 0.1 사용)
+        if abs(linear_x) < 0.15 and abs(linear_y) < 0.15:
+            self.get_logger().info(f"🚫 [Deadzone] 입력 미달: x={linear_x:.4f}, y={linear_y:.4f} (기준 0.15)")
+            if ROBOT_AVAILABLE and self.driver:
+                self.driver.stop()
+            return
+
         if ROBOT_AVAILABLE and self.driver is not None:
             try:
-                # 움직임이 미미하면 정지
-                if abs(linear_x) < 0.1 and abs(linear_y) < 0.1:
-                    self.driver.stop()
-                    return
-
                 # 각도 계산 (atan2(y, x))
                 angle = np.degrees(np.arctan2(linear_y, linear_x))
                 if angle < 0:
                     angle += 360
                 
-                # data_collector는 항상 고정된 throttle 사용
-                # self.throttle은 __init__에서 50으로 설정됨
-                self.driver.move(int(angle), self.throttle)
+                int_angle = int(angle)
+                int_angle = int(angle)
+                move_duration = 0.4
+                
+                self.get_logger().info(f"🏎️ 이동 실행: 각도={int_angle}°, 입력(x={linear_x:.2f}, y={linear_y:.2f})")
+                
+                # 끊어서 이동 (Move -> Sleep -> Stop)
+                self.driver.move(int_angle, self.throttle)
+                time.sleep(move_duration)
+                self.driver.stop()
                 
             except Exception as e:
                 self.get_logger().error(f"❌ 하드웨어 제어 에러: {e}")
+        else:
+            # 시뮬레이션 모드에서도 타이밍 맞춤
+            time.sleep(0.4)
     
     def stop_robot(self):
         """로봇 정지"""
@@ -231,6 +295,11 @@ class MobileVLAInferenceNode(Node):
     def inference_loop(self):
         """추론 루프 (별도 스레드)"""
         self.get_logger().info("🎯 추론 루프 시작!")
+        
+        self.get_logger().info("🎯 추론 루프 시작!")
+        
+        executed_frames_total = 0
+        target_frames = 18
         
         # 추론 엔진 초기화
         if not self.init_inference_engine():
@@ -274,27 +343,55 @@ class MobileVLAInferenceNode(Node):
                 
                 # 정규화 해제
                 denorm_actions = self.inference_engine.denormalize_action(actions)
-                first_action = denorm_actions[0]
+                
+                # 액션 증폭 (Gain 적용)
+                denorm_actions = denorm_actions * self.action_gain
                 
                 inference_time = (time.time() - start_time) * 1000
                 
-                # 4. 로봇 제어
-                self.publish_cmd_vel(first_action)
+                # 로깅: 모델 스펙 및 진행 상황
+                chunk_len = len(denorm_actions)
+                self.get_logger().info(
+                    f"🔮 추론 수행 (Window: {self.config.window_size}, Chunk: {chunk_len}) | "
+                    f"누적 진행: {executed_frames_total}/{target_frames}"
+                )
+
+                # 4. 로봇 제어 (청크 실행 및 누적 카운트)
+                for i, action in enumerate(denorm_actions):
+                    if not self.inference_active:
+                        break
+                        
+                    if executed_frames_total >= target_frames:
+                        self.get_logger().info(f"🛑 목표 프레임({target_frames}) 도달 완료. 종료합니다.")
+                        self.inference_active = False
+                        break
+
+                    self.execute_step_action(action)
+                    executed_frames_total += 1
+                    
+                    # 📊 메모리 기록 (사용자 요청)
+                    self.record_memory_usage(executed_frames_total)
+                    
+                    # 🏎️ 궤적 기록
+                    self.record_trajectory(executed_frames_total, float(action[0]), float(action[1]))
+
+                    self.get_logger().info(
+                        f"🏃 [{executed_frames_total}/{target_frames}] 완료"
+                    )
+                    # move 내부에 sleep(0.3) 포함됨
                 
+                # 목표 달성 시 루프 탈출
+                if not self.inference_active or executed_frames_total >= target_frames:
+                     self.stop_robot()
+                     self.inference_active = False
+                     break
+
                 # 5. 통계
                 self.total_inferences += 1
                 self.inference_times.append(inference_time)
                 if len(self.inference_times) > 100:
                     self.inference_times.pop(0)
-                
-                # 6. 로그
-                self.get_logger().info(
-                    f"✅ [{self.total_inferences}] "
-                    f"액션: [{first_action[0]:.3f}, {first_action[1]:.3f}] | "
-                    f"지연: {inference_time:.1f}ms | "
-                    f"방향: {info.get('direction', 'N/A')}"
-                )
-                
+
                 self.last_inference_time = current_time
                 
             except Exception as e:
@@ -304,7 +401,13 @@ class MobileVLAInferenceNode(Node):
                 time.sleep(0.5)
         
         # 종료 시 정지
+        # 종료 시 정지
         self.stop_robot()
+        
+        # 📊 [데이터 저장] 메모리 및 궤적 데이터 저장 (18스텝 완료 후)
+        if self.ENABLE_MEMORY_PROFILING:
+             self.save_inference_data_json()
+
         self.get_logger().info("🛑 추론 루프 종료")
     
     def start_inference(self):
@@ -357,18 +460,111 @@ class MobileVLAInferenceNode(Node):
         self.get_logger().info("=" * 60)
     
     def set_instruction(self, scenario_num: str):
-        """시나리오별 언어 지시문 설정"""
+        """시나리오별 언어 지시문 설정 (2026-01-02 미팅 피드백 반영: 구체화)"""
         scenarios = {
-            '1': "Navigate around obstacles and reach the left bottle",
-            '2': "Navigate around obstacles and reach the right bottle",
-            '3': "Navigate around two boxes and reach the left bottle",
-            '4': "Navigate around two boxes and reach the right bottle"
+            '1': "Navigate to the left bottle",
+            '2': "Navigate to the right bottle",
+            '3': "Navigate around two boxes to the left bottle",
+            '4': "Navigate around two boxes to the right bottle"
         }
         
         if scenario_num in scenarios:
             self.current_instruction = scenarios[scenario_num]
             self.get_logger().info(f"📝 지시문 변경: {self.current_instruction}")
     
+    def record_memory_usage(self, step: int):
+        """현재 시스템/GPU 메모리 사용량을 기록"""
+        if not self.ENABLE_MEMORY_PROFILING:
+            return
+
+        try:
+            # CPU RAM
+            process = psutil.Process(os.getpid())
+            cpu_mem_gb = process.memory_info().rss / (1024 ** 3)  # GB 단위
+            
+            # GPU VRAM (Torch 기준)
+            gpu_mem_gb = 0.0
+            if torch.cuda.is_available():
+                gpu_mem_gb = torch.cuda.memory_allocated() / (1024 ** 3)
+            
+            self.memory_stats['step'].append(step)
+            self.memory_stats['cpu'].append(cpu_mem_gb)
+            self.memory_stats['gpu'].append(gpu_mem_gb)
+            
+        except Exception as e:
+            self.get_logger().warn(f"⚠️ 메모리 측정 실패: {e}")
+
+    def save_inference_data_json(self):
+        """추론 데이터를 JSON으로 저장 (그래프는 별도 스크립트로 생성)"""
+        if not self.ENABLE_MEMORY_PROFILING:
+            return
+
+        try:
+            # 데이터 병합
+            data = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "memory_stats": self.memory_stats,
+                "trajectory_stats": {
+                    "step": self.trajectory_stats['step'],
+                    "x": self.trajectory_stats['x'],
+                    "y": self.trajectory_stats['y'],
+                    "action_x": self.trajectory_stats['action_x'],
+                    "action_y": self.trajectory_stats['action_y']
+                }
+            }
+            
+            # JSON 파일 저장
+            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"inference_data_{timestamp_str}.json"
+            save_path = self.profiling_dir / filename
+            
+            with open(save_path, 'w') as f:
+                json.dump(data, f, indent=4)
+                
+            self.get_logger().info(f"💾 [데이터 저장] JSON 저장 완료: {save_path}")
+            
+            # 🖼️ 그래프 생성 스크립트 자동 실행 (subprocess)
+            try:
+                import subprocess
+                vis_script = Path("/home/soda/vla/scripts/visualize_inference_log.py")
+                if vis_script.exists():
+                    # 백그라운드 실행을 위해 Popen 사용. 노드 종료 후에도 실행되도록.
+                    subprocess.Popen(["python3", str(vis_script), str(save_path)], 
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self.get_logger().info(f"🚀 [자동 실행] 그래프 생성 프로세스 시작됨")
+                else:
+                    self.get_logger().warn(f"⚠️ 시각화 스크립트 없음: {vis_script}")
+            except Exception as e:
+                self.get_logger().error(f"❌ 시각화 스크립트 실행 실패: {e}")
+
+            # 초기화
+            self.memory_stats = {'step': [], 'cpu': [], 'gpu': []}
+            self.trajectory_stats = {'step': [], 'x': [0.0], 'y': [0.0], 'action_x': [], 'action_y': []}
+            
+        except Exception as e:
+            self.get_logger().error(f"❌ 데이터 저장 실패: {e}")
+
+    def record_trajectory(self, step: int, action_x: float, action_y: float):
+        """이동 궤적 데이터 기록"""
+        # 현재 위치 (이전 위치 + 이동량)
+        # 로봇 좌표계: X(전진), Y(좌측)
+        # 0.4초 이동 가정 (속도 * 시간 = 거리)
+        # 실제 거리는 속도에 비례하지만, 여기서는 상대적인 궤적 형태만 확인
+        # 모델 출력값 자체가 속도(m/s) 혹은 정규화된 값이므로 이를 변위로 간주
+        
+        last_x = self.trajectory_stats['x'][-1]
+        last_y = self.trajectory_stats['y'][-1]
+        
+        # 누적 이동량 계산
+        new_x = last_x + action_x
+        new_y = last_y + action_y
+        
+        self.trajectory_stats['step'].append(step)
+        self.trajectory_stats['x'].append(new_x)
+        self.trajectory_stats['y'].append(new_y)
+        self.trajectory_stats['action_x'].append(action_x)
+        self.trajectory_stats['action_y'].append(action_y)
+
     def keyboard_loop(self):
         """키보드 입력 루프"""
         while rclpy.ok():
@@ -389,6 +585,35 @@ class MobileVLAInferenceNode(Node):
         elif key in ['1', '2', '3', '4']:
             self.set_instruction(key)
         elif key == 'p':
+            self.show_stats()
+        elif key == 'm':
+            self.test_simple_move()
+
+    def test_simple_move(self):
+        """간단한 로봇 이동 테스트 (0.4초 전진)"""
+        if self.inference_active:
+            self.get_logger().warn("⚠️ 추론 중에는 테스트할 수 없습니다. S키로 멈추고 시도하세요.")
+            return
+
+        if not self.driver:
+            self.get_logger().warn("⚠️ 로봇 드라이버가 없습니다.")
+            return
+
+        self.get_logger().info("🏎️ 로봇 테스트: 0.4초 전진...")
+        try:
+            # simple_move_robot.py 로직
+            angle = 90  # 전진
+            throttle = 50
+            
+            # 이동
+            self.driver.move(angle, throttle)
+            time.sleep(0.4)
+            # 정지
+            self.driver.stop()
+            self.get_logger().info("🛑 로봇 테스트 완료")
+        except Exception as e:
+            self.get_logger().error(f"❌ 로봇 테스트 실패: {e}")
+            self.driver.stop()
             self.show_stats()
     
     def get_key(self):

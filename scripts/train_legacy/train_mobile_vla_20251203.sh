@@ -27,14 +27,14 @@ fi
 echo ""
 
 echo "📊 데이터셋 확인..."
-EPISODE_COUNT=$(ls -1 /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset/episode_202511*.h5 2>/dev/null | wc -l)
+EPISODE_COUNT=$(ls -1 /home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset/episode_202511*.h5 2>/dev/null | wc -l)
 if [ $EPISODE_COUNT -gt 0 ]; then
     echo "  ✅ $EPISODE_COUNT episodes found (Nov 2025)"
 else
     echo "  ⚠️  No Nov 2025 episodes found"
 fi
 
-DEC_EPISODE_COUNT=$(ls -1 /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset/episode_202512*.h5 2>/dev/null | wc -l)
+DEC_EPISODE_COUNT=$(ls -1 /home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset/episode_202512*.h5 2>/dev/null | wc -l)
 if [ $DEC_EPISODE_COUNT -gt 0 ]; then
     echo "  ✅ $DEC_EPISODE_COUNT episodes found (Dec 2025)"
 fi
@@ -54,7 +54,7 @@ TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 LOG_FILE="lora_training_log_${TIMESTAMP}.txt"
 
 # 학습 시작
-cd /home/billy/25-1kp/vla/RoboVLMs_upstream
+cd /home/soda/25-1kp/vla/RoboVLMs_upstream
 python3 main.py $CONFIG_FILE 2>&1 | tee ../$LOG_FILE
 
 echo ""

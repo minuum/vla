@@ -92,6 +92,9 @@ class MobileVLAConfig:
     # abs_action 전략 (Case 4, 5에서 사용)
     use_abs_action: bool = True  # 언어에서 방향 추출, 모델은 크기만 예측
     
+    # INT8 Quantization
+    use_int8: bool = False
+    
     # 추론 설정
     inference_interval: float = 0.3  # 300ms (학습 데이터 수집 주기와 일치)
     action_chunk_execution: int = 1  # 한 번에 실행할 action chunk 수
@@ -205,11 +208,13 @@ class RoboVLMsInferenceEngine:
             chunk_size = ckpt_config.get('chunk_size', self.config.fwd_pred_next_n)
             
             # window_size보다 chunk_size가 크면 IndexError 발생 (MobileVLATrainer 구조상)
+            # window_size보다 chunk_size가 크면 IndexError 발생 (MobileVLATrainer 구조상)
             if chunk_size > window_size:
-                print(f"⚠️ Warning: chunk_size({chunk_size}) > window_size({window_size}). chunk_size를 {window_size}로 제한합니다.")
+                print(f"⚠️ [Constraint] MobileVLATrainer 구조상 chunk_size({chunk_size})는 window_size({window_size})를 초과할 수 없습니다.")
+                print(f"🔄 chunk_size를 {window_size}로 자동 조정합니다.")
                 chunk_size = window_size
             
-            print(f"📝 모델 설정: model_name={model_name}, action_dim={action_dim}, window_size={window_size}, chunk_size={chunk_size}")
+            print(f"📝 [Model Config] Action Dim: {action_dim} | Window Size: {window_size} | Chunk Size: {chunk_size}")
             
             # MobileVLATrainer 생성 (모델만 필요)
             print("🔧 MobileVLATrainer 초기화...")
@@ -233,9 +238,20 @@ class RoboVLMsInferenceEngine:
             
             trainer.model.load_state_dict(checkpoint[state_dict_key], strict=False)
             
+            # 체크포인트 메모리 해제 (중요: OOM 방지)
+            del checkpoint
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
             # FP16 변환 (CPU에서)
-            print("🔄 FP16 변환 중...")
+            print("🔄 FP16 변환 중... (잠시 대기)")
             trainer.model = trainer.model.half()
+            
+            # 변환 후 다시 GC
+            gc.collect()
+            
             trainer.model.eval()
             
             # GPU로 전송

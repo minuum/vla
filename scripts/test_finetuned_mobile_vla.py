@@ -54,15 +54,17 @@ config = MobileVLAConfig(
     checkpoint_path=checkpoint_path,
     window_size=2,
     fwd_pred_next_n=10,
-    use_abs_action=True
+    use_abs_action=True,
+    use_int8=True
 )
 print(f"   Window Size: {config.window_size}")
 print(f"   Chunk Size: {config.fwd_pred_next_n}")
 print(f"   abs_action: {config.use_abs_action}")
+print(f"   use_int8: {config.use_int8}")
 print()
 
 # 4. 엔진 생성 및 모델 로드
-print("4️⃣ 모델 로딩 (Fine-tuned + FP16):")
+print("4️⃣ 모델 로딩 (Fine-tuned + INT8):")
 start_mem = psutil.virtual_memory().used / 1024**3
 start_time = time.time()
 

@@ -32,7 +32,7 @@ class Colors:
 class VLAControlCenter:
     """VLA 통합 모니터링 및 제어"""
     
-    def __init__(self, project_root: str = "/home/billy/25-1kp/vla"):
+    def __init__(self, project_root: str = "/home/soda/25-1kp/vla"):
         self.project_root = Path(project_root)
         self.api_url = "http://localhost:8000"
         

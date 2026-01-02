@@ -7,7 +7,7 @@
 set -e
 
 # 프로젝트 루트로 이동
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 
 
 echo "=================================================="
@@ -20,7 +20,7 @@ echo "  - 목적: VLM에서 언어 정보가 action_token에 전달되도록 개
 echo ""
 
 # 환경 설정
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 export CUDA_VISIBLE_DEVICES=0
 
 # 로그 파일

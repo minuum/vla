@@ -24,6 +24,6 @@ echo ""
 echo "4️⃣ 로컬 컴퓨터로 다운로드 (로컬 컴퓨터에서 실행):"
 echo "   rsync -avz --progress \\"
 echo "     GPU서버사용자@223.194.115.11:/tmp/vla_sync/*.h5 \\"
-echo "     /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset/"
+echo "     /home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset/"
 echo ""
 

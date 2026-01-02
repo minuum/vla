@@ -5,7 +5,7 @@
 
 set -e
 
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 
 echo "=================================================="
 echo "🚀 Action Chunking 학습 (chunk=5)"

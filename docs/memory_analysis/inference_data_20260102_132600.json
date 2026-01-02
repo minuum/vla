@@ -1,0 +1,19 @@
+{
+    "timestamp": "2026-01-02 13:26:00",
+    "memory_stats": {
+        "step": [],
+        "cpu": [],
+        "gpu": []
+    },
+    "trajectory_stats": {
+        "step": [],
+        "x": [
+            0.0
+        ],
+        "y": [
+            0.0
+        ],
+        "action_x": [],
+        "action_y": []
+    }
+}

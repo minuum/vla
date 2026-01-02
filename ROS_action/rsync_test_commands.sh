@@ -9,7 +9,7 @@ echo ""
 REMOTE_IP="192.168.101.101"
 REMOTE_USER="soda"
 REMOTE_PATH="/home/soda/vla/ROS_action/mobile_vla_dataset"
-LOCAL_PATH="/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset"
+LOCAL_PATH="/home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset"
 
 echo "1️⃣ SSH 연결 테스트..."
 ssh ${REMOTE_USER}@${REMOTE_IP} "echo 'SSH 연결 성공!'"

@@ -18,7 +18,7 @@ echo ""
 echo "2️⃣ 방법 1: IP 주소 사용 (로컬 서버 billy에서 실행)"
 echo "   rsync -avz --progress \\"
 echo "     soda@로봇서버IP:/home/soda/vla/ROS_action/mobile_vla_dataset/*.h5 \\"
-echo "     /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset/"
+echo "     /home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset/"
 echo ""
 
 # 방법 2: SSH Config 설정
@@ -36,7 +36,7 @@ echo ""
 echo "4️⃣ 방법 3: 역방향 전송 (로봇 서버 apexs에서 실행)"
 echo "   rsync -avz --progress \\"
 echo "     /home/soda/vla/ROS_action/mobile_vla_dataset/*.h5 \\"
-echo "     billy@로컬서버IP:/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset/"
+echo "     billy@로컬서버IP:/home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset/"
 echo ""
 
 # 방법 4: 공유 스토리지
@@ -56,7 +56,7 @@ echo ""
 
 echo "로컬 서버 정보:"
 echo "사용자: billy"
-echo "데이터 경로: /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset"
+echo "데이터 경로: /home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset"
 echo "현재 파일: 237개"
 echo "필요 파일: 231개 추가"
 echo ""

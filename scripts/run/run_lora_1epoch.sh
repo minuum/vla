@@ -7,7 +7,7 @@ echo "========================================="
 echo "Mobile VLA LoRA Fine-tuning (1 Epoch)"
 echo "========================================="
 
-cd /home/billy/25-1kp/vla/RoboVLMs_upstream
+cd /home/soda/25-1kp/vla/RoboVLMs_upstream
 
 # CUDA 설정
 export CUDA_VISIBLE_DEVICES=0

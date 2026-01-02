@@ -7,7 +7,7 @@ set -e
 # 설정
 JETSON_HOST="${JETSON_HOST:-soda@100.99.189.94}"  # Tailscale IP
 JETSON_PATH="${JETSON_PATH:-~/vla}"
-LOCAL_PATH="/home/billy/25-1kp/vla"
+LOCAL_PATH="/home/soda/25-1kp/vla"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📤 Billy → Jetson: Checkpoint 전송"

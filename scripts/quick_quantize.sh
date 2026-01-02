@@ -2,7 +2,7 @@
 # Quick start script for quantization
 # Usage: bash scripts/quick_quantize.sh
 
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 
 echo "🚀 Starting INT8/INT4 Quantization..."
 echo ""

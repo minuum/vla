@@ -2,7 +2,7 @@
 # LoRA 재학습 (균형 데이터)
 # 목적: 500개 균형 데이터(L/R 50:50)로 LoRA를 공정하게 학습
 
-cd /home/billy/25-1kp/vla/RoboVLMs_upstream
+cd /home/soda/25-1kp/vla/RoboVLMs_upstream
 
 # Python path 설정
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"

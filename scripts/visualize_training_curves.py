@@ -26,7 +26,7 @@ def plot_training_curves():
     """학습 곡선 시각화"""
     
     # 경로 설정
-    base_path = Path('/home/billy/25-1kp/vla/runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17')
+    base_path = Path('/home/soda/25-1kp/vla/runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17')
     
     chunk5_csv = base_path / 'mobile_vla_chunk5_20251217/mobile_vla_chunk5_20251217/version_1/metrics.csv'
     chunk10_csv = base_path / 'mobile_vla_chunk10_20251217/mobile_vla_chunk10_20251217/version_1/metrics.csv'
@@ -129,7 +129,7 @@ def plot_training_curves():
     plt.tight_layout()
     
     # 저장
-    output_path = Path('/home/billy/25-1kp/vla/docs/training_curves_comparison.png')
+    output_path = Path('/home/soda/25-1kp/vla/docs/training_curves_comparison.png')
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"\n✅ Saved: {output_path}")
     

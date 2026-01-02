@@ -7,7 +7,7 @@ set -e
 # 설정
 JETSON_HOST="${JETSON_HOST:-soda@100.99.189.94}"
 JETSON_DATASET_PATH="${JETSON_DATASET_PATH:-~/vla/ROS_action/mobile_vla_dataset}"
-LOCAL_PATH="/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset"
+LOCAL_PATH="/home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📥 Jetson → Billy: 데이터셋 전송"

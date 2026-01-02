@@ -41,7 +41,7 @@ echo "========================================="
 echo ""
 
 # 학습 실행
-cd /home/billy/25-1kp/vla/RoboVLMs_upstream
+cd /home/soda/25-1kp/vla/RoboVLMs_upstream
 python3 main.py $CONFIG 2>&1 | tee $LOG_FILE
 
 echo ""

@@ -38,7 +38,7 @@ echo "📄 로그: $LOG_FILE"
 echo ""
 
 # 학습 시작
-cd /home/billy/25-1kp/vla/RoboVLMs_upstream
+cd /home/soda/25-1kp/vla/RoboVLMs_upstream
 python3 main.py $CONFIG_FILE 2>&1 | tee ../$LOG_FILE
 
 echo ""

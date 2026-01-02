@@ -5,7 +5,7 @@
 set -e
 
 # 프로젝트 루트로 이동
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_FILE="logs/train_no_chunk_${TIMESTAMP}.log"

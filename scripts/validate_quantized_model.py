@@ -9,7 +9,7 @@ Usage:
         --original runs/.../chunk5_epoch6.ckpt \
         --quantized quantized_models/full_quant/model_quantized.ckpt \
         --config Mobile_VLA/configs/mobile_vla_chunk5_20251217.json \
-        --val-data /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset
+        --val-data /home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset
 
 검증 기준:
     - Direction Accuracy ≥ 95% (원본 100% 대비)

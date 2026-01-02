@@ -44,7 +44,7 @@ echo "========================================="
 echo ""
 
 # Poetry 환경에서 학습 실행
-cd /home/billy/25-1kp/vla/RoboVLMs_upstream
+cd /home/soda/25-1kp/vla/RoboVLMs_upstream
 poetry run python main.py $CONFIG 2>&1 | tee $LOG_FILE
 
 echo ""

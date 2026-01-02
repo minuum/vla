@@ -6,7 +6,7 @@
 set -e
 
 # 프로젝트 루트로 이동
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 
 mkdir -p logs
 

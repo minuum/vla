@@ -7,7 +7,7 @@
 set -e
 
 # 프로젝트 루트로 이동
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 
 
 echo "=================================================="
@@ -21,7 +21,7 @@ echo "  - 전략: abs_action (크기 학습 + 언어 방향 추출)"
 echo ""
 
 # 환경 설정
-cd /home/billy/25-1kp/vla
+cd /home/soda/25-1kp/vla
 export CUDA_VISIBLE_DEVICES=0
 
 # 로그 파일

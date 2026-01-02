@@ -5,7 +5,7 @@
 set -e
 
 JETSON_TARGET=${1:-"soda@linnaeus"}  # Tailscale: soda@linnaeus (100.85.118.58)
-VLA_DIR="/home/billy/25-1kp/vla"
+VLA_DIR="/home/soda/25-1kp/vla"
 
 echo "========================================"
 echo "Transfer Checkpoint to Jetson"

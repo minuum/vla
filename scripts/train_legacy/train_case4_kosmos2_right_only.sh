@@ -25,7 +25,7 @@ else
 fi
 
 # Right 파일 개수 확인
-RIGHT_FILES=$(ls /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset/*right*.h5 2>/dev/null | wc -l)
+RIGHT_FILES=$(ls /home/soda/25-1kp/vla/ROS_action/mobile_vla_dataset/*right*.h5 2>/dev/null | wc -l)
 echo "  📁 Right episodes: $RIGHT_FILES"
 
 # 타임스탬프
@@ -42,7 +42,7 @@ echo "========================================="
 echo ""
 
 # 학습 실행
-cd /home/billy/25-1kp/vla/RoboVLMs_upstream
+cd /home/soda/25-1kp/vla/RoboVLMs_upstream
 python3 main.py $CONFIG 2>&1 | tee $LOG_FILE
 
 echo ""

@@ -21,11 +21,11 @@ setup(
     description='TODO: Package description',
     license='TODO: License declaration',
     #tests_require=['pytest'],
-            entry_points={
+    entry_points={
         'console_scripts': [
             'vla_collector = mobile_vla_package.mobile_vla_data_collector:main',
             'simple_robot_mover = mobile_vla_package.simple_robot_mover:main',
-            'mobile_vla_inference = mobile_vla_package.mobile_vla_inference:main',
+            #'mobile_vla_inference = mobile_vla_package.mobile_vla_inference:main', # Archived
             'action_sequence_executor = mobile_vla_package.action_sequence_executor:main',
             'system_monitor = mobile_vla_package.system_monitor:main',
             'test_camera_simulator = mobile_vla_package.test_camera_simulator:main',
@@ -35,7 +35,7 @@ setup(
             'robovlms_controller = mobile_vla_package.robovlms_controller:main',
             'robovlms_monitor = mobile_vla_package.robovlms_monitor:main',
             'api_client_node = mobile_vla_package.api_client_node:main',
-            'vla_inference_node = mobile_vla_package.mobile_vla_inference_node:main',
-        ]
+            'mobile_vla_inference_node = mobile_vla_package.mobile_vla_inference_node:main',
+        ],
     },
 )
