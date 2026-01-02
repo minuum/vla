@@ -218,7 +218,15 @@ class RoboVLMsInferenceEngine:
             
             # 체크포인트의 state_dict 로드
             print("📦 State dict 로딩...")
-            trainer.model.load_state_dict(checkpoint['model_state_dict'])
+            # 'model_state_dict' 또는 'state_dict' 키 지원
+            if 'model_state_dict' in checkpoint:
+                state_dict_key = 'model_state_dict'
+            elif 'state_dict' in checkpoint:
+                state_dict_key = 'state_dict'
+            else:
+                raise KeyError("체크포인트에 'model_state_dict' 또는 'state_dict' 키가 없습니다")
+            
+            trainer.model.load_state_dict(checkpoint[state_dict_key], strict=False)
             
             # FP16 변환 (CPU에서)
             print("🔄 FP16 변환 중...")
