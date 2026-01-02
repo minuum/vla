@@ -113,15 +113,16 @@ class MobileVLAInferenceNode(Node):
         self.get_logger().info("🚀 추론 엔진 초기화 중...")
         
         try:
-            # Config 설정
+        # Config 설정
             self.config = MobileVLAConfig(
+                # Fine-tuned 모델 체크포인트
                 checkpoint_path="runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
                 window_size=2,
                 fwd_pred_next_n=10,
                 use_abs_action=True,
                 denormalize_strategy="safe",
-                max_linear_x=0.5,  # 안전 속도
-                max_linear_y=0.5
+                max_linear_x=1.15,  # data_collector와 일치 (실제 로봇 속도 범위)
+                max_linear_y=1.15
             )
             
             # 추론 엔진 생성
@@ -180,10 +181,14 @@ class MobileVLAInferenceNode(Node):
             return None
     
     def publish_cmd_vel(self, action: np.ndarray):
-        """로봇 제어 명령 발행"""
+        """로봇 제어 명령 발행 (data_collector와 동일한 방식)"""
+        linear_x = float(action[0])
+        linear_y = float(action[1])
+        
+        # 1. ROS2 Twist 메시지 발행
         msg = Twist()
-        msg.linear.x = float(action[0])
-        msg.linear.y = float(action[1])
+        msg.linear.x = linear_x
+        msg.linear.y = linear_y
         msg.linear.z = 0.0
         msg.angular.x = 0.0
         msg.angular.y = 0.0
@@ -191,16 +196,26 @@ class MobileVLAInferenceNode(Node):
         
         self.cmd_pub.publish(msg)
         
-        # 하드웨어 드라이버 (있으면)
+        # 2. 하드웨어 드라이버 제어 (data_collector 방식)
+        # 속도 크기가 아닌 방향(angle)을 계산하여 고정 속도(throttle)로 이동
         if ROBOT_AVAILABLE and self.driver is not None:
             try:
-                self.driver.omni_drive(
-                    speed=int(abs(action[0]) * 100),
-                   direction=0 if action[0] >= 0 else 180,
-                    rotation=0
-                )
-            except:
-                pass
+                # 움직임이 미미하면 정지
+                if abs(linear_x) < 0.1 and abs(linear_y) < 0.1:
+                    self.driver.stop()
+                    return
+
+                # 각도 계산 (atan2(y, x))
+                angle = np.degrees(np.arctan2(linear_y, linear_x))
+                if angle < 0:
+                    angle += 360
+                
+                # data_collector는 항상 고정된 throttle 사용
+                # self.throttle은 __init__에서 50으로 설정됨
+                self.driver.move(int(angle), self.throttle)
+                
+            except Exception as e:
+                self.get_logger().error(f"❌ 하드웨어 제어 에러: {e}")
     
     def stop_robot(self):
         """로봇 정지"""
