@@ -204,6 +204,11 @@ class RoboVLMsInferenceEngine:
             window_size = ckpt_config.get('window_size', self.config.window_size)
             chunk_size = ckpt_config.get('chunk_size', self.config.fwd_pred_next_n)
             
+            # window_size보다 chunk_size가 크면 IndexError 발생 (MobileVLATrainer 구조상)
+            if chunk_size > window_size:
+                print(f"⚠️ Warning: chunk_size({chunk_size}) > window_size({window_size}). chunk_size를 {window_size}로 제한합니다.")
+                chunk_size = window_size
+            
             print(f"📝 모델 설정: model_name={model_name}, action_dim={action_dim}, window_size={window_size}, chunk_size={chunk_size}")
             
             # MobileVLATrainer 생성 (모델만 필요)
@@ -319,11 +324,12 @@ class RoboVLMsInferenceEngine:
         # MobileVLATrainer의 모델 forward 호출
         # 입력: pixel_values (B, T, C, H, W), input_ids, attention_mask
         # 출력: {'predicted_actions': (B, chunk_size, action_dim), ...}
-        result = self.model(
-            pixel_values=images,  # (1, window_size, 3, H, W)
-            input_ids=text_tokens,
-            attention_mask=text_mask
-        )
+        with torch.cuda.amp.autocast():
+            result = self.model(
+                pixel_values=images,  # (1, window_size, 3, H, W)
+                input_ids=text_tokens,
+                attention_mask=text_mask
+            )
         
         # 결과 처리 - MobileVLATrainer는 dict 반환
         if isinstance(result, dict):
