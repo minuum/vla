@@ -46,7 +46,7 @@ def extract_direction_from_instruction(instruction: str) -> float:
     - Straight/Unclear: 0.0
     
     Args:
-        instruction: 언어 명령 (예: "Navigate to the left bottle")
+        instruction: 언어 명령 (예: "가장 왼쪽 외곽으로 돌아 컵까지 가세요" - 학습 데이터와 일치하는 한국어)
         
     Returns:
         direction: 방향 부호 (-1.0, 0.0, +1.0)

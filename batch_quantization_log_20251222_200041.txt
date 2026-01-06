@@ -1,0 +1,324 @@
+================================================================
+🚀 Batch PTQ Quantization for Mobile VLA Models
+================================================================
+
+================================================================
+Processing: left_chunk5
+================================================================
+📦 Checkpoint: runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk5_20251218/epoch_epoch=08-val_loss=val_loss=0.016.ckpt
+⚙️  Config: Mobile_VLA/configs/mobile_vla_left_chunk5_20251218.json
+📁 Output: quantized_models/batch_ptq_20251222_200041/left_chunk5
+
+tee: quantized_models/batch_ptq_20251222_200041/left_chunk5/quantization.log: 그런 파일이나 디렉터리가 없습니다
+/home/billy/.local/lib/python3.10/site-packages/lightning_utilities/core/imports.py:14: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+2025-12-22 20:00:46.738927: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-12-22 20:00:46.766723: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+============================================================
+🚀 Mobile VLA Model Quantization for Jetson
+============================================================
+📦 Loading model from runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk5_20251218/epoch_epoch=08-val_loss=val_loss=0.016.ckpt
+--------------- model configs ---------------
+{'robovlm_name': 'RoboKosMos', 'exp_name': 'mobile_vla_left_chunk5_20251218', 'parent': None, 'task_name': 'mobile_vla_finetune', 'model': 'kosmos', 'model_url': 'https://huggingface.co/microsoft/kosmos-2-patch14-224', 'seq_len': 1, 'image_size': 224, 'image_mean': [0.48145466, 0.4578275, 0.40821073], 'image_std': [0.26862954, 0.26130258, 0.27577711], 'window_size': 8, 'fwd_pred_next_n': 5, 'arm_gripper_loss_ratio': 0.0, 'cap_loss_ratio': 0.0, 'fwd_loss_ratio': 0, 'seed': 123, 'batch_size': 1, 'num_workers': 2, 'data_scale': 1, 'optimizer': 'adamw', 'learning_rate': 0.0001, 'min_lr_scale': 0.001, 'weight_decay': 0.01, 'warmup_epochs': 0.1, 'warmup_steps': 0, 'warmup_ratio': None, 'use_hand_rgb': False, 'use_time_causal_attn': False, 'use_mim_obs_loss': False, 'use_pixel_loss': False, 'use_obs_queries': True, 'use_vision_resampler': False, 'vision_masked_ratio': 0.9, 'use_tube_mask': False, 'cache_root': 'runs/cache/kosmos', 'model_load_path': None, 'model_load_source': 'torch', 'resume': None, 'model_path': '.vlms/kosmos-2-patch14-224', 'model_config': '.vlms/kosmos-2-patch14-224/config.json', 'gpus': 1, 'num_nodes': 1, 'train_setup': {'precision': '16-mixed', 'predict_action': True, 'predict_forward': False, 'predict_forward_hand': False, 'predict_caption': False, 'train_vision': False, 'bits': -1, 'freeze_mm_mlp_adapter': False, 'freeze_backbone': True, 'freeze_resampler': False, 'tune_mm_mlp_adapter': False, 'mm_use_im_start_end': False, 'mm_use_im_patch_token': False, 'gradient_checkpointing': False, 'lora_enable': False, 'mm_projector_lr': 0.0001, 'lora_r': 32, 'lora_alpha': 16, 'lora_dropout': 0.1, 'lora_bias': 'none', 'train_text_embedding': False}, 'vision_resampler': {'vis_dim': 1024, 'depth': 8, 'dim_head': 64, 'heads': 8, 'num_latents': 64}, 'act_encoder': None, 'trainer_type': 'MobileVLATrainer', 'act_head': {'type': 'MobileVLALSTMDecoder', 'hidden_size': 512, 'action_dim': 2, 'down_sample': 'none', 'latent': 1, 'fwd_pred_next_n': 5, 'window_size': 8, 'action_space': 'continuous', 'with_history': True, 'history_type': 'post'}, 'fwd_head': None, 'tokenizer': {'type': 'AutoProcessor', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224', 'tokenizer_type': 'kosmos', 'max_text_len': 256, 'additional_special_tokens': None}, 'vlm': {'type': 'AutoModelForVision2Seq', 'name': 'kosmos', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224'}, 'trainer': {'accelerator': 'gpu', 'strategy': 'auto', 'precision': '16-mixed', 'logger': ['tensorboard', 'csv'], 'gradient_clip_val': 1.0, 'use_distributed_sampler': False, 'log_every_n_steps': 5, 'max_epochs': 10, 'val_check_interval': None, 'check_val_every_n_epoch': 1, 'max_steps': -1, 'accumulate_grad_batches': 8}, 'train_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_*left*.h5', 'shift_first': False, 'model_name': 'kosmos', 'rgb_pad': 10, 'train_split': 0.8}, 'val_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_*left*.h5', 'model_name': 'kosmos', 'train_split': 0.8, 'is_validation': True}, 'norm_action': True, 'norm_min': -1.0, 'norm_max': 1.0, 'raw_config_path': 'Mobile_VLA/configs/mobile_vla_left_chunk5_20251218.json', 'config': 'Mobile_VLA/configs/mobile_vla_left_chunk5_20251218.json', 'log_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk5_20251218', 'output_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk5_20251218', 'data_dir': None, 'annotation_file': None, 'data_subfolder': None, 'task_num': None, 'use_multi_modal_emb': False, 'no_video_pretrained_model': False, 'finetune': False, 'llm': {'type': None, 'n_embd': None, 'n_layer': None, 'n_head': None}}
+fwd next n: 5
+{'act_head.velocities.mlp.4.weight', 'act_head.velocities.mlp.4.bias', 'act_head.velocities.mlp.0.bias', 'act_head.rnn.weight_ih_l2', 'act_head.velocities.mlp.2.bias', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.bias_hh_l3', 'act_head.rnn.weight_ih_l1', 'act_head.rnn.weight_ih_l3', 'act_head.velocities.mlp.2.weight', 'act_head.velocities.mlp.6.bias', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_hh_l1', 'act_head.rnn.weight_ih_l0', 'act_head.velocities.mlp.6.weight', 'act_head.rnn.weight_hh_l3', 'act_head.rnn.bias_hh_l1', 'act_head.rnn.bias_ih_l3', 'act_head.rnn.bias_ih_l2', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.weight_hh_l0', 'action_token'}
+{'act_head.velocities.mlp.4.weight', 'act_head.velocities.mlp.4.bias', 'act_head.velocities.mlp.0.bias', 'act_head.rnn.weight_ih_l2', 'act_head.velocities.mlp.2.bias', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.bias_hh_l3', 'act_head.rnn.weight_ih_l1', 'act_head.rnn.weight_ih_l3', 'act_head.velocities.mlp.2.weight', 'act_head.velocities.mlp.6.bias', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_hh_l1', 'act_head.rnn.weight_ih_l0', 'act_head.velocities.mlp.6.weight', 'act_head.rnn.weight_hh_l3', 'act_head.rnn.bias_hh_l1', 'act_head.rnn.bias_ih_l3', 'act_head.rnn.bias_ih_l2', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.weight_hh_l0', 'action_token'}
+KosMos Model Parameters: 12.74M
+✅ Model loaded successfully
+
+📊 Model Size:
+  - Total Parameters: 1,677,222,154
+  - FP32: 6.25 GB
+  - FP16: 3.12 GB
+
+🔧 Preparing calibration dataset (100 samples)...
+✅ Calibration data prepared: 100 images
+
+🔄 Quantizing Vision Encoder to INT8...
+  - Applying dynamic INT8 quantization to Linear layers...
+✅ Vision Encoder quantized to INT8 (Linear layers only)
+
+🔄 Quantizing LLM to INT4...
+  - Applying INT4 quantization to text model...
+⚠️  LLM INT4 quantization requires model reload with BitsAndBytes
+    This will be handled in the inference server loading logic
+
+💾 Saving quantized model to quantized_models/batch_ptq_20251222_200041/left_chunk5
+  - Config saved to quantized_models/batch_ptq_20251222_200041/left_chunk5/config.json
+  - Model saved to quantized_models/batch_ptq_20251222_200041/left_chunk5/model_quantized.pt
+
+📊 Estimated Memory Usage:
+  - Vision Encoder: 0.30 GB
+  - LLM: 0.80 GB
+  - Action Head: 0.05 GB
+  - Total: 1.15 GB
+✅ Quantized model saved successfully
+
+✅ Quantization completed successfully!
+📁 Output directory: quantized_models/batch_ptq_20251222_200041/left_chunk5
+
+💡 Next steps:
+  1. Test quantized model with validate_quantized_model.py
+  2. Deploy to Jetson and measure memory usage
+  3. Verify accuracy with validation dataset
+❌ left_chunk5 failed
+
+
+================================================================
+Processing: left_chunk10
+================================================================
+📦 Checkpoint: runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk10_20251218/epoch_epoch=09-val_loss=val_loss=0.010.ckpt
+⚙️  Config: Mobile_VLA/configs/mobile_vla_left_chunk10_20251218.json
+📁 Output: quantized_models/batch_ptq_20251222_200041/left_chunk10
+
+tee: quantized_models/batch_ptq_20251222_200041/left_chunk10/quantization.log: 그런 파일이나 디렉터리가 없습니다
+/home/billy/.local/lib/python3.10/site-packages/lightning_utilities/core/imports.py:14: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+2025-12-22 20:01:04.840913: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-12-22 20:01:04.867845: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+============================================================
+🚀 Mobile VLA Model Quantization for Jetson
+============================================================
+📦 Loading model from runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk10_20251218/epoch_epoch=09-val_loss=val_loss=0.010.ckpt
+--------------- model configs ---------------
+{'robovlm_name': 'RoboKosMos', 'exp_name': 'mobile_vla_left_chunk10_20251218', 'parent': None, 'task_name': 'mobile_vla_finetune', 'model': 'kosmos', 'model_url': 'https://huggingface.co/microsoft/kosmos-2-patch14-224', 'seq_len': 1, 'image_size': 224, 'image_mean': [0.48145466, 0.4578275, 0.40821073], 'image_std': [0.26862954, 0.26130258, 0.27577711], 'window_size': 8, 'fwd_pred_next_n': 10, 'arm_gripper_loss_ratio': 0.0, 'cap_loss_ratio': 0.0, 'fwd_loss_ratio': 0, 'seed': 123, 'batch_size': 1, 'num_workers': 2, 'data_scale': 1, 'optimizer': 'adamw', 'learning_rate': 0.0001, 'min_lr_scale': 0.001, 'weight_decay': 0.01, 'warmup_epochs': 0.1, 'warmup_steps': 0, 'warmup_ratio': None, 'use_hand_rgb': False, 'use_time_causal_attn': False, 'use_mim_obs_loss': False, 'use_pixel_loss': False, 'use_obs_queries': True, 'use_vision_resampler': False, 'vision_masked_ratio': 0.9, 'use_tube_mask': False, 'cache_root': 'runs/cache/kosmos', 'model_load_path': None, 'model_load_source': 'torch', 'resume': None, 'model_path': '.vlms/kosmos-2-patch14-224', 'model_config': '.vlms/kosmos-2-patch14-224/config.json', 'gpus': 1, 'num_nodes': 1, 'train_setup': {'precision': '16-mixed', 'predict_action': True, 'predict_forward': False, 'predict_forward_hand': False, 'predict_caption': False, 'train_vision': False, 'bits': -1, 'freeze_mm_mlp_adapter': False, 'freeze_backbone': True, 'freeze_resampler': False, 'tune_mm_mlp_adapter': False, 'mm_use_im_start_end': False, 'mm_use_im_patch_token': False, 'gradient_checkpointing': False, 'lora_enable': False, 'mm_projector_lr': 0.0001, 'lora_r': 32, 'lora_alpha': 16, 'lora_dropout': 0.1, 'lora_bias': 'none', 'train_text_embedding': False}, 'vision_resampler': {'vis_dim': 1024, 'depth': 8, 'dim_head': 64, 'heads': 8, 'num_latents': 64}, 'act_encoder': None, 'trainer_type': 'MobileVLATrainer', 'act_head': {'type': 'MobileVLALSTMDecoder', 'hidden_size': 512, 'action_dim': 2, 'down_sample': 'none', 'latent': 1, 'fwd_pred_next_n': 10, 'window_size': 8, 'action_space': 'continuous', 'with_history': True, 'history_type': 'post'}, 'fwd_head': None, 'tokenizer': {'type': 'AutoProcessor', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224', 'tokenizer_type': 'kosmos', 'max_text_len': 256, 'additional_special_tokens': None}, 'vlm': {'type': 'AutoModelForVision2Seq', 'name': 'kosmos', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224'}, 'trainer': {'accelerator': 'gpu', 'strategy': 'auto', 'precision': '16-mixed', 'logger': ['tensorboard', 'csv'], 'gradient_clip_val': 1.0, 'use_distributed_sampler': False, 'log_every_n_steps': 5, 'max_epochs': 10, 'val_check_interval': None, 'check_val_every_n_epoch': 1, 'max_steps': -1, 'accumulate_grad_batches': 8}, 'train_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_*left*.h5', 'shift_first': False, 'model_name': 'kosmos', 'rgb_pad': 10, 'train_split': 0.8}, 'val_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_*left*.h5', 'model_name': 'kosmos', 'train_split': 0.8, 'is_validation': True}, 'norm_action': True, 'norm_min': -1.0, 'norm_max': 1.0, 'raw_config_path': 'Mobile_VLA/configs/mobile_vla_left_chunk10_20251218.json', 'config': 'Mobile_VLA/configs/mobile_vla_left_chunk10_20251218.json', 'log_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk10_20251218', 'output_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_left_chunk10_20251218', 'data_dir': None, 'annotation_file': None, 'data_subfolder': None, 'task_num': None, 'use_multi_modal_emb': False, 'no_video_pretrained_model': False, 'finetune': False, 'llm': {'type': None, 'n_embd': None, 'n_layer': None, 'n_head': None}}
+fwd next n: 10
+{'act_head.rnn.weight_hh_l0', 'act_head.velocities.mlp.4.weight', 'act_head.rnn.weight_ih_l3', 'act_head.rnn.bias_hh_l3', 'act_head.rnn.bias_ih_l3', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.weight_hh_l1', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.weight_ih_l0', 'act_head.velocities.mlp.0.bias', 'act_head.velocities.mlp.6.weight', 'action_token', 'act_head.rnn.weight_ih_l1', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.bias_ih_l2', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.bias_hh_l1', 'act_head.velocities.mlp.6.bias', 'act_head.rnn.weight_hh_l3', 'act_head.velocities.mlp.4.bias', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_ih_l2', 'act_head.velocities.mlp.2.bias'}
+{'act_head.rnn.weight_hh_l0', 'act_head.velocities.mlp.4.weight', 'act_head.rnn.weight_ih_l3', 'act_head.rnn.bias_hh_l3', 'act_head.rnn.bias_ih_l3', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.weight_hh_l1', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.weight_ih_l0', 'act_head.velocities.mlp.0.bias', 'act_head.velocities.mlp.6.weight', 'action_token', 'act_head.rnn.weight_ih_l1', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.bias_ih_l2', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.bias_hh_l1', 'act_head.velocities.mlp.6.bias', 'act_head.rnn.weight_hh_l3', 'act_head.velocities.mlp.4.bias', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_ih_l2', 'act_head.velocities.mlp.2.bias'}
+KosMos Model Parameters: 12.74M
+✅ Model loaded successfully
+
+📊 Model Size:
+  - Total Parameters: 1,677,224,724
+  - FP32: 6.25 GB
+  - FP16: 3.12 GB
+
+🔧 Preparing calibration dataset (100 samples)...
+✅ Calibration data prepared: 100 images
+
+🔄 Quantizing Vision Encoder to INT8...
+  - Applying dynamic INT8 quantization to Linear layers...
+✅ Vision Encoder quantized to INT8 (Linear layers only)
+
+🔄 Quantizing LLM to INT4...
+  - Applying INT4 quantization to text model...
+⚠️  LLM INT4 quantization requires model reload with BitsAndBytes
+    This will be handled in the inference server loading logic
+
+💾 Saving quantized model to quantized_models/batch_ptq_20251222_200041/left_chunk10
+  - Config saved to quantized_models/batch_ptq_20251222_200041/left_chunk10/config.json
+  - Model saved to quantized_models/batch_ptq_20251222_200041/left_chunk10/model_quantized.pt
+
+📊 Estimated Memory Usage:
+  - Vision Encoder: 0.30 GB
+  - LLM: 0.80 GB
+  - Action Head: 0.05 GB
+  - Total: 1.15 GB
+✅ Quantized model saved successfully
+
+✅ Quantization completed successfully!
+📁 Output directory: quantized_models/batch_ptq_20251222_200041/left_chunk10
+
+💡 Next steps:
+  1. Test quantized model with validate_quantized_model.py
+  2. Deploy to Jetson and measure memory usage
+  3. Verify accuracy with validation dataset
+❌ left_chunk10 failed
+
+
+================================================================
+Processing: chunk10
+================================================================
+📦 Checkpoint: runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=05-val_loss=val_loss=0.284.ckpt
+⚙️  Config: Mobile_VLA/configs/mobile_vla_chunk10_20251217.json
+📁 Output: quantized_models/batch_ptq_20251222_200041/chunk10
+
+tee: quantized_models/batch_ptq_20251222_200041/chunk10/quantization.log: 그런 파일이나 디렉터리가 없습니다
+/home/billy/.local/lib/python3.10/site-packages/lightning_utilities/core/imports.py:14: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+============================================================
+🚀 Mobile VLA Model Quantization for Jetson
+============================================================
+📦 Loading model from runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=05-val_loss=val_loss=0.284.ckpt
+Traceback (most recent call last):
+  File "/home/billy/25-1kp/vla/scripts/quantize_for_jetson.py", line 371, in <module>
+    main()
+  File "/home/billy/25-1kp/vla/scripts/quantize_for_jetson.py", line 338, in main
+    quantizer = ModelQuantizer(
+  File "/home/billy/25-1kp/vla/scripts/quantize_for_jetson.py", line 65, in __init__
+    self.trainer = MobileVLATrainer.load_from_checkpoint(
+  File "/home/billy/.local/lib/python3.10/site-packages/lightning/pytorch/utilities/model_helpers.py", line 125, in wrapper
+    return self.method(cls, *args, **kwargs)
+  File "/home/billy/.local/lib/python3.10/site-packages/lightning/pytorch/core/module.py", line 1581, in load_from_checkpoint
+    loaded = _load_from_checkpoint(
+  File "/home/billy/.local/lib/python3.10/site-packages/lightning/pytorch/core/saving.py", line 63, in _load_from_checkpoint
+    checkpoint = pl_load(checkpoint_path, map_location=map_location)
+  File "/home/billy/.local/lib/python3.10/site-packages/lightning/fabric/utilities/cloud_io.py", line 57, in _load
+    return torch.load(f, map_location=map_location)  # type: ignore[arg-type]
+  File "/home/billy/.local/lib/python3.10/site-packages/torch/serialization.py", line 1005, in load
+    with _open_zipfile_reader(opened_file) as opened_zipfile:
+  File "/home/billy/.local/lib/python3.10/site-packages/torch/serialization.py", line 457, in __init__
+    super().__init__(torch._C.PyTorchFileReader(name_or_buffer))
+RuntimeError: PytorchStreamReader failed reading zip archive: failed finding central directory
+❌ chunk10 failed
+
+
+================================================================
+Processing: right_chunk10
+================================================================
+📦 Checkpoint: runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_right_chunk10_20251218/epoch_epoch=09-val_loss=val_loss=0.013.ckpt
+⚙️  Config: Mobile_VLA/configs/mobile_vla_right_chunk10_20251218.json
+📁 Output: quantized_models/batch_ptq_20251222_200041/right_chunk10
+
+tee: quantized_models/batch_ptq_20251222_200041/right_chunk10/quantization.log: 그런 파일이나 디렉터리가 없습니다
+/home/billy/.local/lib/python3.10/site-packages/lightning_utilities/core/imports.py:14: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+2025-12-22 20:01:26.084631: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-12-22 20:01:26.112015: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+============================================================
+🚀 Mobile VLA Model Quantization for Jetson
+============================================================
+📦 Loading model from runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_right_chunk10_20251218/epoch_epoch=09-val_loss=val_loss=0.013.ckpt
+--------------- model configs ---------------
+{'robovlm_name': 'RoboKosMos', 'exp_name': 'mobile_vla_right_chunk10_20251218', 'parent': None, 'task_name': 'mobile_vla_finetune', 'model': 'kosmos', 'model_url': 'https://huggingface.co/microsoft/kosmos-2-patch14-224', 'seq_len': 1, 'image_size': 224, 'image_mean': [0.48145466, 0.4578275, 0.40821073], 'image_std': [0.26862954, 0.26130258, 0.27577711], 'window_size': 8, 'fwd_pred_next_n': 10, 'arm_gripper_loss_ratio': 0.0, 'cap_loss_ratio': 0.0, 'fwd_loss_ratio': 0, 'seed': 123, 'batch_size': 1, 'num_workers': 2, 'data_scale': 1, 'optimizer': 'adamw', 'learning_rate': 0.0001, 'min_lr_scale': 0.001, 'weight_decay': 0.01, 'warmup_epochs': 0.1, 'warmup_steps': 0, 'warmup_ratio': None, 'use_hand_rgb': False, 'use_time_causal_attn': False, 'use_mim_obs_loss': False, 'use_pixel_loss': False, 'use_obs_queries': True, 'use_vision_resampler': False, 'vision_masked_ratio': 0.9, 'use_tube_mask': False, 'cache_root': 'runs/cache/kosmos', 'model_load_path': None, 'model_load_source': 'torch', 'resume': None, 'model_path': '.vlms/kosmos-2-patch14-224', 'model_config': '.vlms/kosmos-2-patch14-224/config.json', 'gpus': 1, 'num_nodes': 1, 'train_setup': {'precision': '16-mixed', 'predict_action': True, 'predict_forward': False, 'predict_forward_hand': False, 'predict_caption': False, 'train_vision': False, 'bits': -1, 'freeze_mm_mlp_adapter': False, 'freeze_backbone': True, 'freeze_resampler': False, 'tune_mm_mlp_adapter': False, 'mm_use_im_start_end': False, 'mm_use_im_patch_token': False, 'gradient_checkpointing': False, 'lora_enable': False, 'mm_projector_lr': 0.0001, 'lora_r': 32, 'lora_alpha': 16, 'lora_dropout': 0.1, 'lora_bias': 'none', 'train_text_embedding': False}, 'vision_resampler': {'vis_dim': 1024, 'depth': 8, 'dim_head': 64, 'heads': 8, 'num_latents': 64}, 'act_encoder': None, 'trainer_type': 'MobileVLATrainer', 'act_head': {'type': 'MobileVLALSTMDecoder', 'hidden_size': 512, 'action_dim': 2, 'down_sample': 'none', 'latent': 1, 'fwd_pred_next_n': 10, 'window_size': 8, 'action_space': 'continuous', 'with_history': True, 'history_type': 'post'}, 'fwd_head': None, 'tokenizer': {'type': 'AutoProcessor', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224', 'tokenizer_type': 'kosmos', 'max_text_len': 256, 'additional_special_tokens': None}, 'vlm': {'type': 'AutoModelForVision2Seq', 'name': 'kosmos', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224'}, 'trainer': {'accelerator': 'gpu', 'strategy': 'auto', 'precision': '16-mixed', 'logger': ['tensorboard', 'csv'], 'gradient_clip_val': 1.0, 'use_distributed_sampler': False, 'log_every_n_steps': 5, 'max_epochs': 10, 'val_check_interval': None, 'check_val_every_n_epoch': 1, 'max_steps': -1, 'accumulate_grad_batches': 8}, 'train_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_*right*.h5', 'shift_first': False, 'model_name': 'kosmos', 'rgb_pad': 10, 'train_split': 0.8}, 'val_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_*right*.h5', 'model_name': 'kosmos', 'train_split': 0.8, 'is_validation': True}, 'norm_action': True, 'norm_min': -1.0, 'norm_max': 1.0, 'raw_config_path': 'Mobile_VLA/configs/mobile_vla_right_chunk10_20251218.json', 'config': 'Mobile_VLA/configs/mobile_vla_right_chunk10_20251218.json', 'log_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_right_chunk10_20251218', 'output_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_right_chunk10_20251218', 'data_dir': None, 'annotation_file': None, 'data_subfolder': None, 'task_num': None, 'use_multi_modal_emb': False, 'no_video_pretrained_model': False, 'finetune': False, 'llm': {'type': None, 'n_embd': None, 'n_layer': None, 'n_head': None}}
+fwd next n: 10
+{'act_head.rnn.bias_ih_l2', 'act_head.velocities.mlp.4.weight', 'act_head.velocities.mlp.0.bias', 'act_head.rnn.weight_ih_l2', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.bias_ih_l3', 'act_head.velocities.mlp.6.weight', 'act_head.velocities.mlp.4.bias', 'act_head.rnn.bias_hh_l3', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.weight_hh_l0', 'act_head.rnn.weight_hh_l1', 'act_head.rnn.weight_hh_l2', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.weight_hh_l3', 'act_head.velocities.mlp.0.weight', 'act_head.velocities.mlp.6.bias', 'act_head.velocities.mlp.2.bias', 'act_head.rnn.weight_ih_l0', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_ih_l1', 'action_token', 'act_head.rnn.weight_ih_l3', 'act_head.rnn.bias_hh_l1'}
+{'act_head.rnn.bias_ih_l2', 'act_head.velocities.mlp.4.weight', 'act_head.velocities.mlp.0.bias', 'act_head.rnn.weight_ih_l2', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.bias_ih_l3', 'act_head.velocities.mlp.6.weight', 'act_head.velocities.mlp.4.bias', 'act_head.rnn.bias_hh_l3', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.weight_hh_l0', 'act_head.rnn.weight_hh_l1', 'act_head.rnn.weight_hh_l2', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.weight_hh_l3', 'act_head.velocities.mlp.0.weight', 'act_head.velocities.mlp.6.bias', 'act_head.velocities.mlp.2.bias', 'act_head.rnn.weight_ih_l0', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_ih_l1', 'action_token', 'act_head.rnn.weight_ih_l3', 'act_head.rnn.bias_hh_l1'}
+KosMos Model Parameters: 12.74M
+✅ Model loaded successfully
+
+📊 Model Size:
+  - Total Parameters: 1,677,224,724
+  - FP32: 6.25 GB
+  - FP16: 3.12 GB
+
+🔧 Preparing calibration dataset (100 samples)...
+✅ Calibration data prepared: 100 images
+
+🔄 Quantizing Vision Encoder to INT8...
+  - Applying dynamic INT8 quantization to Linear layers...
+✅ Vision Encoder quantized to INT8 (Linear layers only)
+
+🔄 Quantizing LLM to INT4...
+  - Applying INT4 quantization to text model...
+⚠️  LLM INT4 quantization requires model reload with BitsAndBytes
+    This will be handled in the inference server loading logic
+
+💾 Saving quantized model to quantized_models/batch_ptq_20251222_200041/right_chunk10
+  - Config saved to quantized_models/batch_ptq_20251222_200041/right_chunk10/config.json
+  - Model saved to quantized_models/batch_ptq_20251222_200041/right_chunk10/model_quantized.pt
+
+📊 Estimated Memory Usage:
+  - Vision Encoder: 0.30 GB
+  - LLM: 0.80 GB
+  - Action Head: 0.05 GB
+  - Total: 1.15 GB
+✅ Quantized model saved successfully
+
+✅ Quantization completed successfully!
+📁 Output directory: quantized_models/batch_ptq_20251222_200041/right_chunk10
+
+💡 Next steps:
+  1. Test quantized model with validate_quantized_model.py
+  2. Deploy to Jetson and measure memory usage
+  3. Verify accuracy with validation dataset
+❌ right_chunk10 failed
+
+
+================================================================
+Processing: chunk5
+================================================================
+📦 Checkpoint: runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt
+⚙️  Config: Mobile_VLA/configs/mobile_vla_chunk5_20251217.json
+📁 Output: quantized_models/batch_ptq_20251222_200041/chunk5
+
+tee: quantized_models/batch_ptq_20251222_200041/chunk5/quantization.log: 그런 파일이나 디렉터리가 없습니다
+/home/billy/.local/lib/python3.10/site-packages/lightning_utilities/core/imports.py:14: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+2025-12-22 20:01:44.466213: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-12-22 20:01:44.493725: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+============================================================
+🚀 Mobile VLA Model Quantization for Jetson
+============================================================
+📦 Loading model from runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt
+--------------- model configs ---------------
+{'robovlm_name': 'RoboKosMos', 'exp_name': 'mobile_vla_chunk5_20251217', 'parent': None, 'task_name': 'mobile_vla_finetune', 'model': 'kosmos', 'model_url': 'https://huggingface.co/microsoft/kosmos-2-patch14-224', 'seq_len': 1, 'image_size': 224, 'image_mean': [0.48145466, 0.4578275, 0.40821073], 'image_std': [0.26862954, 0.26130258, 0.27577711], 'window_size': 8, 'fwd_pred_next_n': 5, 'arm_gripper_loss_ratio': 0.0, 'cap_loss_ratio': 0.0, 'fwd_loss_ratio': 0, 'seed': 123, 'batch_size': 1, 'num_workers': 2, 'data_scale': 1, 'optimizer': 'adamw', 'learning_rate': 0.0001, 'min_lr_scale': 0.001, 'weight_decay': 0.01, 'warmup_epochs': 0.1, 'warmup_steps': 0, 'warmup_ratio': None, 'use_hand_rgb': False, 'use_time_causal_attn': False, 'use_mim_obs_loss': False, 'use_pixel_loss': False, 'use_obs_queries': True, 'use_vision_resampler': False, 'vision_masked_ratio': 0.9, 'use_tube_mask': False, 'cache_root': 'runs/cache/kosmos', 'model_load_path': None, 'model_load_source': 'torch', 'resume': None, 'model_path': '.vlms/kosmos-2-patch14-224', 'model_config': '.vlms/kosmos-2-patch14-224/config.json', 'gpus': 1, 'num_nodes': 1, 'train_setup': {'precision': '16-mixed', 'predict_action': True, 'predict_forward': False, 'predict_forward_hand': False, 'predict_caption': False, 'train_vision': False, 'bits': -1, 'freeze_mm_mlp_adapter': False, 'freeze_backbone': True, 'freeze_resampler': False, 'tune_mm_mlp_adapter': False, 'mm_use_im_start_end': False, 'mm_use_im_patch_token': False, 'gradient_checkpointing': False, 'lora_enable': False, 'mm_projector_lr': 0.0001, 'lora_r': 32, 'lora_alpha': 16, 'lora_dropout': 0.1, 'lora_bias': 'none', 'train_text_embedding': False}, 'vision_resampler': {'vis_dim': 1024, 'depth': 8, 'dim_head': 64, 'heads': 8, 'num_latents': 64}, 'act_encoder': None, 'trainer_type': 'MobileVLATrainer', 'act_head': {'type': 'MobileVLALSTMDecoder', 'hidden_size': 512, 'action_dim': 2, 'down_sample': 'none', 'latent': 1, 'fwd_pred_next_n': 5, 'window_size': 8, 'action_space': 'continuous', 'with_history': True, 'history_type': 'post'}, 'fwd_head': None, 'tokenizer': {'type': 'AutoProcessor', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224', 'tokenizer_type': 'kosmos', 'max_text_len': 256, 'additional_special_tokens': None}, 'vlm': {'type': 'AutoModelForVision2Seq', 'name': 'kosmos', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224'}, 'trainer': {'accelerator': 'gpu', 'strategy': 'auto', 'precision': '16-mixed', 'logger': ['tensorboard', 'csv'], 'gradient_clip_val': 1.0, 'use_distributed_sampler': False, 'log_every_n_steps': 5, 'max_epochs': 10, 'val_check_interval': None, 'check_val_every_n_epoch': 1, 'max_steps': -1, 'accumulate_grad_batches': 8}, 'train_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_20251*.h5', 'shift_first': False, 'model_name': 'kosmos', 'rgb_pad': 10, 'train_split': 0.8}, 'val_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset', 'episode_pattern': 'episode_20251*.h5', 'model_name': 'kosmos', 'train_split': 0.8, 'is_validation': True}, 'norm_action': True, 'norm_min': -1.0, 'norm_max': 1.0, 'raw_config_path': 'Mobile_VLA/configs/mobile_vla_chunk5_20251217.json', 'config': 'Mobile_VLA/configs/mobile_vla_chunk5_20251217.json', 'log_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217', 'output_dir': 'runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217', 'data_dir': None, 'annotation_file': None, 'data_subfolder': None, 'task_num': None, 'use_multi_modal_emb': False, 'no_video_pretrained_model': False, 'finetune': False, 'llm': {'type': None, 'n_embd': None, 'n_layer': None, 'n_head': None}}
+fwd next n: 5
+{'act_head.velocities.mlp.4.bias', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.bias_ih_l2', 'act_head.rnn.bias_hh_l3', 'act_head.velocities.mlp.4.weight', 'act_head.rnn.weight_ih_l1', 'act_head.rnn.weight_hh_l1', 'action_token', 'act_head.rnn.bias_hh_l0', 'act_head.velocities.mlp.6.bias', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.bias_ih_l3', 'act_head.rnn.weight_ih_l0', 'act_head.rnn.weight_hh_l3', 'act_head.rnn.weight_ih_l3', 'act_head.velocities.mlp.2.bias', 'act_head.velocities.mlp.6.weight', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_ih_l2', 'act_head.rnn.bias_hh_l1', 'act_head.velocities.mlp.0.bias', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.weight_hh_l0'}
+{'act_head.velocities.mlp.4.bias', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.bias_ih_l2', 'act_head.rnn.bias_hh_l3', 'act_head.velocities.mlp.4.weight', 'act_head.rnn.weight_ih_l1', 'act_head.rnn.weight_hh_l1', 'action_token', 'act_head.rnn.bias_hh_l0', 'act_head.velocities.mlp.6.bias', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.bias_ih_l1', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.bias_ih_l3', 'act_head.rnn.weight_ih_l0', 'act_head.rnn.weight_hh_l3', 'act_head.rnn.weight_ih_l3', 'act_head.velocities.mlp.2.bias', 'act_head.velocities.mlp.6.weight', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.weight_ih_l2', 'act_head.rnn.bias_hh_l1', 'act_head.velocities.mlp.0.bias', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.weight_hh_l0'}
+KosMos Model Parameters: 12.74M
+✅ Model loaded successfully
+
+📊 Model Size:
+  - Total Parameters: 1,677,222,154
+  - FP32: 6.25 GB
+  - FP16: 3.12 GB
+
+🔧 Preparing calibration dataset (100 samples)...
+✅ Calibration data prepared: 100 images
+
+🔄 Quantizing Vision Encoder to INT8...
+  - Applying dynamic INT8 quantization to Linear layers...
+✅ Vision Encoder quantized to INT8 (Linear layers only)
+
+🔄 Quantizing LLM to INT4...
+  - Applying INT4 quantization to text model...
+⚠️  LLM INT4 quantization requires model reload with BitsAndBytes
+    This will be handled in the inference server loading logic
+
+💾 Saving quantized model to quantized_models/batch_ptq_20251222_200041/chunk5
+  - Config saved to quantized_models/batch_ptq_20251222_200041/chunk5/config.json
+  - Model saved to quantized_models/batch_ptq_20251222_200041/chunk5/model_quantized.pt
+
+📊 Estimated Memory Usage:
+  - Vision Encoder: 0.30 GB
+  - LLM: 0.80 GB
+  - Action Head: 0.05 GB
+  - Total: 1.15 GB
+✅ Quantized model saved successfully
+
+✅ Quantization completed successfully!
+📁 Output directory: quantized_models/batch_ptq_20251222_200041/chunk5
+
+💡 Next steps:
+  1. Test quantized model with validate_quantized_model.py
+  2. Deploy to Jetson and measure memory usage
+  3. Verify accuracy with validation dataset
+❌ chunk5 failed
+
+
+================================================================
+✅ Batch Quantization Complete!
+================================================================
+
+📁 Output directory: quantized_models/batch_ptq_20251222_200041
+📊 Summary: quantized_models/batch_ptq_20251222_200041/quantization_summary.txt
+
+Batch Quantization Summary
+Date: 2025. 12. 22. (월) 20:00:41 KST
+======================================
+
+left_chunk5: FAILED
+left_chunk10: FAILED
+chunk10: FAILED
+right_chunk10: FAILED
+chunk5: FAILED
+
+💡 Next steps:
+  1. Review quantization logs
+  2. Run validation:
+     bash scripts/validate_all_quantized.sh quantized_models/batch_ptq_20251222_200041
+  3. Compare results
+

@@ -1,0 +1,13 @@
+{
+  "original_checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-18/mobile_vla_right_chunk10_20251218/epoch_epoch=09-val_loss=val_loss=0.013.ckpt",
+  "quantization": {
+    "vision_encoder": "INT8",
+    "llm": "INT4"
+  },
+  "estimated_memory_gb": {
+    "vision": 0.3,
+    "llm": 0.8,
+    "action_head": 0.05,
+    "total": 1.1500000000000001
+  }
+}

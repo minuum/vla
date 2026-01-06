@@ -3,6 +3,12 @@ import requests, h5py, base64, io
 from PIL import Image
 import numpy as np
 import time
+import sys
+from pathlib import Path
+
+# Add path for instruction mapping
+sys.path.insert(0, str(Path(__file__).parent))
+from Mobile_VLA.instruction_mapping import get_instruction_for_scenario
 
 # Load image
 with h5py.File('ROS_action/mobile_vla_dataset/episode_20251203_042905_1box_hori_left_core_medium.h5', 'r') as f:
@@ -27,10 +33,13 @@ print(f'Switch: {response.status_code}')
 
 time.sleep(5)
 
-# Predict
+# Predict - 학습 시 사용된 한국어 instruction 사용
+instruction = get_instruction_for_scenario('left')
+print(f'Using instruction: {instruction}')
+
 response = requests.post(
     'http://localhost:8000/predict',  
-    json={'image': img_b64, 'instruction': 'Navigate to the left bottle'},
+    json={'image': img_b64, 'instruction': instruction},
     headers={'X-API-Key': 'qkGswLr0qTJQALrbYrrQ9rB-eVGrzD7IqLNTmswE0lU'},
     timeout=60
 )

@@ -77,37 +77,50 @@ class ModelValidator:
         
         count = 0
         for h5_file in h5_files:
-            with h5py.File(h5_file, 'r') as f:
-                images = f['observations']['rgb'][:]
-                actions = f['actions'][:]
-                
-                # 'left' 또는 'right' instruction 추출 (파일명 기준)
-                if 'left' in h5_file.name:
-                    instruction = "Navigate around obstacles and reach the front of the beverage bottle on the left"
-                elif 'right' in h5_file.name:
-                    instruction = "Navigate around obstacles and reach the front of the beverage bottle on the right"
-                else:
-                    continue
-                
-                # 랜덤 샘플링
-                indices = np.random.choice(len(images), min(10, len(images)), replace=False)
-                
-                for idx in indices:
+            try:
+                with h5py.File(h5_file, 'r') as f:
+                    # Mobile VLA 데이터셋 구조: images, actions, language_instruction
+                    images = f['images'][:]  # (T, H, W, C)
+                    actions = f['actions'][:]  # (T, action_dim)
+                    
+                    # Language instruction 추출 (파일명 기반)
+                    if 'left' in h5_file.name:
+                        instruction = "Navigate around obstacles and reach the front of the beverage bottle on the left"
+                        expected_direction = -1  # left = negative y
+                    elif 'right' in h5_file.name:
+                        instruction = "Navigate around obstacles and reach the front of the beverage bottle on the right"
+                        expected_direction = 1  # right = positive y
+                    else:
+                        # 파일명에서 방향 추출 못하면 스킵
+                        continue
+                    
+                    # 랜덤 샘플링
+                    num_frames = min(len(images), 10)
+                    if num_frames == 0:
+                        continue
+                        
+                    indices = np.random.choice(len(images), num_frames, replace=False)
+                    
+                    for idx in indices:
+                        if count >= num_samples:
+                            break
+                        
+                        img = images[idx]  # (720, 1280, 3)
+                        action = actions[idx]  # (action_dim,)
+                        
+                        val_samples.append({
+                            'image': img,
+                            'instruction': instruction,
+                            'action': action,
+                            'expected_direction': expected_direction
+                        })
+                        count += 1
+                    
                     if count >= num_samples:
                         break
-                    
-                    img = images[idx]
-                    action = actions[idx]
-                    
-                    val_samples.append({
-                        'image': img,
-                        'instruction': instruction,
-                        'action': action
-                    })
-                    count += 1
-                
-                if count >= num_samples:
-                    break
+            except Exception as e:
+                print(f"⚠️  Skipping {h5_file.name}: {e}")
+                continue
         
         self.val_samples = val_samples[:num_samples]
         print(f"✅ Loaded {len(self.val_samples)} validation samples")
@@ -153,7 +166,7 @@ class ModelValidator:
             for sample in tqdm(self.val_samples, desc="Validating"):
                 img_tensor = self.preprocess_image(sample['image'])
                 instruction = sample['instruction']
-                gt_action = sample['action']
+                expected_dir = sample['expected_direction']
                 
                 # Original model prediction
                 start = time.time()
@@ -182,19 +195,20 @@ class ModelValidator:
                 else:
                     action_quant = pred_quant.cpu().numpy()[0]
                 
-                # Check direction (linear_y sign)
-                if action_orig[1] * gt_action[1] > 0:
+                # Check direction (linear_y sign vs expected_direction)
+                # action[1] is linear_y (left/right)
+                if np.sign(action_orig[1]) == np.sign(expected_dir):
                     correct_orig += 1
                 
-                if action_quant[1] * gt_action[1] > 0:
+                if np.sign(action_quant[1]) == np.sign(expected_dir):
                     correct_quant += 1
         
-        accuracy_orig = correct_orig / total
-        accuracy_quant = correct_quant / total
+        accuracy_orig = correct_orig / total if total > 0 else 0
+        accuracy_quant = correct_quant / total if total > 0 else 0
         accuracy_drop = accuracy_orig - accuracy_quant
         
-        avg_latency_orig = np.mean(latency_orig)
-        avg_latency_quant = np.mean(latency_quant)
+        avg_latency_orig = np.mean(latency_orig) if latency_orig else 0
+        avg_latency_quant = np.mean(latency_quant) if latency_quant else 0
         
         results = {
             'direction_accuracy': {
