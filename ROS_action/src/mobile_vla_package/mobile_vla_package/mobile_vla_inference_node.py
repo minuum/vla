@@ -91,7 +91,7 @@ class MobileVLAInferenceNode(Node):
         # 추론 설정
         self.declare_parameter('auto_start', False)
         self.inference_active = self.get_parameter('auto_start').get_parameter_value().bool_value
-        self.current_instruction = "Navigate to the left bottle"  # 구체화
+        self.current_instruction = "가장 왼쪽 외곽으로 돌아 컵까지 가세요"  # 학습 데이터와 동일 (Korean)
        
         # 로봇 제어
         if ROBOT_AVAILABLE:
@@ -460,12 +460,13 @@ class MobileVLAInferenceNode(Node):
         self.get_logger().info("=" * 60)
     
     def set_instruction(self, scenario_num: str):
-        """시나리오별 언어 지시문 설정 (2026-01-02 미팅 피드백 반영: 구체화)"""
+        """시나리오별 언어 지시문 설정 (학습 데이터와 동일: 한국어)"""
+        # RoboVLMs/robovlms/data/mobile_vla_action_dataset.py:L151-160과 일치
         scenarios = {
-            '1': "Navigate to the left bottle",
-            '2': "Navigate to the right bottle",
-            '3': "Navigate around two boxes to the left bottle",
-            '4': "Navigate around two boxes to the right bottle"
+            '1': "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
+            '2': "가장 오른쪽 외곽으로 돌아 컵까지 가세요",
+            '3': "가장 왼쪽 외곽으로 돌아 컵까지 가세요",  # 2box는 동일 instruction 사용
+            '4': "가장 오른쪽 외곽으로 돌아 컵까지 가세요"
         }
         
         if scenario_num in scenarios:
