@@ -52,7 +52,7 @@
     "gpus": 1,
     "num_nodes": 1,
     "train_setup": {
-        "precision": "16-mixed",
+        "precision": "bf16-mixed",
         "predict_action": true,
         "predict_forward": false,
         "predict_forward_hand": false,
@@ -67,9 +67,9 @@
         "mm_use_im_patch_token": false,
         "gradient_checkpointing": true,
         "lora_enable": true,
-        "mm_projector_lr": 0.0001,
-        "lora_r": 16,
-        "lora_alpha": 32,
+        "mm_projector_lr": 1e-4,
+        "lora_r": 8,
+        "lora_alpha": 16,
         "lora_dropout": 0.1,
         "lora_bias": "none",
         "lora_target_modules": [
