@@ -72,6 +72,12 @@
         "lora_alpha": 32,
         "lora_dropout": 0.1,
         "lora_bias": "none",
+        "lora_target_modules": [
+            "q_proj",
+            "v_proj",
+            "k_proj",
+            "o_proj"
+        ],
         "train_text_embedding": false
     },
     "vision_resampler": {
