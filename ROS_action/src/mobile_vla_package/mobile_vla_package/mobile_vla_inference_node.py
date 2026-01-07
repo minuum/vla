@@ -137,6 +137,11 @@ class MobileVLAInferenceNode(Node):
         self.declare_parameter('action_gain', 60.0)
         self.action_gain = self.get_parameter('action_gain').get_parameter_value().double_value
         self.get_logger().info(f"⚡ Action Gain: {self.action_gain}")
+
+        # 모델 설정 파라미터 (Kosmos vs PaliGemma)
+        self.declare_parameter('model_type', 'kosmos')  # 'kosmos' or 'paligemma'
+        self.declare_parameter('checkpoint_path', '')   # Empty = Use default fallback
+
         
         # 통계
         self.total_inferences = 0
@@ -169,15 +174,32 @@ class MobileVLAInferenceNode(Node):
         self.get_logger().info("🚀 추론 엔진 초기화 중...")
         
         try:
-        # Config 설정
+            # 파라미터 읽기
+            model_type = self.get_parameter('model_type').get_parameter_value().string_value
+            ckpt_path_param = self.get_parameter('checkpoint_path').get_parameter_value().string_value
+            
+            # 기본값 설정 (Fallback)
+            if not ckpt_path_param:
+                ckpt_path_param = "/home/soda/vla/runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt"
+            
+            # 모델별 설정 분기
+            if model_type == 'paligemma':
+                self.get_logger().info("🔧 Mode: PaliGemma-3B Config (Window=8, Chunk=5)")
+                window_size = 8
+                fwd_pred_next_n = 5
+            else:
+                self.get_logger().info("🔧 Mode: Kosmos-2 Config (Window=2, Chunk=10)")
+                window_size = 2
+                fwd_pred_next_n = 10
+
+            # Config 생성
             self.config = MobileVLAConfig(
-                # Fine-tuned 모델 체크포인트 (절대 경로 필수)
-                checkpoint_path="/home/soda/vla/runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
-                window_size=2,
-                fwd_pred_next_n=10,
+                checkpoint_path=ckpt_path_param,
+                window_size=window_size,
+                fwd_pred_next_n=fwd_pred_next_n,
                 use_abs_action=True,
                 denormalize_strategy="safe",
-                max_linear_x=1.15,  # data_collector와 일치 (실제 로봇 속도 범위)
+                max_linear_x=1.15,
                 max_linear_y=1.15
             )
             
