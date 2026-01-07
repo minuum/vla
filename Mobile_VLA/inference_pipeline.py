@@ -11,6 +11,7 @@ import numpy as np
 import json
 from pathlib import Path
 import sys
+from robovlms.data.data_utils import unnoramalize_action
 
 # Add RoboVLMs to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "RoboVLMs_upstream"))
@@ -117,13 +118,18 @@ class MobileVLAInferencePipeline:
         Returns:
             action_denorm: Denormalized action
         """
-        norm_min = self.config['norm_min']  # -1.0
-        norm_max = self.config['norm_max']  # 1.0
+        # Data Clipping Compensation (Gain 1.15)
+        # 학습 데이터가 [-1, 1]로 잘못 클리핑되었으므로, 추론 시에 [-1.15, 1.15]로 강제 확장하여
+        # 원래의 물리적 속도(최대 1.15 m/s)를 복원함.
+        target_min = -1.15
+        target_max = 1.15
         
-        # Denormalize: [-1, 1] -> original range
-        # For our task: linear_x [0.5, 1.5], linear_y [-1.5, 1.5]
-        # Using simple denormalization
-        action_denorm = action_normalized.cpu().numpy()
+        # Denormalize: [-1, 1] -> [-1.15, 1.15]
+        action_denorm = unnoramalize_action(
+            action_normalized.cpu().numpy(),
+            action_min=target_min,
+            action_max=target_max
+        )
         
         return action_denorm
     
@@ -156,12 +162,35 @@ class MobileVLAInferencePipeline:
             'language': [instruction]  # List[str]
         }
         
-        # Forward pass
-        outputs = self.trainer.model.predict_step(batch, batch_idx=0)
+        # Prepare inputs suitable for model.inference()
+        # Tokenize instruction
+        from transformers import AutoProcessor
+        processor = AutoProcessor.from_pretrained(
+            self.config['tokenizer']['pretrained_model_name_or_path'],
+            trust_remote_code=True
+        )
+        
+        encoded = processor.tokenizer(
+            instruction,
+            return_tensors='pt',
+            padding='max_length',
+            max_length=self.config['tokenizer']['max_text_len'],
+            truncation=True
+        ).to(self.device)
+        
+        # Inference
+        outputs = self.trainer.model.inference(
+            vision_x=image_tensor,
+            lang_x=encoded['input_ids'],
+            attention_mask=encoded['attention_mask']
+        )
         
         # Extract action
         action_pred = outputs['action']  # (1, 1, 2) or (1, 2)
         
+        if isinstance(action_pred, tuple):
+            action_pred = action_pred[0]
+            
         if action_pred.dim() == 3:
             action_pred = action_pred.squeeze(1)  # (1, 2)
             

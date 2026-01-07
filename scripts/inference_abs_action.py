@@ -32,7 +32,10 @@ def main():
     parser = argparse.ArgumentParser(description="Inference for Mobile VLA with Abs Action Strategy")
     parser.add_argument('--checkpoint', type=str, required=True, help='Path to checkpoint (abs_action)')
     parser.add_argument('--image', type=str, help='Path to test image')
-    parser.add_argument('--text', type=str, default="Navigate to the left bottle", help='Instruction')
+    from Mobile_VLA.instruction_mapping import get_instruction_for_scenario
+    parser.add_argument('--text', type=str, 
+                       default=get_instruction_for_scenario('left'),
+                       help='Instruction (Korean, matching training data)')
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'

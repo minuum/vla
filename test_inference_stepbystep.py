@@ -68,8 +68,11 @@ def test_step2_direction_extraction():
     
     from robovlms_mobile_vla_inference import extract_direction_from_instruction
     
+    # 학습 시 사용된 한국어 instruction 사용
+    from Mobile_VLA.instruction_mapping import get_instruction_for_scenario
+    
     test_cases = [
-        ("Navigate to the left bottle", 1.0),
+        (get_instruction_for_scenario('left'), 1.0),  # 가장 왼쪽 외곽으로...
         ("Navigate to the right bottle", -1.0),
         ("Move left", 1.0),
         ("Turn right", -1.0),
@@ -110,7 +113,7 @@ def test_step3_dummy_inference(system):
     
     # 테스트 명령들
     test_instructions = [
-        "Navigate to the left bottle",
+        get_instruction_for_scenario('left'),  # 한국어 instruction
         "Navigate to the right bottle"
     ]
     

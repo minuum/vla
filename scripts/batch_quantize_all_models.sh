@@ -46,6 +46,7 @@ for model_name in "${!MODELS[@]}"; do
     echo "Processing: $model_name"
     echo "================================================================"
     
+    
     checkpoint="${MODELS[$model_name]}"
     config="${CONFIGS[$model_name]}"
     output_dir="$OUTPUT_BASE/$model_name"
@@ -56,6 +57,9 @@ for model_name in "${!MODELS[@]}"; do
         echo "$model_name: SKIPPED (checkpoint not found)" >> "$SUMMARY_FILE"
         continue
     fi
+    
+    # Create output directory BEFORE tee
+    mkdir -p "$output_dir"
     
     echo "📦 Checkpoint: $checkpoint"
     echo "⚙️  Config: $config"

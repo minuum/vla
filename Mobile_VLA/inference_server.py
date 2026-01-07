@@ -24,6 +24,7 @@ import secrets
 
 # Import ActionBuffer
 from Mobile_VLA.action_buffer import ActionBuffer
+from robovlms.data.data_utils import unnoramalize_action
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -296,17 +297,25 @@ class MobileVLAInference:
                     logger.warning(f"Unexpected outputs type: {type(outputs)}")
                     action = np.array([0.0, 0.0])
                 
-                # De-normalize action
-                # 모델 출력: [-1, 1] normalized
-                # Target range:
-                #   - linear_x: [0.0, 2.0] m/s
-                #   - linear_y: [-0.5, 0.5] rad/s
-                action[0] = (action[0] + 1.0) * 1.0  # [-1,1] -> [0,2]
-                action[1] = action[1] * 0.5          # [-1,1] -> [-0.5,0.5]
+                # De-normalize action with Data Clipping Compensation
+                # 학습 데이터 클리핑([-1, 1])을 보정하기 위해 추론 시 범위를 [-1.15, 1.15]로 확장
+                # linear_x: 0 -> 0, 1 -> 1.15
+                # linear_y: -1 -> -1.15, 1 -> 1.15
                 
-                # Clip to valid range
-                action[0] = np.clip(action[0], 0.0, 2.0)
-                action[1] = np.clip(action[1], -0.5, 0.5)
+                target_min = -1.15
+                target_max = 1.15
+                
+                action = unnoramalize_action(
+                    action,
+                    action_min=target_min,
+                    action_max=target_max
+                )
+                
+                # Clip to safe physical limits (로봇 안전 범위)
+                # linear_x: [0.0, 1.5]
+                # linear_y: [-1.5, 1.5]
+                action[0] = np.clip(action[0], 0.0, 1.5)
+                action[1] = np.clip(action[1], -1.5, 1.5)
                 
             except Exception as e:
                 logger.error(f"Inference failed: {e}")
