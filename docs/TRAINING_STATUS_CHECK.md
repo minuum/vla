@@ -1,20 +1,42 @@
-# ✅ PaliGemma-3B 학습 정상 진행 중!
+# ✅ PaliGemma-3B 학습 재시작 및 문제 해결 (2026-01-07 12:12)
 
-## 📊 **현재 상태** (2026-01-07 11:48)
+## 🚨 **문제 원인 및 해결 (FIXED)**
 
-### ✅ 프로세스 확인
-```
-PID 627372: Python main process (CPU 19.8%, MEM 2.0 GB)
-PID 627626: Python worker process (CPU 16.3%, MEM 1.2 GB)
-Status: ✅ 정상 실행 중
+### 1. **다운로드 문제가 아니었음!**
+- `huggingface-cli`가 멈춘 것처럼 보였으나, 실제로는 **Python 라이브러리 호환성 문제**로 인해 모델 로딩 단계에서 실패/지연이 발생했습니다.
+- **에러**: `Unrecognized configuration class PaliGemmaConfig`
+- **원인**: Python 3.10 환경의 `transformers` 버전(4.41.2)이 PaliGemma를 완벽히 지원하지 못함 (특히 `AutoModel` 매핑 문제).
+
+### 2. **해결 조치**
+1. **모델 파일 고속 다운로드 완료**
+   - `hf_transfer` 사용 → 9.3GB 다운로드 완료 (검증됨)
+2. **Transformers 라이브러리 업그레이드**
+   - `pip install --upgrade transformers`
+   - **Version**: 4.41.2 → **4.57.3** (최신 안정 버전)
+3. **모델 로딩 테스트 성공**
+   - `scripts/test_model_load.py`로 정상 로딩 확인 (`PaliGemmaForConditionalGeneration`)
+
+---
+
+## 📊 **현재 상태**
+
+### ✅ 학습 프로세스 재시작 (3차 시도)
+- **PID**: 637695
+- **Status**: 실행 중 (CPU 17.5%, MEM 2.0GB)
+- **단계**: 모델 파일 검증 및 로딩 중 (Fetching 3 files...)
+- **Log**: `logs/train_paligemma_lora_final.log`
+
+---
+
+## ⏱️ **예상 대기 시간**
+- 모델 로딩 (9GB): 약 2-3분 소요
+- 이후 LoRA 어댑터 추가 및 학습 시작
+
+**모니터링 명령어**:
+```bash
+tail -f logs/train_paligemma_lora_final.log
 ```
 
-### ⏳ 진행 상황
-```
-단계: 모델 다운로드 중
-진도: Downloading shards: 0/3
-예상: 5-10분 후 학습 시작
-```
 
 ### 💻 GPU 사용
 ```

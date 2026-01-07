@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'RoboVLMs_upstr
 from Mobile_VLA.inference_pipeline import MobileVLAInferencePipeline
 
 # PaliGemma checkpoint path (update after training)
-CHECKPOINT_PATH = "runs/mobile_vla_paligemma/paligemma/mobile_vla_paligemma_finetune/2026-01-07/mobile_vla_paligemma_lora/epoch_epoch=01-val_loss=val_loss=0.xxx.ckpt"
+CHECKPOINT_PATH = "runs/mobile_vla_paligemma/paligemma/mobile_vla_paligemma_finetune/2026-01-07/mobile_vla_paligemma_lora/epoch_epoch=00-val_loss=val_loss=0.040.ckpt"
 
 # English instructions
 INSTRUCTIONS = {
