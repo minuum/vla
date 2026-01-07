@@ -1,11 +1,11 @@
 """
 Instruction Mapping for Mobile VLA
 
-Changed to English instructions (2026-01-07) for Kosmos-2 VLM compatibility.
+Restored to English instructions (2026-01-07) for PaliGemma-3B compatibility.
 Matches RoboVLMs_upstream/robovlms/data/mobile_vla_action_dataset.py instruction format.
 """
 
-# English instructions (VLA standard: OpenVLA, RT-2)
+# English instructions (PaliGemma-3B / OpenVLA Standard)
 SCENARIO_INSTRUCTIONS_EN = {
     "1box_vert_left": "Navigate around the obstacle on the left side and reach the cup",
     "1box_vert_right": "Navigate around the obstacle on the right side and reach the cup",
@@ -31,17 +31,16 @@ DEFAULT_INSTRUCTION = "Reach the cup"
 def get_instruction_for_scenario(scenario: str) -> str:
     """
     시나리오 문자열로부터 영어 instruction 반환
+    (PaliGemma-3B 모델 학습 데이터와 일치)
     
     Args:
         scenario: 'left', 'right', '1box_hori_left' 등
         
     Returns:
-        영어 instruction (학습 데이터와 일치)
+        영어 instruction
         
     Examples:
         >>> get_instruction_for_scenario('1box_hori_left')
-        'Navigate around the obstacle on the left side and reach the cup'
-        >>> get_instruction_for_scenario('left')
         'Navigate around the obstacle on the left side and reach the cup'
     """
     # 직접 매칭 시도

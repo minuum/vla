@@ -46,8 +46,12 @@ if project_root not in sys.path:
 from src.robovlms_mobile_vla_inference import (
     MobileVLAConfig,
     RoboVLMsInferenceEngine,
+    RoboVLMsInferenceEngine,
     ImageBuffer
 )
+
+# Instruction Mapping 모듈 import
+from Mobile_VLA.instruction_mapping import get_instruction_for_robot_id
 
 try:
     from pop.driving import Driving
@@ -91,7 +95,8 @@ class MobileVLAInferenceNode(Node):
         # 추론 설정
         self.declare_parameter('auto_start', False)
         self.inference_active = self.get_parameter('auto_start').get_parameter_value().bool_value
-        self.current_instruction = "가장 왼쪽 외곽으로 돌아 컵까지 가세요"  # 학습 데이터와 동일 (Korean)
+        # Default Instruction (Left)
+        self.current_instruction = get_instruction_for_robot_id('1')  # 기본값: Left (한국어)
        
         # 로봇 제어
         if ROBOT_AVAILABLE:
@@ -460,19 +465,17 @@ class MobileVLAInferenceNode(Node):
         self.get_logger().info("=" * 60)
     
     def set_instruction(self, scenario_num: str):
-        """시나리오별 언어 지시문 설정 (학습 데이터와 동일: 한국어)"""
-        # RoboVLMs/robovlms/data/mobile_vla_action_dataset.py:L151-160과 일치
-        scenarios = {
-            '1': "가장 왼쪽 외곽으로 돌아 컵까지 가세요",
-            '2': "가장 오른쪽 외곽으로 돌아 컵까지 가세요",
-            '3': "가장 왼쪽 외곽으로 돌아 컵까지 가세요",  # 2box는 동일 instruction 사용
-            '4': "가장 오른쪽 외곽으로 돌아 컵까지 가세요"
-        }
+        """시나리오별 언어 지시문 설정 (Instruction Mapping 모듈 사용)"""
+        # 중앙 관리 모듈에서 instruction 가져오기
+        instruction = get_instruction_for_robot_id(scenario_num)
+        self.current_instruction = instruction
+        self.current_scenario = scenario_num
+        self.get_logger().info(f"✅ 지시문 변경 (Scenario {scenario_num}): {self.current_instruction}")
         
-        if scenario_num in scenarios:
-            self.current_instruction = scenarios[scenario_num]
-            self.get_logger().info(f"📝 지시문 변경: {self.current_instruction}")
-    
+    def check_scenario_change(self):
+        """키보드 입력으로 시나리오 변경 (1, 2, 3, 4 키)"""
+        pass
+
     def record_memory_usage(self, step: int):
         """현재 시스템/GPU 메모리 사용량을 기록"""
         if not self.ENABLE_MEMORY_PROFILING:
