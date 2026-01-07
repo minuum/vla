@@ -1,21 +1,21 @@
 {
-    "robovlm_name": "RoboPaligemma",
-    "exp_name": "mobile_vla_paligemma_lora",
+    "robovlm_name": "RoboKosMos",
+    "exp_name": "mobile_vla_lora_chunk5",
     "parent": null,
-    "task_name": "mobile_vla_paligemma_finetune",
-    "model": "paligemma",
-    "model_url": "https://huggingface.co/google/paligemma-3b-pt-224",
+    "task_name": "mobile_vla_lora_finetune",
+    "model": "kosmos",
+    "model_url": "https://huggingface.co/microsoft/kosmos-2-patch14-224",
     "seq_len": 1,
     "image_size": 224,
     "image_mean": [
-        0.5,
-        0.5,
-        0.5
+        0.48145466,
+        0.4578275,
+        0.40821073
     ],
     "image_std": [
-        0.5,
-        0.5,
-        0.5
+        0.26862954,
+        0.26130258,
+        0.27577711
     ],
     "window_size": 8,
     "fwd_pred_next_n": 5,
@@ -41,14 +41,14 @@
     "use_vision_resampler": false,
     "vision_masked_ratio": 0.9,
     "use_tube_mask": false,
-    "output_root": "runs/mobile_vla_paligemma",
-    "log_root": "runs/mobile_vla_paligemma",
+    "output_root": "runs/mobile_vla_lora",
+    "log_root": "runs/mobile_vla_lora",
     "cache_root": "runs/cache",
     "model_load_path": null,
     "model_load_source": "torch",
     "resume": null,
-    "model_path": "google/paligemma-3b-pt-224",
-    "model_config": "google/paligemma-3b-pt-224",
+    "model_path": ".vlms/kosmos-2-patch14-224",
+    "model_config": ".vlms/kosmos-2-patch14-224/config.json",
     "gpus": 1,
     "num_nodes": 1,
     "train_setup": {
@@ -98,15 +98,15 @@
     "fwd_head": null,
     "tokenizer": {
         "type": "AutoProcessor",
-        "pretrained_model_name_or_path": "google/paligemma-3b-pt-224",
-        "tokenizer_type": "paligemma",
+        "pretrained_model_name_or_path": ".vlms/kosmos-2-patch14-224",
+        "tokenizer_type": "kosmos",
         "max_text_len": 256,
         "additional_special_tokens": null
     },
     "vlm": {
-        "type": "PaliGemmaForConditionalGeneration",
-        "name": "paligemma",
-        "pretrained_model_name_or_path": "google/paligemma-3b-pt-224"
+        "type": "AutoModelForVision2Seq",
+        "name": "kosmos",
+        "pretrained_model_name_or_path": ".vlms/kosmos-2-patch14-224"
     },
     "trainer": {
         "accelerator": "gpu",
@@ -130,7 +130,7 @@
         "data_dir": "/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset",
         "episode_pattern": "episode_20251*.h5",
         "shift_first": false,
-        "model_name": "paligemma",
+        "model_name": "kosmos",
         "rgb_pad": 10,
         "train_split": 0.8
     },
@@ -138,7 +138,7 @@
         "type": "MobileVLAH5Dataset",
         "data_dir": "/home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset",
         "episode_pattern": "episode_20251*.h5",
-        "model_name": "paligemma",
+        "model_name": "kosmos",
         "train_split": 0.8,
         "is_validation": true
     },
