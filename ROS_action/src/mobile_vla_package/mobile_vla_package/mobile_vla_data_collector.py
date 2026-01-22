@@ -466,9 +466,9 @@ class MobileVLADataCollector(Node):
             # 측정 태스크 표 보기
             self.show_measurement_task_table()
         elif key in ['1', '2', '3', '4', '5', '6', '7', '8']:
-            # 반복 횟수 입력 모드가 아닐 때만 시나리오 선택으로 처리
+            # 반복 횟수 입력 모드일 때는 이 블록을 완전히 스킵 (아래 key.isdigit()에서 처리)
             if self.repeat_count_mode:
-                # 반복 횟수 입력 모드: 숫자 입력 처리 (아래 key.isdigit()에서 처리됨)
+                # 숫자 입력은 key.isdigit() 블록에서 처리되도록 스킵
                 pass
             elif self.scenario_selection_mode:
                 # 시나리오 선택 모드에서 키 입력 (8개 시나리오: cup 4개 + basket 4개)
@@ -491,7 +491,8 @@ class MobileVLADataCollector(Node):
                 else:
                     # 일반 모드: 패턴 선택으로 전환
                     self.show_pattern_selection()
-            else:
+            elif not self.collecting:
+                # 수집 중도 아니고, 시나리오 선택 모드도 아닌 경우에만 에러 메시지
                 self.get_logger().info("⚠️ 먼저 'N' 키를 눌러 에피소드 시작을 해주세요.")
         elif key in ['c', 'v']:
             if self.pattern_selection_mode:
