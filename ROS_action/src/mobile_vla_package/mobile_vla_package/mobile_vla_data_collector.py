@@ -82,15 +82,36 @@ class MobileVLADataCollector(Node):
         }
         self.time_period_stats = defaultdict(int)  # 시간대별 통계
         
-        # 4가지 탄산음료 페트병 도달 시나리오 목표 설정 (총 1000개 목표)
-        # 시나리오별 목표: 각 250개 (1000개 ÷ 4개 시나리오)
-        # 배치 타입(vert/hori)은 메타데이터로만 기록, 학습에는 영향 없음
+        # 객체별 navigation 시나리오 설정
+        # Legacy: Cup 시나리오 (기존 데이터, 1000개 목표 - 완료 또는 진행 중)
+        # New: Basket, Pot 시나리오 (새로운 객체, 각 1000개 목표)
+        
+        # Cup scenarios (Legacy - 유지)
         self.cup_scenarios = {
             "1box_left": {"target": 250, "description": "1박스-왼쪽경로", "key": "1"},
             "1box_right": {"target": 250, "description": "1박스-오른쪽경로", "key": "2"},
             "2box_left": {"target": 250, "description": "2박스-왼쪽경로", "key": "3"},
             "2box_right": {"target": 250, "description": "2박스-오른쪽경로", "key": "4"}
         }
+        
+        # Basket scenarios (New - 바구니)
+        self.basket_scenarios = {
+            "basket_1box_left": {"target": 250, "description": "바구니-1박스-왼쪽", "key": "5"},
+            "basket_1box_right": {"target": 250, "description": "바구니-1박스-오른쪽", "key": "6"},
+            "basket_2box_left": {"target": 250, "description": "바구니-2박스-왼쪽", "key": "7"},
+            "basket_2box_right": {"target": 250, "description": "바구니-2박스-오른쪽", "key": "8"}
+        }
+        
+        # Pot scenarios (New - 화분)
+        self.pot_scenarios = {
+            "pot_1box_left": {"target": 250, "description": "화분-1박스-왼쪽", "key": "9"},
+            "pot_1box_right": {"target": 250, "description": "화분-1박스-오른쪽", "key": "0"},
+            "pot_2box_left": {"target": 250, "description": "화분-2박스-왼쪽", "key": "!"},
+            "pot_2box_right": {"target": 250, "description": "화분-2박스-오른쪽", "key": "@"}
+        }
+        
+        # 전체 시나리오 통합 dictionary (편의성)
+        self.all_scenarios = {**self.cup_scenarios, **self.basket_scenarios, **self.pot_scenarios}
         
         # 장애물 배치 타입 기본값 설정 (학습에 불필요하지만 호환성을 위해 기본값 사용)
         self.default_layout_type = "hori"  # 기본값: 가로 배치
@@ -451,12 +472,19 @@ class MobileVLADataCollector(Node):
         elif key == 't':
             # 측정 태스크 표 보기
             self.show_measurement_task_table()
-        elif key in ['1', '2', '3', '4']:
+        elif key in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '!', '@']:
             if self.scenario_selection_mode:
-                # 시나리오 선택 모드에서 숫자키 입력 (4개 시나리오로 축소)
+                # 시나리오 선택 모드에서 키 입력 (12개 시나리오: cup 4개 + basket 4개 + pot 4개)
                 scenario_map = {
+                    # Cup (Legacy)
                     '1': "1box_left", '2': "1box_right",
-                    '3': "2box_left", '4': "2box_right"
+                    '3': "2box_left", '4': "2box_right",
+                    # Basket (New)
+                    '5': "basket_1box_left", '6': "basket_1box_right",
+                    '7': "basket_2box_left", '8': "basket_2box_right",
+                    # Pot (New)
+                    '9': "pot_1box_left", '0': "pot_1box_right",
+                    '!': "pot_2box_left", '@': "pot_2box_right"
                 }
                 self.selected_scenario = scenario_map[key]
                 self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
@@ -2118,26 +2146,27 @@ class MobileVLADataCollector(Node):
             self.get_logger().warn(f"⚠️ 시간대별 통계 저장 실패: {e}")
             
     def show_scenario_selection(self):
-        """4가지 시나리오 선택 메뉴 표시 (가로/세로 통합)"""
+        """객체별 시나리오 선택 메뉴 표시 (Cup/Basket/Pot)"""
         self.scenario_selection_mode = True
         
-        self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 선택")
-        self.get_logger().info("=" * 60)
-        self.get_logger().info("📋 환경을 설정한 후 원하는 시나리오 번호를 누르세요:")
+        self.get_logger().info("🎯 Navigation 시나리오 선택")
+        self.get_logger().info("=" * 70)
+        self.get_logger().info("📋 목표 객체를 선택하고 환경을 설정한 후 시나리오 번호를 누르세요:")
         self.get_logger().info("")
         
-        # 시나리오별 상세 정보 표시 (4개로 축소)
-        scenario_details = [
+        # 1. Cup scenarios (Legacy)
+        self.get_logger().info("🥤 CUP 시나리오 (Legacy)")
+        self.get_logger().info("-" * 70)
+        cup_scenarios_list = [
             {"key": "1", "id": "1box_left", "path": "W W W → A A → W W → D D"},
             {"key": "2", "id": "1box_right", "path": "W W → D D → W W W → A A"},
             {"key": "3", "id": "2box_left", "path": "W W → A A A → W W → D D D"},
             {"key": "4", "id": "2box_right", "path": "W → D D D → W W W → A A A"}
         ]
         
-        for scenario in scenario_details:
+        for scenario in cup_scenarios_list:
             scenario_id = scenario["id"]
             description = self.cup_scenarios[scenario_id]["description"]
-            # 기존 통계는 vert/hori 포함 형식도 집계하도록 호환 처리
             current = self.scenario_stats.get(scenario_id, 0)
             # 기존 형식(vert/hori 포함)도 카운트
             for layout in ["vert", "hori"]:
@@ -2152,17 +2181,67 @@ class MobileVLADataCollector(Node):
             target = self.cup_scenarios[scenario_id]["target"]
             remaining = max(0, target - current)
             progress_bar = self.create_progress_bar(current, target, width=10)
-            
             status_emoji = "✅" if current >= target else "⏳"
             
             self.get_logger().info(f"{status_emoji} {scenario['key']}키: {description}")
             self.get_logger().info(f"   🎮 예시 경로: {scenario['path']}")
             self.get_logger().info(f"   📊 {progress_bar} ({current}/{target}) - {remaining}개 남음")
-            self.get_logger().info("")
+        
+        self.get_logger().info("")
+        
+        # 2. Basket scenarios (New)
+        self.get_logger().info("🧺 BASKET 시나리오 (New)")
+        self.get_logger().info("-" * 70)
+        basket_scenarios_list = [
+            {"key": "5", "id": "basket_1box_left", "path": "W W W → A A → W W → D D"},
+            {"key": "6", "id": "basket_1box_right", "path": "W W → D D → W W W → A A"},
+            {"key": "7", "id": "basket_2box_left", "path": "W W → A A A → W W → D D D"},
+            {"key": "8", "id": "basket_2box_right", "path": "W → D D D → W W W → A A A"}
+        ]
+        
+        for scenario in basket_scenarios_list:
+            scenario_id = scenario["id"]
+            description = self.basket_scenarios[scenario_id]["description"]
+            current = self.scenario_stats.get(scenario_id, 0)
+            target = self.basket_scenarios[scenario_id]["target"]
+            remaining = max(0, target - current)
+            progress_bar = self.create_progress_bar(current, target, width=10)
+            status_emoji = "✅" if current >= target else "⏳"
+            
+            self.get_logger().info(f"{status_emoji} {scenario['key']}키: {description}")
+            self.get_logger().info(f"   🎮 예시 경로: {scenario['path']}")
+            self.get_logger().info(f"   📊 {progress_bar} ({current}/{target}) - {remaining}개 남음")
+        
+        self.get_logger().info("")
+        
+        # 3. Pot scenarios (New)
+        self.get_logger().info("🪴 POT 시나리오 (New)")
+        self.get_logger().info("-" * 70)
+        pot_scenarios_list = [
+            {"key": "9", "id": "pot_1box_left", "path": "W W W → A A → W W → D D"},
+            {"key": "0", "id": "pot_1box_right", "path": "W W → D D → W W W → A A"},
+            {"key": "!", "id": "pot_2box_left", "path": "W W → A A A → W W → D D D"},
+            {"key": "@", "id": "pot_2box_right", "path": "W → D D D → W W W → A A A"}
+        ]
+        
+        for scenario in pot_scenarios_list:
+            scenario_id = scenario["id"]
+            description = self.pot_scenarios[scenario_id]["description"]
+            current = self.scenario_stats.get(scenario_id, 0)
+            target = self.pot_scenarios[scenario_id]["target"]
+            remaining = max(0, target - current)
+            progress_bar = self.create_progress_bar(current, target, width=10)
+            status_emoji = "✅" if current >= target else "⏳"
+            
+            self.get_logger().info(f"{status_emoji} {scenario['key']}키: {description}")
+            self.get_logger().info(f"   🎮 예시 경로: {scenario['path']}")
+            self.get_logger().info(f"   📊 {progress_bar} ({current}/{target}) - {remaining}개 남음")
+        
+        self.get_logger().info("")
         
         # 전체 진행률 요약
         total_completed = sum(self.scenario_stats.values())
-        total_target = sum(config["target"] for config in self.cup_scenarios.values())
+        total_target = sum(config["target"] for config in self.all_scenarios.values())
         overall_progress = self.create_progress_bar(total_completed, total_target, width=20)
         overall_percentage = (total_completed / total_target * 100) if total_target > 0 else 0
         

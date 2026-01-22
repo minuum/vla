@@ -6,6 +6,7 @@ Matches RoboVLMs_upstream/robovlms/data/mobile_vla_action_dataset.py instruction
 """
 
 # English instructions (PaliGemma-3B / OpenVLA Standard)
+# Legacy: Cup scenarios (기존 시나리오 - 유지)
 SCENARIO_INSTRUCTIONS_EN = {
     "1box_vert_left": "Navigate around the obstacle on the left side and reach the cup",
     "1box_vert_right": "Navigate around the obstacle on the right side and reach the cup",
@@ -15,6 +16,18 @@ SCENARIO_INSTRUCTIONS_EN = {
     "2box_vert_right": "Navigate around the obstacle on the right side and reach the cup",
     "2box_hori_left": "Navigate around the obstacle on the left side and reach the cup",
     "2box_hori_right": "Navigate around the obstacle on the right side and reach the cup",
+    
+    # New: Basket scenarios (바구니 시나리오 - 신규)
+    "basket_1box_left": "Navigate around the obstacle on the left side and reach the basket",
+    "basket_1box_right": "Navigate around the obstacle on the right side and reach the basket",
+    "basket_2box_left": "Navigate around the obstacle on the left side and reach the basket",
+    "basket_2box_right": "Navigate around the obstacle on the right side and reach the basket",
+    
+    # New: Pot scenarios (화분 시나리오 - 신규)
+    "pot_1box_left": "Navigate around the obstacle on the left side and reach the pot",
+    "pot_1box_right": "Navigate around the obstacle on the right side and reach the pot",
+    "pot_2box_left": "Navigate around the obstacle on the left side and reach the pot",
+    "pot_2box_right": "Navigate around the obstacle on the right side and reach the pot",
 }
 
 # Robot scenario ID → scenario name mapping
