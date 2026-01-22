@@ -143,3 +143,4 @@ secrets.sh
 JETSON_HANDOFF_INFO.txt
 ROS_action/mobile_vla_dataset/*.h5
 api_test_results.json
+simpler_env_repo/
