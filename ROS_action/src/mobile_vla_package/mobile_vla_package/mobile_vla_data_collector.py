@@ -2379,7 +2379,7 @@ class MobileVLADataCollector(Node):
         """패턴 타입 선택 메뉴 표시"""
         self.pattern_selection_mode = True
         
-        config = self.cup_scenarios[self.selected_scenario]
+        config = self.all_scenarios[self.selected_scenario]
         
         self.get_logger().info("🎯 패턴 타입 선택")
         self.get_logger().info("=" * 50)
@@ -2408,7 +2408,7 @@ class MobileVLADataCollector(Node):
         levels = self.distance_levels
         
         # 선택된 시나리오와 패턴 정보 표시
-        scenario_config = self.cup_scenarios.get(self.selected_scenario, {})
+        scenario_config = self.all_scenarios.get(self.selected_scenario, {})
         pattern_names = {
             "core": "핵심 패턴 (Core)",
             "variant": "변형 패턴 (Variant)"
@@ -2607,12 +2607,18 @@ class MobileVLADataCollector(Node):
         if scenario_id in self.core_patterns and self.core_patterns[scenario_id]:
             keys = self._normalize_to_18_keys(self.core_patterns[scenario_id])
             return " ".join([k.upper() for k in keys])
-        # 3) 초기 기본 가이드(없을 때만 사용) - 4개 시나리오로 통합
+        # 3) 초기 기본 가이드(없을 때만 사용)
         default_guides = {
+            # Cup scenarios (Legacy)
             "1box_left": "W W W → A A → W W → D D",
             "1box_right": "W W → D D → W W W → A A", 
             "2box_left": "W W → A A A → W W → D D D",
-            "2box_right": "W → D D D → W W W → A A A"
+            "2box_right": "W → D D D → W W W → A A A",
+            # Basket scenarios (New - 같은 경로 패턴 사용)
+            "basket_1box_left": "W W W → A A → W W → D D",
+            "basket_1box_right": "W W → D D → W W W → A A",
+            "basket_2box_left": "W W → A A A → W W → D D D",
+            "basket_2box_right": "W → D D D → W W W → A A A"
         }
         # 기존 형식 호환 (vert/hori 포함)
         old_format_guides = {
@@ -3188,7 +3194,15 @@ class MobileVLADataCollector(Node):
         
         # 시나리오 선택
         self.get_logger().info("1️⃣ 시나리오 선택:")
+        # Cup scenarios
         for key, scenario in self.cup_scenarios.items():
+            desc = scenario["description"]
+            current = self.scenario_stats.get(key, 0)
+            target = scenario["target"]
+            progress = self.create_progress_bar(current, target)
+            self.get_logger().info(f"   {scenario['key']}: {desc} | {progress}")
+        # Basket scenarios
+        for key, scenario in self.basket_scenarios.items():
             desc = scenario["description"]
             current = self.scenario_stats.get(key, 0)
             target = scenario["target"]

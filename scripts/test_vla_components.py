@@ -22,7 +22,7 @@ from PIL import Image
 from pathlib import Path
 
 # 모델 로딩
-from robovlms_mobile_vla_inference import MobileVLAInference, MobileVLAConfig
+from robovlms_mobile_vla_inference import RoboVLMsInferenceEngine, MobileVLAConfig
 
 
 class VLAComponentTester:
@@ -41,20 +41,24 @@ class VLAComponentTester:
         config = MobileVLAConfig(
             checkpoint_path=self.checkpoint_path,
             window_size=2,
-            chunk_size=2,
-            use_int8=False,
-            device="cuda" if torch.cuda.is_available() else "cpu"
+            fwd_pred_next_n=2,
+            use_int8=False
         )
         
         print(f"\n📦 Loading model from: {self.checkpoint_path}")
         start_time = time.time()
-        self.engine = MobileVLAInference(config)
+        self.engine = RoboVLMsInferenceEngine(config)
+        
+        # 모델 로드 (RoboVLMsInferenceEngine은 init에서 로드하지 않음)
+        if not self.engine.load_model():
+             raise RuntimeError("Model load failed")
+             
         load_time = time.time() - start_time
         
         print(f"✅ Model loaded in {load_time:.2f}s")
-        print(f"   Device: {config.device}")
+        print(f"   Device: {self.engine.device}")
         print(f"   Window Size: {config.window_size}")
-        print(f"   Chunk Size: {config.chunk_size}")
+        print(f"   Chunk Size: {config.fwd_pred_next_n}")
         
         return self
     
