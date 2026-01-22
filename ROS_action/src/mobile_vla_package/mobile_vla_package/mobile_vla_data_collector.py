@@ -465,13 +465,21 @@ class MobileVLADataCollector(Node):
         elif key == 't':
             # 측정 태스크 표 보기
             self.show_measurement_task_table()
-        elif key in ['1', '2', '3', '4', '5', '6', '7', '8']:
-            # 반복 횟수 입력 모드일 때는 이 블록을 완전히 스킵 (아래 key.isdigit()에서 처리)
+        elif key.isdigit():
+            # 숫자 키 처리 - 반복 횟수 입력이 최우선
             if self.repeat_count_mode:
-                # 숫자 입력은 key.isdigit() 블록에서 처리되도록 스킵
-                pass
-            elif self.scenario_selection_mode:
-                # 시나리오 선택 모드에서 키 입력 (8개 시나리오: cup 4개 + basket 4개)
+                # 반복 횟수 입력 모드: 숫자 입력 (최대 3자리)
+                if len(self.repeat_count_input) < 3:
+                    self.repeat_count_input += key
+                    # 현재 줄을 업데이트
+                    sys.stdout.write('\r📝 반복 횟수: ' + self.repeat_count_input)
+                    sys.stdout.flush()
+                else:
+                    # 최대 자리수 초과 시 경고음
+                    sys.stdout.write('\a')
+                    sys.stdout.flush()
+            elif self.scenario_selection_mode and key in ['1', '2', '3', '4', '5', '6', '7', '8']:
+                # 시나리오 선택 모드에서 유효한 숫자 키 입력
                 scenario_map = {
                     # Cup (Legacy)
                     '1': "1box_left", '2': "1box_right",
@@ -481,18 +489,21 @@ class MobileVLADataCollector(Node):
                     '7': "basket_2box_left", '8': "basket_2box_right"
                 }
                 self.selected_scenario = scenario_map[key]
-                self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
+                self.scenario_selection_mode = False
                 if self.guide_edit_selection_mode:
-                    # 가이드 편집을 위한 선택 모드: 패턴 선택으로 전환
                     self.show_pattern_selection()
                 elif self.auto_measurement_mode:
-                    # 자동 측정 모드: 패턴 선택으로 바로 이동
                     self.show_pattern_selection()
                 else:
-                    # 일반 모드: 패턴 선택으로 전환
                     self.show_pattern_selection()
-            elif not self.collecting:
-                # 수집 중도 아니고, 시나리오 선택 모드도 아닌 경우에만 에러 메시지
+            elif self.guide_edit_mode:
+                # 가이드 편집 모드에서는 숫자 입력 무시
+                pass
+            elif self.pattern_selection_mode or self.distance_selection_mode:
+                # 다른 선택 모드 중에는 숫자 입력 무시
+                pass
+            elif not self.collecting and key in ['1', '2', '3', '4', '5', '6', '7', '8']:
+                # 시나리오 선택도 아니고 수집 중도 아닐 때만 에러
                 self.get_logger().info("⚠️ 먼저 'N' 키를 눌러 에피소드 시작을 해주세요.")
         elif key in ['c', 'v']:
             if self.pattern_selection_mode:
@@ -708,24 +719,6 @@ class MobileVLADataCollector(Node):
                     sys.stdout.write('\r' + ' ' * 50)  # 줄 지우기
                     sys.stdout.write('\r📝 반복 횟수: ' + self.repeat_count_input)
                     sys.stdout.flush()
-        elif key.isdigit():
-            if self.guide_edit_mode:
-                # 가이드 편집 모드에서는 숫자 입력 무시
-                pass
-            elif self.repeat_count_mode:
-                # 숫자 입력 (최대 3자리)
-                if len(self.repeat_count_input) < 3:
-                    self.repeat_count_input += key
-                    # 현재 줄을 업데이트 (커서가 깜빡이는 효과)
-                    sys.stdout.write('\r📝 반복 횟수: ' + self.repeat_count_input)
-                    sys.stdout.flush()
-                else:
-                    # 최대 자리수 초과 시 경고음 효과 (화면에 표시)
-                    sys.stdout.write('\a')  # 벨 문자
-                    sys.stdout.flush()
-            elif self.scenario_selection_mode or self.pattern_selection_mode or self.distance_selection_mode:
-                # 선택 모드 중에는 숫자 입력 무시
-                pass
         elif key in self.WASD_TO_CONTINUOUS:
             # 이동 키 처리 (가이드 편집 모드, 선택 모드, 반복 횟수 입력 모드 우선 처리)
             if self.guide_edit_mode:
