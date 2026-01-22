@@ -1,10 +1,9 @@
 {
-  "last_updated": "2026-01-22T11:02:46.275223",
+  "last_updated": "2026-01-22T13:54:38.760673",
   "scenario_stats": {
-    "1box_left": 260,
-    "1box_right": 250,
-    "basket_1box_left": 0
+    "1box_left": 295,
+    "1box_right": 250
   },
-  "total_completed": 510,
+  "total_completed": 545,
   "total_target": 1000
 }
