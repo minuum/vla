@@ -17,17 +17,12 @@ SCENARIO_INSTRUCTIONS_EN = {
     "2box_hori_left": "Navigate around the obstacle on the left side and reach the cup",
     "2box_hori_right": "Navigate around the obstacle on the right side and reach the cup",
     
-    # New: Basket scenarios (바구니 시나리오 - 신규)
-    "basket_1box_left": "Navigate around the obstacle on the left side and reach the basket",
-    "basket_1box_right": "Navigate around the obstacle on the right side and reach the basket",
-    "basket_2box_left": "Navigate around the obstacle on the left side and reach the basket",
-    "basket_2box_right": "Navigate around the obstacle on the right side and reach the basket",
-    
-    # New: Pot scenarios (화분 시나리오 - 신규)
-    "pot_1box_left": "Navigate around the obstacle on the left side and reach the pot",
-    "pot_1box_right": "Navigate around the obstacle on the right side and reach the pot",
-    "pot_2box_left": "Navigate around the obstacle on the left side and reach the pot",
-    "pot_2box_right": "Navigate around the obstacle on the right side and reach the pot",
+    # New: Basket scenarios (바구니 목표 시나리오 - 신규)
+    # Note: Pot은 장애물로만 사용됩니다
+    "basket_1box_left": "Navigate around the pot on the left side and reach the basket",
+    "basket_1box_right": "Navigate around the pot on the right side and reach the basket",
+    "basket_2box_left": "Navigate around the pots on the left side and reach the basket",
+    "basket_2box_right": "Navigate around the pots on the right side and reach the basket",
 }
 
 # Robot scenario ID → scenario name mapping

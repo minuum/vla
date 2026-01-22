@@ -84,7 +84,8 @@ class MobileVLADataCollector(Node):
         
         # 객체별 navigation 시나리오 설정
         # Legacy: Cup 시나리오 (기존 데이터, 1000개 목표 - 완료 또는 진행 중)
-        # New: Basket, Pot 시나리오 (새로운 객체, 각 1000개 목표)
+        # New: Basket 시나리오 (새로운 목표 객체, 1000개 목표)
+        # Note: Pot은 장애물로만 사용 (별도 시나리오 없음)
         
         # Cup scenarios (Legacy - 유지)
         self.cup_scenarios = {
@@ -94,7 +95,7 @@ class MobileVLADataCollector(Node):
             "2box_right": {"target": 250, "description": "2박스-오른쪽경로", "key": "4"}
         }
         
-        # Basket scenarios (New - 바구니)
+        # Basket scenarios (New - 바구니 목표)
         self.basket_scenarios = {
             "basket_1box_left": {"target": 250, "description": "바구니-1박스-왼쪽", "key": "5"},
             "basket_1box_right": {"target": 250, "description": "바구니-1박스-오른쪽", "key": "6"},
@@ -102,16 +103,8 @@ class MobileVLADataCollector(Node):
             "basket_2box_right": {"target": 250, "description": "바구니-2박스-오른쪽", "key": "8"}
         }
         
-        # Pot scenarios (New - 화분)
-        self.pot_scenarios = {
-            "pot_1box_left": {"target": 250, "description": "화분-1박스-왼쪽", "key": "9"},
-            "pot_1box_right": {"target": 250, "description": "화분-1박스-오른쪽", "key": "0"},
-            "pot_2box_left": {"target": 250, "description": "화분-2박스-왼쪽", "key": "!"},
-            "pot_2box_right": {"target": 250, "description": "화분-2박스-오른쪽", "key": "@"}
-        }
-        
         # 전체 시나리오 통합 dictionary (편의성)
-        self.all_scenarios = {**self.cup_scenarios, **self.basket_scenarios, **self.pot_scenarios}
+        self.all_scenarios = {**self.cup_scenarios, **self.basket_scenarios}
         
         # 장애물 배치 타입 기본값 설정 (학습에 불필요하지만 호환성을 위해 기본값 사용)
         self.default_layout_type = "hori"  # 기본값: 가로 배치
@@ -472,19 +465,20 @@ class MobileVLADataCollector(Node):
         elif key == 't':
             # 측정 태스크 표 보기
             self.show_measurement_task_table()
-        elif key in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '!', '@']:
-            if self.scenario_selection_mode:
-                # 시나리오 선택 모드에서 키 입력 (12개 시나리오: cup 4개 + basket 4개 + pot 4개)
+        elif key in ['1', '2', '3', '4', '5', '6', '7', '8']:
+            # 반복 횟수 입력 모드가 아닐 때만 시나리오 선택으로 처리
+            if self.repeat_count_mode:
+                # 반복 횟수 입력 모드: 숫자 입력 처리 (아래 key.isdigit()에서 처리됨)
+                pass
+            elif self.scenario_selection_mode:
+                # 시나리오 선택 모드에서 키 입력 (8개 시나리오: cup 4개 + basket 4개)
                 scenario_map = {
                     # Cup (Legacy)
                     '1': "1box_left", '2': "1box_right",
                     '3': "2box_left", '4': "2box_right",
                     # Basket (New)
                     '5': "basket_1box_left", '6': "basket_1box_right",
-                    '7': "basket_2box_left", '8': "basket_2box_right",
-                    # Pot (New)
-                    '9': "pot_1box_left", '0': "pot_1box_right",
-                    '!': "pot_2box_left", '@': "pot_2box_right"
+                    '7': "basket_2box_left", '8': "basket_2box_right"
                 }
                 self.selected_scenario = scenario_map[key]
                 self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
@@ -2214,31 +2208,6 @@ class MobileVLADataCollector(Node):
         
         self.get_logger().info("")
         
-        # 3. Pot scenarios (New)
-        self.get_logger().info("🪴 POT 시나리오 (New)")
-        self.get_logger().info("-" * 70)
-        pot_scenarios_list = [
-            {"key": "9", "id": "pot_1box_left", "path": "W W W → A A → W W → D D"},
-            {"key": "0", "id": "pot_1box_right", "path": "W W → D D → W W W → A A"},
-            {"key": "!", "id": "pot_2box_left", "path": "W W → A A A → W W → D D D"},
-            {"key": "@", "id": "pot_2box_right", "path": "W → D D D → W W W → A A A"}
-        ]
-        
-        for scenario in pot_scenarios_list:
-            scenario_id = scenario["id"]
-            description = self.pot_scenarios[scenario_id]["description"]
-            current = self.scenario_stats.get(scenario_id, 0)
-            target = self.pot_scenarios[scenario_id]["target"]
-            remaining = max(0, target - current)
-            progress_bar = self.create_progress_bar(current, target, width=10)
-            status_emoji = "✅" if current >= target else "⏳"
-            
-            self.get_logger().info(f"{status_emoji} {scenario['key']}키: {description}")
-            self.get_logger().info(f"   🎮 예시 경로: {scenario['path']}")
-            self.get_logger().info(f"   📊 {progress_bar} ({current}/{target}) - {remaining}개 남음")
-        
-        self.get_logger().info("")
-        
         # 전체 진행률 요약
         total_completed = sum(self.scenario_stats.values())
         total_target = sum(config["target"] for config in self.all_scenarios.values())
@@ -2248,8 +2217,9 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("🏁 전체 진행률:")
         self.get_logger().info(f"   {overall_progress} ({total_completed}/{total_target}) {overall_percentage:.1f}%")
         self.get_logger().info("")
-        self.get_logger().info("✨ 1-4번 중 원하는 시나리오를 선택하세요!")
-        self.get_logger().info("💡 환경 설정 후 숫자키를 누르면 배치 타입 선택으로 넘어갑니다.")
+        self.get_logger().info("✨ 1-8번 중 원하는 시나리오를 선택하세요!")
+        self.get_logger().info("   🥤 Cup (1-4) | 🧺 Basket (5-8)")
+        self.get_logger().info("💡 환경 설정 후 숫자키를 누르면 패턴 선택으로 넘어갑니다.")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
 
     def resync_scenario_progress(self):
