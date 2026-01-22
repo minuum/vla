@@ -1898,7 +1898,14 @@ class MobileVLADataCollector(Node):
         
     def extract_scenario_from_episode_name(self, episode_name: str) -> str:
         """에피소드명에서 시나리오 추출 (기존 형식 호환: vert/hori 포함된 형식도 처리)"""
-        # 먼저 새로운 형식(4개 시나리오) 확인
+        # ✅ 우선순위: basket 시나리오 먼저 검색 (긴 ID부터 매칭)
+        # basket_1box_left를 1box_left보다 먼저 찾아야 함!
+        for scenario in self.basket_scenarios.keys():
+            full_id = f"basket_{scenario}"  # "basket_1box_left"
+            if full_id in episode_name:
+                return full_id
+        
+        # cup 시나리오 검색
         for scenario in self.cup_scenarios.keys():
             if scenario in episode_name:
                 return scenario
@@ -2559,12 +2566,23 @@ class MobileVLADataCollector(Node):
         self.current_repeat_index += 1
         self.get_logger().info(f"📊 [{self.current_repeat_index}/{self.target_repeat_count}] 측정 시작...")
         
-        # 에피소드 시작
-        self.start_episode_with_pattern_and_distance(
-            self.selected_scenario,
-            self.selected_pattern_type,
-            self.selected_distance_level
-        )
+        # 자동 측정 모드 vs 수동 측정 모드 분기
+        if self.auto_measurement_mode:
+            # 🔴 자동 측정 모드: 쓰레드 재시작
+            self.auto_measurement_active = True
+            self.auto_measurement_thread = threading.Thread(
+                target=self.execute_auto_measurement,
+                args=(self.selected_scenario, self.selected_pattern_type, self.selected_distance_level)
+            )
+            self.auto_measurement_thread.daemon = True
+            self.auto_measurement_thread.start()
+        else:
+            # 🔵 수동 측정 모드: 에피소드만 시작
+            self.start_episode_with_pattern_and_distance(
+                self.selected_scenario,
+                self.selected_pattern_type,
+                self.selected_distance_level
+            )
     
     def check_and_continue_repeat_measurement(self):
         """에피소드 완료 후 다음 반복 측정 확인 및 대기 상태로 전환"""
@@ -2682,12 +2700,24 @@ class MobileVLADataCollector(Node):
         
         # 에피소드명 생성 (배치 타입은 기본값으로 자동 설정)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        # 기존 형식 호환: episode_..._{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}
-        # 기본값으로 가로(hori) 배치 사용
-        num_box = scenario_id.split("_")[0]  # "1box" or "2box"
-        direction = scenario_id.split("_")[1]  # "left" or "right"
+        # Cup: "1box_left" → num_box="1box", direction="left"
+        # Basket: "basket_1box_left" → num_box="1box", direction="left", prefix="basket"
+        
+        # 시나리오 ID 파싱
+        parts = scenario_id.split("_")
+        if parts[0] == "basket":
+            # Basket scenarios: basket_1box_left → ["basket", "1box", "left"]
+            prefix = "basket"
+            num_box = parts[1]  # "1box" or "2box"
+            direction = parts[2]  # "left" or "right"
+        else:
+            # Cup scenarios: 1box_left → ["1box", "left"]
+            prefix = "cup"
+            num_box = parts[0]  # "1box" or "2box"
+            direction = parts[1]  # "left" or "right"
+        
         layout_type = self.default_layout_type  # 기본값: "hori"
-        episode_name = f"episode_{timestamp}_{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}"
+        episode_name = f"episode_{timestamp}_{prefix}_{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}"
         
         # 현재 선택 상태를 저장해서 종료 시 통계 업데이트에 사용
         self.selected_scenario = scenario_id
@@ -3268,6 +3298,12 @@ class MobileVLADataCollector(Node):
             # 에피소드 시작
             self.start_episode_with_pattern_and_distance(scenario_id, pattern_type, distance_level)
             
+            # ✅ 에피소드 시작 후 시스템/카메라 안정화 대기
+            # start_episode 내부의 카메라 리셋 등이 완료되고, 
+            # 첫 번째 movement_lock 획득 전 충분한 시간 확보
+            self.get_logger().info("⏳ 에피소드작 시작 후 안정화 대기 (2.0초)...")
+            time.sleep(2.0)
+            
             # 각 키를 순차적으로 실행
             for idx, key in enumerate(guide_keys):
                 if not self.auto_measurement_active:
@@ -3353,10 +3389,16 @@ class MobileVLADataCollector(Node):
             return self._normalize_to_18_keys(self.core_patterns[scenario_id])
         # 3) 기본 가이드 (없을 때만 사용)
         default_guides = {
+            # Cup scenarios (Legacy)
             "1box_left": ["w", "w", "w", "a", "a", "w", "w", "d", "d"],
             "1box_right": ["w", "w", "d", "d", "w", "w", "w", "a", "a"],
             "2box_left": ["w", "w", "a", "a", "a", "w", "w", "d", "d", "d"],
-            "2box_right": ["w", "d", "d", "d", "w", "w", "w", "a", "a", "a"]
+            "2box_right": ["w", "d", "d", "d", "w", "w", "w", "a", "a", "a"],
+            # Basket scenarios (New - 같은 경로 패턴 사용)
+            "basket_1box_left": ["w", "w", "w", "a", "a", "w", "w", "d", "d"],
+            "basket_1box_right": ["w", "w", "d", "d", "w", "w", "w", "a", "a"],
+            "basket_2box_left": ["w", "w", "a", "a", "a", "w", "w", "d", "d", "d"],
+            "basket_2box_right": ["w", "d", "d", "d", "w", "w", "w", "a", "a", "a"]
         }
         return default_guides.get(scenario_id, [])
 
