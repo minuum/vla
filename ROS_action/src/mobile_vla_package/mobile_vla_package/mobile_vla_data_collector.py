@@ -1860,7 +1860,7 @@ class MobileVLADataCollector(Node):
         
     def start_episode_with_scenario(self, scenario_id: str):
         """시나리오를 지정하여 에피소드 시작"""
-        config = self.cup_scenarios[scenario_id]
+        config = self.all_scenarios[scenario_id]
         
         # 시나리오 정보를 에피소드명에 포함
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1979,7 +1979,7 @@ class MobileVLADataCollector(Node):
         if scenario not in self.cup_scenarios:
             return
             
-        config = self.cup_scenarios[scenario]
+        config = self.all_scenarios[scenario]
         current = self.scenario_stats[scenario]
         target = config["target"]
         progress_bar = self.create_progress_bar(current, target)
@@ -2154,7 +2154,7 @@ class MobileVLADataCollector(Node):
         
         for scenario in cup_scenarios_list:
             scenario_id = scenario["id"]
-            description = self.cup_scenarios[scenario_id]["description"]
+            description = self.all_scenarios[scenario_id]["description"]
             current = self.scenario_stats.get(scenario_id, 0)
             # 기존 형식(vert/hori 포함)도 카운트
             for layout in ["vert", "hori"]:
@@ -2166,7 +2166,7 @@ class MobileVLADataCollector(Node):
                 if old_id in self.scenario_stats:
                     current += self.scenario_stats[old_id]
             
-            target = self.cup_scenarios[scenario_id]["target"]
+            target = self.all_scenarios[scenario_id]["target"]
             remaining = max(0, target - current)
             progress_bar = self.create_progress_bar(current, target, width=10)
             status_emoji = "✅" if current >= target else "⏳"
@@ -2303,7 +2303,7 @@ class MobileVLADataCollector(Node):
         
         for scenario_id, count in self.scenario_stats.items():
             if count > 0:
-                scenario_info = self.cup_scenarios[scenario_id]
+                scenario_info = self.all_scenarios[scenario_id]
                 key = scenario_info["key"]
                 desc = scenario_info["description"]
                 self.get_logger().info(f"   {key}키 {scenario_id}: {count}개 → {desc}")
@@ -2635,7 +2635,7 @@ class MobileVLADataCollector(Node):
         
     def start_episode_with_pattern(self, scenario_id: str, pattern_type: str):
         """패턴 타입을 지정하여 에피소드 시작 (거리 선택 전)"""
-        config = self.cup_scenarios[scenario_id]
+        config = self.all_scenarios[scenario_id]
         
         # 패턴 타입 정보를 에피소드명에 포함
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -2673,7 +2673,7 @@ class MobileVLADataCollector(Node):
 
     def start_episode_with_pattern_and_distance(self, scenario_id: str, pattern_type: str, distance_level: str):
         """패턴 + 거리 정보를 포함하여 에피소드 시작 (배치 타입 제거로 단순화)"""
-        config = self.cup_scenarios[scenario_id]
+        config = self.all_scenarios[scenario_id]
         levels = self.distance_levels
         if distance_level not in levels:
             self.get_logger().warn("⚠️ 알 수 없는 거리 레벨, 기본값 medium 사용")
