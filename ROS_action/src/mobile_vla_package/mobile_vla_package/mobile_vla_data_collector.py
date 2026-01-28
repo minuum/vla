@@ -900,119 +900,30 @@ class MobileVLADataCollector(Node):
 
     def stop_movement_timed(self):
         """Stop function called by the timer - NO data collection for auto-stop"""
-        import threading
-        current_thread = threading.current_thread().name
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        
-        # 🔍 상세 디버깅 로그 (항상 출력)
-        self.get_logger().info(f"🔍 [타이머콜백] {timestamp} | Thread: {current_thread} | stop_movement_timed() 호출됨")
-        
-        # 상세 로깅 활성화 여부 확인
-        should_log_verbose = self.verbose_logging or (self.collecting and len(self.episode_data) >= 50)
-        
-        if should_log_verbose:
-            self.get_logger().info(
-                f"⏰ [TIMER] {timestamp} | Thread: {current_thread} | "
-                f"타이머 콜백 실행됨"
-            )
-        
-        # 🔴 타이머 콜백 실행 시 안전성 체크 강화
-        # 타이머가 이미 취소되었거나 현재 정지 상태면 리턴 (중복 호출 방지)
-        current_action_str = f"lx={self.current_action['linear_x']:.2f}, ly={self.current_action['linear_y']:.2f}, az={self.current_action['angular_z']:.2f}"
-        self.get_logger().info(f"🔍 [타이머콜백] 현재 액션 상태 확인: {current_action_str}")
-        
+        # 현재 정지 상태면 스킵
         if self.current_action == self.STOP_ACTION:
-            self.get_logger().info(f"🔍 [타이머콜백] ⏭️  이미 정지 상태, 타이머 콜백 스킵")
-            if should_log_verbose:
-                self.get_logger().info(f"   ⏭️  이미 정지 상태, 타이머 콜백 스킵")
             return
         
-        # 🔴 타이머가 취소되었는지 확인 (타이머 객체가 여전히 유효한지, 락 사용)
-        timer_status = "None"
+        # 타이머가 취소되었는지 확인
         with self.movement_lock:
-            if self.movement_timer is not None:
-                is_alive = self.movement_timer.is_alive()
-                timer_status = f"is_alive()={is_alive}"
-                self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer={self.movement_timer}, {timer_status}")
-            else:
-                self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer=None")
-            
             if self.movement_timer and not self.movement_timer.is_alive():
-                # 타이머가 이미 취소되었으면 리턴
-                self.get_logger().info(f"🔍 [타이머콜백] ⏭️  타이머가 이미 취소됨, 콜백 스킵")
-                if should_log_verbose:
-                    self.get_logger().info(f"   ⏭️  타이머가 이미 취소됨, 콜백 스킵")
                 return
         
-        self.get_logger().info(f"🔍 [타이머콜백] stop_movement_internal() 호출 시작...")
-        
-        # 현재 액션 상태 로깅
-        if should_log_verbose:
-            current_action = self.current_action
-            self.get_logger().info(
-                f"   📊 현재 액션 상태: lx={current_action['linear_x']:.2f}, "
-                f"ly={current_action['linear_y']:.2f}, az={current_action['angular_z']:.2f}"
-            )
-        
-        # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행
+        # 정지 명령 1회만 발행
         self.stop_movement_internal(collect_data=False)
-        self.get_logger().info(f"🔍 [타이머콜백] stop_movement_internal() 호출 완료, 추가 정지 신호 발행 시작...")
-        
-        # 추가로 여러 번 정지 신호 발행 (ROS 버퍼 보장, 2회 → 3회)
-        for i in range(3):
-            self.get_logger().info(f"🔍 [타이머콜백] 추가 정지 신호 {i+1}/3 발행 중...")
-            self.publish_cmd_vel(self.STOP_ACTION, source=f"timer_extra_stop_{i+1}")
-            time.sleep(0.05)  # 딜레이 증가 (0.01초 → 0.05초)
-        
-        self.get_logger().info(f"🔍 [타이머콜백] ✅ 타이머 기반 정지 완료 (총 8회 정지 명령 발행)")
-        if should_log_verbose:
-            self.get_logger().info(f"   ✅ 타이머 기반 정지 완료 (총 8회 정지 명령 발행)")
 
     def stop_movement_internal(self, collect_data: bool):
         """
         Internal function to stop robot movement and collect data if needed.
         collect_data: If True, collects data at the time of stopping.
         """
-        import threading
-        current_thread = threading.current_thread().name
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        should_log_verbose = self.verbose_logging or (self.collecting and len(self.episode_data) >= 50)
-        
-        # 🔍 상세 디버깅 로그 (항상 출력)
-        prev_action_str = f"lx={self.current_action['linear_x']:.2f}, ly={self.current_action['linear_y']:.2f}, az={self.current_action['angular_z']:.2f}"
-        self.get_logger().info(f"🔍 [STOP_INTERNAL] {timestamp} | Thread: {current_thread} | 호출됨 | collect_data={collect_data} | 이전 액션: {prev_action_str}")
-        
-        # 🔴 이미 정지 상태면 리턴 (중복 호출 방지)
+        # 이미 정지 상태면 리턴
         if self.current_action == self.STOP_ACTION:
-            self.get_logger().info(f"🔍 [STOP_INTERNAL] ⏭️  이미 정지 상태, 스킵")
-            if should_log_verbose:
-                self.get_logger().info(f"   ⏭️  stop_movement_internal: 이미 정지 상태, 스킵")
             return
 
-        prev_action = self.current_action.copy()
-        if should_log_verbose:
-            self.get_logger().info(
-                f"🛑 [STOP_INTERNAL] {timestamp} | Thread: {current_thread} | "
-                f"정지 시작 (이전: lx={prev_action['linear_x']:.2f}, "
-                f"ly={prev_action['linear_y']:.2f}, az={prev_action['angular_z']:.2f})"
-            )
-
+        # 정지 명령 1회만 발행
         self.current_action = self.STOP_ACTION.copy()
-        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 시작 (5회)...")
-        
-        # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행 (더 강화: 3회 → 5회)
-        for i in range(5):
-            self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 신호 {i+1}/5 발행 중...")
-            self.publish_cmd_vel(self.STOP_ACTION, source=f"stop_internal_{i+1}")
-            time.sleep(0.05)  # 각 신호 사이 딜레이 증가 (0.02초 → 0.05초)
-        
-        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 완료 (5회)")
-        
-        # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보, 0.03초 → 0.1초)
-        time.sleep(0.1)
-        
-        if should_log_verbose:
-            self.get_logger().info(f"   ✅ stop_movement_internal 완료 (5회 발행, 안정화 대기 완료)")
+        self.publish_cmd_vel(self.STOP_ACTION, source="stop_internal")
 
         if self.collecting and collect_data:
             self.collect_data_point_with_action("stop_action", self.STOP_ACTION)
