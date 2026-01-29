@@ -94,7 +94,7 @@ vim Mobile_VLA/configs/brown_pot_left.json
 vim Mobile_VLA/configs/brown_pot_right.json
 
 # Update data_dir path
-# "data_dir": "/path/to/brown_pot_dataset"
+# "data_dir": "/home/billy/25-1kp/vla/ROS_action/brown_pot_dataset"
 ```
 
 ---

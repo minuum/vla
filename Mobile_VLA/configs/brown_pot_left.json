@@ -21,7 +21,7 @@
     },
     "train_dataset": {
         "type": "MobileVLAH5Dataset",
-        "data_dir": "/path/to/brown_pot_dataset",
+        "data_dir": "/home/billy/25-1kp/vla/ROS_action/brown_pot_dataset",
         "episode_pattern": "episode_*_left.h5",
         "instruction_filter": [
             "left",
