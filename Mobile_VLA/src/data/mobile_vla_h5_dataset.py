@@ -93,24 +93,55 @@ class MobileVLAH5Dataset(Dataset):
         
         logger.info(f"✅ 총 {len(self.samples)}개 샘플 생성")
     
-    def _build_sample_index(self) -> List[Tuple[str, int]]:
+    def _build_sample_index(self) -> List[Tuple[str, int, str]]:
         """
-        샘플 인덱스 생성 (에피소드 파일, 시작 프레임)
-        참조: https://github.com/Robot-VLAs/RoboVLMs/blob/main/robovlms/data/calvin_dataset.py:870-887
-        Window size 처리 방식 참고
+        샘플 인덱스 생성 (에피소드 파일, 시작 프레임, 명령어)
+        CSV 인덱스 파일이 있으면 그것을 사용하고, 없으면 패턴 매칭 사용
         """
         samples = []
         
+        # 1. CSV 인덱스 확인
+        index_csv_path = self.data_dir / "dataset_index.csv"
+        instruction_map = {}
+        
+        if index_csv_path.exists():
+            logger.info(f"📂 CSV 인덱스 파일 발견: {index_csv_path}")
+            try:
+                import pandas as pd
+                df = pd.read_csv(index_csv_path)
+                # 경로 -> 명령어 매핑 생성
+                for _, row in df.iterrows():
+                    instruction_map[row['episode_path']] = row['instruction']
+            except Exception as e:
+                logger.warning(f"CSV 로드 실패, 파일명 기반으로 진행합니다: {e}")
+
+        # 2. 에피소드 처리
         for episode_file in self.episode_files:
-            with h5py.File(episode_file, 'r') as f:
-                num_frames = f['images'].shape[0]
-                
-                # Window size + action chunk를 고려한 샘플 생성
-                max_start_idx = num_frames - self.window_size - self.action_chunk_size + 1
-                
-                if max_start_idx > 0:
-                    for start_idx in range(max_start_idx):
-                        samples.append((episode_file, start_idx))
+            # 명령어 결정
+            if episode_file in instruction_map:
+                lang = instruction_map[episode_file]
+            else:
+                # Fallback: 파일명 기반 추론
+                fname = str(Path(episode_file).name).lower()
+                if "left" in fname:
+                    lang = "Navigate to the brown pot on the left"
+                elif "right" in fname:
+                    lang = "Navigate to the brown pot on the right"
+                else:
+                    lang = "Navigate to the brown pot" # 기본값
+            
+            try:
+                with h5py.File(episode_file, 'r') as f:
+                    num_frames = f['images'].shape[0]
+                    
+                    # Window size + action chunk를 고려한 샘플 생성
+                    max_start_idx = num_frames - self.window_size - self.action_chunk_size + 1
+                    
+                    if max_start_idx > 0:
+                        for start_idx in range(max_start_idx):
+                            samples.append((episode_file, start_idx, lang))
+            except Exception as e:
+                logger.warning(f"에피소드 로드 실패 {episode_file}: {e}")
         
         return samples
     
@@ -172,7 +203,7 @@ class MobileVLAH5Dataset(Dataset):
         참조: https://github.com/Robot-VLAs/RoboVLMs/blob/main/robovlms/data/calvin_dataset.py:857-858
         CALVIN 데이터셋의 collater 함수 구조를 참고
         """
-        episode_file, start_idx = self.samples[idx]
+        episode_file, start_idx, lang = self.samples[idx]
         
         with h5py.File(episode_file, 'r') as f:
             # 이미지 로드 (window_size 프레임)
@@ -198,9 +229,8 @@ class MobileVLAH5Dataset(Dataset):
         # 액션 정규화
         actions = self._normalize_action(actions)
         
-        # 언어 명령 (고정)
-        # 실제로는 에피소드별 명령을 로드해야 함
-        language = "go to the red box"
+        # 언어 명령 (샘플 인덱스에서 로드)
+        language = lang
         
         # 액션 마스크 생성
         # 참조: https://github.com/Robot-VLAs/RoboVLMs/blob/main/robovlms/data/calvin_dataset.py:884-887

@@ -75,6 +75,8 @@ class InferenceRequest(BaseModel):
     """추론 요청 스키마"""
     image: str  # base64 encoded image
     instruction: str  # Language instruction
+    snap_to_grid: Optional[bool] = None  # Enable/Disable discrete action filtering
+    snap_threshold: Optional[float] = 0.1 # Deadzone threshold (default 0.1)
     
 
 class InferenceResponse(BaseModel):
@@ -107,6 +109,10 @@ class MobileVLAInference:
         import json
         with open(config_path, 'r') as f:
             self.config = json.load(f)
+        
+        # Inference settings (from config or defaults)
+        self.default_snap_to_grid = self.config.get('snap_to_grid', True)  # Default Enable
+        self.default_snap_threshold = self.config.get('snap_threshold', 0.1)
         
         # Load model
         self._load_model()
@@ -151,14 +157,43 @@ class MobileVLAInference:
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         return image
     
-    def predict(self, image_base64: str, instruction: str) -> tuple[np.ndarray, float]:
+    def _apply_snap_to_grid(self, action: np.ndarray, threshold: float = 0.1) -> np.ndarray:
+        """
+        Apply snap-to-grid logic to mimic discrete keyboard inputs.
+        Logic:
+        1. Deadzone: if abs(val) < threshold -> 0.0
+        2. Snap: Round to nearest 0.5 (e.g. 0.42 -> 0.5, 0.8 -> 1.0)
+        """
+        snapped = np.zeros_like(action)
+        for i in range(len(action.flat)):
+            val = action.flat[i]
+            if abs(val) < threshold:
+                snapped.flat[i] = 0.0
+            else:
+                # Round to nearest 0.5
+                snapped.flat[i] = round(val * 2) / 2.0
+        return snapped
+
+    def predict(self, image_base64: str, instruction: str, 
+                snap_to_grid: Optional[bool] = None, 
+                snap_threshold: Optional[float] = None) -> tuple[np.ndarray, np.ndarray, float]:
         """
         추론 실행
         
+        Args:
+            image_base64: Image data
+            instruction: Text command
+            snap_to_grid: Force enable/disable snap logic (overrides config)
+            snap_threshold: Deadzone threshold (overrides config)
+
         Returns:
-            (action, latency_ms): 2DOF action [linear_x, linear_y]와 latency (학습 데이터 기준)
+            (action, full_chunk, latency_ms): 2DOF action [linear_x, linear_y]와 latency
         """
         start_time = time.time()
+        
+        # Determine settings
+        use_snap = snap_to_grid if snap_to_grid is not None else self.default_snap_to_grid
+        threshold = snap_threshold if snap_threshold is not None else self.default_snap_threshold
         
         with torch.no_grad():
             # Preprocess image (base64 -> PIL)
@@ -192,15 +227,11 @@ class MobileVLAInference:
                 inputs['pixel_values'] = inputs['pixel_values'].unsqueeze(1)  # (1, 1, C, H, W)
             
             # Prepare inputs for model.inference()
-            # Based on BaseTrainer.inference_step()
             rgb = inputs['pixel_values']  # (B, T, C, H, W)
             language = inputs['input_ids']  # (B, seq_len)
             text_mask = inputs['attention_mask']  # (B, seq_len)
             
-            # Call model.inference() like in BaseTrainer
-            # Note: self.model is MobileVLATrainer (Lightning module)
-            # The actual model is in trainer_model.model
-            # BaseRoboVLM.inference() uses vision_x and lang_x (not rgb and language)
+            # Call model.inference()
             prediction = self.model.model.inference(
                 vision_x=rgb,
                 lang_x=language,
@@ -213,47 +244,43 @@ class MobileVLAInference:
             )
             
             # Extract action from prediction
-            logger.info(f"Prediction keys: {prediction.keys()}")
-            
             if 'action' in prediction:
                 action_output = prediction['action']
-                logger.info(f"Action type: {type(action_output)}")
                 
-                # Handle tuple format - first element is velocity (linear_x, linear_y)
+                # Handle tuple
                 if isinstance(action_output, tuple):
-                    logger.info(f"Action is tuple, extracting velocity")
-                    action_output = action_output[0]  # velocity only
-                    logger.info(f"Velocity shape: {action_output.shape if hasattr(action_output, 'shape') else type(action_output)}")
+                    action_output = action_output[0]
                 
                 # Extract from tensor
-                # Expected: (B, seq_len, fwd_pred_next_n, 2) where 2 = [linear_x, linear_y]
                 if isinstance(action_output, torch.Tensor):
-                    logger.info(f"Action tensor shape: {action_output.shape}")
                     if action_output.dim() == 4:
-                        # (B, seq_len, fwd_pred_next_n, 2) -> take first batch
                         full_chunk = action_output[0, 0, :, :].cpu().numpy()
                         first_action = full_chunk[0]
                     elif action_output.dim() == 3:
-                        # (B, fwd_pred_next_n, 2) -> take first batch
                         full_chunk = action_output[0, :, :].cpu().numpy()
                         first_action = full_chunk[0]
                     elif action_output.dim() == 2:
-                        # (B, 2) -> single action
                         first_action = action_output[0, :].cpu().numpy()
                         full_chunk = np.expand_dims(first_action, axis=0)
                     elif action_output.dim() == 1:
-                        # (2,) -> use directly
                         first_action = action_output.cpu().numpy()
                         full_chunk = np.expand_dims(first_action, axis=0)
                     else:
-                        logger.error(f"Unexpected action tensor shape: {action_output.shape}")
                         raise ValueError(f"Unexpected action tensor shape: {action_output.shape}")
                 else:
-                    logger.error(f"Action is not a tensor: {type(action_output)}")
                     raise ValueError(f"Action must be a torch.Tensor, got: {type(action_output)}")
             else:
-                logger.error(f"No 'action' key in prediction. Keys: {list(prediction.keys())}")
                 raise ValueError("Could not find action in prediction output")
+            
+            # Apply Snap-to-Grid if enabled
+            if use_snap:
+                original_action = first_action.copy()
+                first_action = self._apply_snap_to_grid(first_action, threshold)
+                
+                # Also snap the full chunk if needed
+                full_chunk = self._apply_snap_to_grid(full_chunk, threshold)
+                
+                logger.debug(f"Snapped action: {original_action} -> {first_action}")
             
             logger.info(f"Extracted action (linear_x, linear_y): {first_action}")
             logger.info(f"Full chunk shape: {full_chunk.shape}")
@@ -456,7 +483,9 @@ async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_k
         
         action, full_chunk, latency_ms = model.predict(
             image_base64=request.image,
-            instruction=request.instruction
+            instruction=request.instruction,
+            snap_to_grid=request.snap_to_grid,
+            snap_threshold=request.snap_threshold
         )
         
         logger.info(f"✅ Prediction: {action}, Chunk: {full_chunk.shape}, Latency: {latency_ms:.1f}ms")
