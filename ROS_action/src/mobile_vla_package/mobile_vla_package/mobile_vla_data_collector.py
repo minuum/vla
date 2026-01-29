@@ -900,30 +900,111 @@ class MobileVLADataCollector(Node):
 
     def stop_movement_timed(self):
         """Stop function called by the timer - NO data collection for auto-stop"""
-        # 현재 정지 상태면 스킵
+        import threading
+        current_thread = threading.current_thread().name
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        
+        # 🔍 상세 디버깅 로그 (항상 출력)
+        self.get_logger().info(f"🔍 [타이머콜백] {timestamp} | Thread: {current_thread} | stop_movement_timed() 호출됨")
+        
+        # 상세 로깅 활성화 여부 확인
+        should_log_verbose = self.verbose_logging or (self.collecting and len(self.episode_data) >= 50)
+        
+        if should_log_verbose:
+            self.get_logger().info(
+                f"⏰ [TIMER] {timestamp} | Thread: {current_thread} | "
+                f"타이머 콜백 실행됨"
+            )
+        
+        # 🔴 타이머 콜백 실행 시 안전성 체크 강화
+        # 타이머가 이미 취소되었거나 현재 정지 상태면 리턴 (중복 호출 방지)
+        current_action_str = f"lx={self.current_action['linear_x']:.2f}, ly={self.current_action['linear_y']:.2f}, az={self.current_action['angular_z']:.2f}"
+        self.get_logger().info(f"🔍 [타이머콜백] 현재 액션 상태 확인: {current_action_str}")
+        
         if self.current_action == self.STOP_ACTION:
+            self.get_logger().info(f"🔍 [타이머콜백] ⏭️  이미 정지 상태, 타이머 콜백 스킵")
+            if should_log_verbose:
+                self.get_logger().info(f"   ⏭️  이미 정지 상태, 타이머 콜백 스킵")
             return
         
-        # 타이머가 취소되었는지 확인
+        # 🔴 타이머가 취소되었는지 확인 (타이머 객체가 여전히 유효한지, 락 사용)
+        timer_status = "None"
         with self.movement_lock:
+            if self.movement_timer is not None:
+                is_alive = self.movement_timer.is_alive()
+                timer_status = f"is_alive()={is_alive}"
+                self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer={self.movement_timer}, {timer_status}")
+            else:
+                self.get_logger().info(f"🔍 [타이머콜백] 타이머 상태 확인: movement_timer=None")
+            
             if self.movement_timer and not self.movement_timer.is_alive():
+                # 타이머가 이미 취소되었으면 리턴
+                self.get_logger().info(f"🔍 [타이머콜백] ⏭️  타이머가 이미 취소됨, 콜백 스킵")
+                if should_log_verbose:
+                    self.get_logger().info(f"   ⏭️  타이머가 이미 취소됨, 콜백 스킵")
                 return
         
-        # 정지 명령 1회만 발행
+        self.get_logger().info(f"🔍 [타이머콜백] stop_movement_internal() 호출 시작...")
+        
+        # 현재 액션 상태 로깅
+        if should_log_verbose:
+            current_action = self.current_action
+            self.get_logger().info(
+                f"   📊 현재 액션 상태: lx={current_action['linear_x']:.2f}, "
+                f"ly={current_action['linear_y']:.2f}, az={current_action['angular_z']:.2f}"
+            )
+        
+        # 정지 신호 발행 (타이머 콜백)
         self.stop_movement_internal(collect_data=False)
+        self.get_logger().info(f"🔍 [타이머콜백] ✅ 타이머 기반 정지 완료")
+        if should_log_verbose:
+            self.get_logger().info(f"   ✅ 타이머 기반 정지 완료")
 
     def stop_movement_internal(self, collect_data: bool):
         """
         Internal function to stop robot movement and collect data if needed.
         collect_data: If True, collects data at the time of stopping.
         """
-        # 이미 정지 상태면 리턴
+        import threading
+        current_thread = threading.current_thread().name
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        should_log_verbose = self.verbose_logging or (self.collecting and len(self.episode_data) >= 50)
+        
+        # 🔍 상세 디버깅 로그 (항상 출력)
+        prev_action_str = f"lx={self.current_action['linear_x']:.2f}, ly={self.current_action['linear_y']:.2f}, az={self.current_action['angular_z']:.2f}"
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] {timestamp} | Thread: {current_thread} | 호출됨 | collect_data={collect_data} | 이전 액션: {prev_action_str}")
+        
+        # 🔴 이미 정지 상태면 리턴 (중복 호출 방지)
         if self.current_action == self.STOP_ACTION:
+            self.get_logger().info(f"🔍 [STOP_INTERNAL] ⏭️  이미 정지 상태, 스킵")
+            if should_log_verbose:
+                self.get_logger().info(f"   ⏭️  stop_movement_internal: 이미 정지 상태, 스킵")
             return
 
-        # 정지 명령 1회만 발행
+        prev_action = self.current_action.copy()
+        if should_log_verbose:
+            self.get_logger().info(
+                f"🛑 [STOP_INTERNAL] {timestamp} | Thread: {current_thread} | "
+                f"정지 시작 (이전: lx={prev_action['linear_x']:.2f}, "
+                f"ly={prev_action['linear_y']:.2f}, az={prev_action['angular_z']:.2f})"
+            )
+
         self.current_action = self.STOP_ACTION.copy()
-        self.publish_cmd_vel(self.STOP_ACTION, source="stop_internal")
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 시작 (3회)...")
+        
+        # 🔴 ROS 버퍼 문제 방지를 위해 여러 번 정지 신호 발행
+        for i in range(3):
+            self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 신호 {i+1}/3 발행 중...")
+            self.publish_cmd_vel(self.STOP_ACTION, source=f"stop_internal_{i+1}")
+            time.sleep(0.03)  # 각 신호 사이 딜레이
+        
+        self.get_logger().info(f"🔍 [STOP_INTERNAL] 정지 명령 발행 완료 (3회)")
+        
+        # 🔴 추가 안정화 대기 (로봇이 완전히 정지할 시간 확보)
+        time.sleep(0.05)
+        
+        if should_log_verbose:
+            self.get_logger().info(f"   ✅ stop_movement_internal 완료 (3회 발행, 안정화 대기 완료)")
 
         if self.collecting and collect_data:
             self.collect_data_point_with_action("stop_action", self.STOP_ACTION)
@@ -1069,7 +1150,11 @@ class MobileVLADataCollector(Node):
                 request = GetImage.Request()
                 future = self.get_image_client.call_async(request)
                 
-                rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)  # 10초 → 2초로 단축
+                # ✅ spin_until_future_complete 대신 폴링 방식 사용 (데드락 방지)
+                timeout = 2.0
+                start_time = time.time()
+                while not future.done() and (time.time() - start_time) < timeout:
+                    time.sleep(0.01)
                 
                 if future.done():
                     response = future.result()
@@ -1265,7 +1350,12 @@ class MobileVLADataCollector(Node):
         try:
             reset_request = Empty.Request()
             reset_future = self.reset_camera_client.call_async(reset_request)
-            rclpy.spin_until_future_complete(self, reset_future, timeout_sec=2.0)  # 10초 → 2초로 단축
+            
+            # ✅ spin_until_future_complete 대신 폴링 방식 사용 (데드락 방지)
+            timeout = 2.0
+            start_time = time.time()
+            while not reset_future.done() and (time.time() - start_time) < timeout:
+                time.sleep(0.01)
             
             if reset_future.done():
                 self.get_logger().info("✅ 카메라 스트림 재시작 완료!")
@@ -1295,9 +1385,10 @@ class MobileVLADataCollector(Node):
         # 이전에 움직이고 있었을 수 있으므로 반드시 정지 상태로 초기화
         self.get_logger().info("🛑 에피소드 시작 전 로봇 정지 상태 확인 중...")
         
-        # 기존 타이머가 있으면 취소
-        if self.movement_timer and self.movement_timer.is_alive():
-            self.movement_timer.cancel()
+        # 기존 타이머가 있으면 취소 (락 사용)
+        with self.movement_lock:
+            if self.movement_timer and self.movement_timer.is_alive():
+                self.movement_timer.cancel()
             self.movement_timer = None
         
         # 현재 액션을 STOP_ACTION으로 설정하고 강제 정지 신호 전송
@@ -1615,6 +1706,22 @@ class MobileVLADataCollector(Node):
             self.dataset_stats = defaultdict(int)
             
             for h5_file in h5_files:
+                # 1. 파일명 기반 시나리오/패턴/거리 통계 복구 (파일 손상 여부와 무관하게 수행)
+                file_name = h5_file.name
+                scenario = self.extract_scenario_from_episode_name(file_name)
+                
+                if scenario:
+                    self.scenario_stats[scenario] += 1
+                    
+                    # 패턴/거리 통계
+                    pattern = self.extract_pattern_from_episode_name(file_name)
+                    distance = self.extract_distance_from_episode_name(file_name)
+                    
+                    if pattern and distance and scenario in self.pattern_distance_stats:
+                        if pattern in self.pattern_distance_stats[scenario] and distance in self.pattern_distance_stats[scenario][pattern]:
+                            self.pattern_distance_stats[scenario][pattern][distance] += 1
+
+                # 2. H5 파일 내용 기반 프레임 통계 (파일 손상 시 실패 가능)
                 try:
                     with h5py.File(h5_file, 'r') as f:
                         num_frames = f.attrs.get('num_frames', 0)
@@ -1623,7 +1730,9 @@ class MobileVLADataCollector(Node):
                         category = self.classify_by_frames(num_frames)
                         self.dataset_stats[category] += 1
                 except Exception as e:
-                    self.get_logger().warn(f"⚠️ 파일 읽기 실패 {h5_file.name}: {e}")
+                    # 파일 읽기 실패는 경고만 출력하고 넘어감 (파일명 통계는 이미 반영됨)
+                    # self.get_logger().warn(f"⚠️ 파일 읽기 실패 {h5_file.name}: {e}")
+                    pass
                     
         except Exception as e:
             self.get_logger().warn(f"⚠️ 데이터셋 통계 로드 실패: {e}")
@@ -1738,6 +1847,24 @@ class MobileVLADataCollector(Node):
             self.get_logger().info(f"   {config['description']}")
             # 각 시나리오 옆에 패턴×거리 표 간단 요약 출력
             self.show_pattern_distance_table(scenario, compact=True)
+
+        self.get_logger().info("-" * 50)
+        self.get_logger().info("🎯 이동 박스/바구니 넣기 시나리오별 진행 상황:")
+        
+        for scenario, config in self.basket_scenarios.items():
+            # self.basket_scenarios의 키는 이미 "basket_" 접두사를 포함하고 있음
+            current = self.scenario_stats[scenario]
+            target = config["target"]
+            total_completed += current
+            total_target += target
+            percentage = (current / target * 100) if target > 0 else 0
+            progress_bar = self.create_progress_bar(current, target)
+            status_emoji = "✅" if current >= target else "⏳"
+            
+            self.get_logger().info(f"{status_emoji} {config['key']}키 {scenario}: {progress_bar} ({percentage:.1f}%)")
+            self.get_logger().info(f"   {config['description']}")
+            # 각 시나리오 옆에 패턴×거리 표 간단 요약 출력
+            self.show_pattern_distance_table(scenario, compact=True)
             
         # 전체 진행률
         overall_percentage = (total_completed / total_target * 100) if total_target > 0 else 0
@@ -1811,15 +1938,26 @@ class MobileVLADataCollector(Node):
         """에피소드명에서 시나리오 추출 (기존 형식 호환: vert/hori 포함된 형식도 처리)"""
         # ✅ 우선순위: basket 시나리오 먼저 검색 (긴 ID부터 매칭)
         # basket_1box_left를 1box_left보다 먼저 찾아야 함!
-        for scenario in self.basket_scenarios.keys():
-            full_id = f"basket_{scenario}"  # "basket_1box_left"
-            if full_id in episode_name:
-                return full_id
         
-        # cup 시나리오 검색
-        for scenario in self.cup_scenarios.keys():
+        # 1. Basket 시나리오 (hori/vert 포함 형식 지원)
+        # 예: basket_1box_hori_left -> basket_1box_left
+        basket_mapping = {
+            "basket_1box_vert_left": "basket_1box_left", "basket_1box_hori_left": "basket_1box_left",
+            "basket_1box_vert_right": "basket_1box_right", "basket_1box_hori_right": "basket_1box_right",
+            "basket_2box_vert_left": "basket_2box_left", "basket_2box_hori_left": "basket_2box_left",
+            "basket_2box_vert_right": "basket_2box_right", "basket_2box_hori_right": "basket_2box_right"
+        }
+        for old_id, new_id in basket_mapping.items():
+            if old_id in episode_name:
+                return new_id
+                
+        # 2. Basket 시나리오 (기본 형식)
+        # self.basket_scenarios 키가 "basket_1box_left" 형식이므로 바로 검색
+        for scenario in self.basket_scenarios.keys():
             if scenario in episode_name:
                 return scenario
+        
+        # 3. Cup 시나리오 검색
         
         # 기존 형식 호환: 1box_vert_left → 1box_left로 변환
         old_to_new = {
@@ -3258,9 +3396,7 @@ class MobileVLADataCollector(Node):
                     # 타이머가 실행될 때까지 대기 (0.4초)
                     time.sleep(timer_duration)
                     
-                    # 타이머가 정지 명령을 발행했는지 확인하고, 추가 대기
-                    time.sleep(0.3)  # 정지 신호가 완전히 처리될 시간 확보
-                    
+
                 elif key.upper() == 'SPACE':
                     # 정지 명령 (N 키 스페이스바와 동일)
                     self.stop_movement_internal(collect_data=True)
