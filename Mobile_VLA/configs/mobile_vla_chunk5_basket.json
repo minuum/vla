@@ -19,9 +19,9 @@
     ],
     "window_size": 8,
     "fwd_pred_next_n": 5,
-    "arm_gripper_loss_ratio": 0.0,
-    "cap_loss_ratio": 0.0,
-    "fwd_loss_ratio": 0,
+    "arm_gripper_loss_ratio": 1.0,
+    "cap_loss_ratio": 0.05,
+    "fwd_loss_ratio": 0.05,
     "seed": 123,
     "batch_size": 1,
     "num_workers": 2,
@@ -93,7 +93,8 @@
         "window_size": 8,
         "action_space": "continuous",
         "with_history": true,
-        "history_type": "post"
+        "history_type": "post",
+        "num_layers": 3
     },
     "fwd_head": null,
     "tokenizer": {

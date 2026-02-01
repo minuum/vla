@@ -117,6 +117,10 @@ class MobileVLAInference:
         # Load model
         self._load_model()
         
+        # History buffer for images
+        self.window_size = self.config.get('window_size', 8)
+        self.image_history = []
+        
         logger.info("Model loaded successfully")
         
     def _load_model(self):
@@ -145,6 +149,12 @@ class MobileVLAInference:
         self.model.eval()
         logger.info(f"Model loaded on {self.device}")
         
+        # Load and cache processor
+        from transformers import AutoProcessor
+        processor_path = self.config.get('model_path', '.vlms/kosmos-2-patch14-224')
+        logger.info(f"Loading processor from {processor_path}")
+        self.processor = AutoProcessor.from_pretrained(processor_path)
+        
         # Get model info
         self.fwd_pred_next_n = self.config.get('fwd_pred_next_n', 1)
         self.action_dim = self.config.get('action_dim', 2)
@@ -159,19 +169,28 @@ class MobileVLAInference:
     
     def _apply_snap_to_grid(self, action: np.ndarray, threshold: float = 0.1) -> np.ndarray:
         """
-        Apply snap-to-grid logic to mimic discrete keyboard inputs.
-        Logic:
-        1. Deadzone: if abs(val) < threshold -> 0.0
-        2. Snap: Round to nearest 0.5 (e.g. 0.42 -> 0.5, 0.8 -> 1.0)
+        액션을 [-1.15, 0.0, 1.15] 이산 액션셋으로 매핑
+        모델의 Tanh() 출력 특성과 데이터 정규화 편차를 고려하여 보정(Gain/Bias) 적용
         """
+        targets = np.array([-1.15, 0.0, 1.15])
         snapped = np.zeros_like(action)
+        
+        # Action Dim: [linear_x, linear_y]
         for i in range(len(action.flat)):
             val = action.flat[i]
-            if abs(val) < threshold:
-                snapped.flat[i] = 0.0
+            
+            # i=0: linear_x (전후), i=1: linear_y (좌우)
+            if i % 2 == 0:
+                # X축: Tanh() 압축 보상을 위해 1.2배 증폭
+                val = val * 1.2
             else:
-                # Round to nearest 0.5
-                snapped.flat[i] = round(val * 2) / 2.0
+                # Y축: 모델의 양수 편향(Left 편애) 보정을 위해 시프트 후 증폭
+                val = (val - 0.15) * 2.0
+            
+            # 가장 가까운 타겟값 선택
+            closest_idx = np.argmin(np.abs(targets - val))
+            snapped.flat[i] = targets[closest_idx]
+            
         return snapped
 
     def predict(self, image_base64: str, instruction: str, 
@@ -199,17 +218,36 @@ class MobileVLAInference:
             # Preprocess image (base64 -> PIL)
             pil_image = self.preprocess_image(image_base64)
             
-            # Load Kosmos processor
-            from transformers import AutoProcessor
-            processor = AutoProcessor.from_pretrained(
-                self.config.get('model_path', '.vlms/kosmos-2-patch14-224')
-            )
+            # Prepare inputs (Kosmos format)
+            # Use cached processor
+            processor = self.processor
             
             # Prepare inputs (Kosmos format)
-            # Image normalization is handled by processor
+            # Match RoboVLMs training prompt: "<grounding>An image of a robot {instruction}"
+            # Only prepend if not already present to avoid duplication
+            clean_instruction = instruction.strip()
+            if not clean_instruction.startswith("<grounding>"):
+                if not clean_instruction.startswith("An image of a robot"):
+                    full_prompt = f"<grounding>An image of a robot {clean_instruction}"
+                else:
+                    full_prompt = f"<grounding>{clean_instruction}"
+            else:
+                full_prompt = clean_instruction
+                
+            # Add to history buffer
+            self.image_history.append(pil_image)
+            if len(self.image_history) > self.window_size:
+                self.image_history.pop(0)
+            
+            # Pad history if not full
+            current_history = self.image_history.copy()
+            while len(current_history) < self.window_size:
+                current_history.insert(0, current_history[0])
+            
+            # Process all images in history
             inputs = processor(
-                images=pil_image,
-                text=instruction,
+                images=current_history,
+                text=[full_prompt] * self.window_size,
                 return_tensors="pt"
             )
             
@@ -218,17 +256,20 @@ class MobileVLAInference:
                 if isinstance(inputs[key], torch.Tensor):
                     inputs[key] = inputs[key].to(self.device)
             
-            # Add batch dimension if needed
-            if inputs['pixel_values'].dim() == 3:
-                inputs['pixel_values'] = inputs['pixel_values'].unsqueeze(0)  # (1, C, H, W)
-            
-            # Add temporal dimension (window_size=1 for single image inference)
+            # Add batch dimension (B, T, C, H, W)
             if inputs['pixel_values'].dim() == 4:
-                inputs['pixel_values'] = inputs['pixel_values'].unsqueeze(1)  # (1, 1, C, H, W)
+                inputs['pixel_values'] = inputs['pixel_values'].unsqueeze(0)  # (1, T, C, H, W)
             
             # Prepare inputs for model.inference()
             rgb = inputs['pixel_values']  # (B, T, C, H, W)
-            language = inputs['input_ids']  # (B, seq_len)
+            language = inputs['input_ids']  # (B, T, seq_len) -> model expects (B, seq_len)?
+            # Note: RoboKosMos model typically handles language as (B, seq_len) 
+            # and applies it to the visual sequence.
+            if language.dim() == 3:
+                language = language[:, -1, :] # Take last instruction
+            
+            # Add hand_rgb dummy (B, T, C, H, W)
+            hand_rgb = torch.zeros_like(rgb)
             text_mask = inputs['attention_mask']  # (B, seq_len)
             
             # Call model.inference()
@@ -307,6 +348,10 @@ def get_model():
             "chunk10_epoch8": {
                 "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=08-val_loss=val_loss=0.312.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_chunk10_20251217.json"
+            },
+            "basket_chunk5": {
+                "checkpoint": "runs/mobile_vla_basket_chunk5/kosmos/mobile_vla_finetune/2026-01-29/mobile_vla_chunk5_basket_20260129/epoch_epoch=04-val_loss=val_loss=0.020.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_chunk5_basket.json"
             }
         }
         
@@ -390,7 +435,7 @@ async def list_models(api_key: str = Depends(verify_api_key)):
             "config": "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json",
             "description": "Chunk5 Epoch 6 - Best model (val_loss=0.067)",
             "fwd_pred_next_n": 5,
-            "recommended": True
+            "recommended": False
         },
         "chunk10_epoch8": {
             "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=08-val_loss=val_loss=0.312.ckpt",
@@ -398,6 +443,13 @@ async def list_models(api_key: str = Depends(verify_api_key)):
             "description": "Chunk10 Epoch 8 (val_loss=0.312)",
             "fwd_pred_next_n": 10,
             "recommended": False
+        },
+        "basket_chunk5": {
+            "checkpoint": "runs/mobile_vla_basket_chunk5/kosmos/mobile_vla_finetune/2026-01-29/mobile_vla_chunk5_basket_20260129/epoch_epoch=04-val_loss=val_loss=0.020.ckpt",
+            "config": "Mobile_VLA/configs/mobile_vla_chunk5_basket.json",
+            "description": "Basket Navigation - Chunk5 (val_loss=0.020)",
+            "fwd_pred_next_n": 5,
+            "recommended": True
         }
     }
     
@@ -424,7 +476,7 @@ async def switch_model(request: ModelSwitchRequest, api_key: str = Depends(verif
     global model_instance
     
     try:
-        available_models = ["chunk5_epoch6", "chunk10_epoch8"]
+        available_models = ["chunk5_epoch6", "chunk10_epoch8", "basket_chunk5"]
         
         if request.model_name not in available_models:
             raise HTTPException(
@@ -466,6 +518,14 @@ async def switch_model(request: ModelSwitchRequest, api_key: str = Depends(verif
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+@app.post("/reset")
+async def reset_episode():
+    """에피소드 초기화 (히스토리 버퍼 비우기)"""
+    if vla_server:
+        vla_server.image_history = []
+        logger.info("Episode history buffer reset")
+    return {"status": "success", "message": "History buffer cleared"}
 
 @app.post("/predict", response_model=InferenceResponse)
 async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_key)):
