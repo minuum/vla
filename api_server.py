@@ -86,6 +86,7 @@ class InferenceResponse(BaseModel):
     model_name: str
     chunk_size: int  # 모델의 chunk size (fwd_pred_next_n)
     full_chunk: Optional[List[List[float]]] = None  # Future trajectory
+    raw_action: Optional[List[float]] = None  # Raw action for debugging
     
 
 class MobileVLAInference:
@@ -121,7 +122,11 @@ class MobileVLAInference:
         self.window_size = self.config.get('window_size', 8)
         self.image_history = []
         
-        logger.info("Model loaded successfully")
+        # Persistence for smoothing
+        self.last_action = np.zeros(self.action_dim)
+        self.smoothing_factor = self.config.get('smoothing_factor', 0.3)
+        
+        logger.info("Model loaded successfully with smoothing enabled")
         
     def _load_model(self):
         """모델 로딩"""
@@ -158,6 +163,23 @@ class MobileVLAInference:
         # Get model info
         self.fwd_pred_next_n = self.config.get('fwd_pred_next_n', 1)
         self.action_dim = self.config.get('action_dim', 2)
+        
+        # Check if classification model
+        act_head_config = self.config.get('act_head', {})
+        self.is_classification = act_head_config.get('type') == 'MobileVLAClassificationDecoder'
+        logger.info(f"Is classification model: {self.is_classification}")
+        
+        # Class mapping for classification models
+        # 0: Stop, 1: Forward, 2: Left, 3: Right, 4: Diag FL, 5: Diag FR
+        self.class_to_action = {
+            0: np.array([0.0, 0.0]),
+            1: np.array([1.15, 0.0]),
+            2: np.array([0.0, 1.15]),
+            3: np.array([0.0, -1.15]),
+            4: np.array([1.15, 1.15]),
+            5: np.array([1.15, -1.15])
+        }
+        
         logger.info(f"Model: Chunk={self.fwd_pred_next_n}, Action_dim={self.action_dim}")
         
     def preprocess_image(self, image_base64: str) -> Image.Image:
@@ -167,29 +189,43 @@ class MobileVLAInference:
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         return image
     
-    def _apply_snap_to_grid(self, action: np.ndarray, threshold: float = 0.1) -> np.ndarray:
+    def _apply_snap_to_grid(self, action: np.ndarray, threshold: float = 0.35) -> np.ndarray:
         """
         액션을 [-1.15, 0.0, 1.15] 이산 액션셋으로 매핑
-        모델의 Tanh() 출력 특성과 데이터 정규화 편차를 고려하여 보정(Gain/Bias) 적용
+        최근 모델 통계(Y Mean 0.01, X Mean 0.8)를 바탕으로 최적화된 Gain/Bias 적용
         """
-        targets = np.array([-1.15, 0.0, 1.15])
         snapped = np.zeros_like(action)
         
         # Action Dim: [linear_x, linear_y]
-        for i in range(len(action.flat)):
-            val = action.flat[i]
-            
-            # i=0: linear_x (전후), i=1: linear_y (좌우)
-            if i % 2 == 0:
-                # X축: Tanh() 압축 보상을 위해 1.2배 증폭
-                val = val * 1.2
-            else:
-                # Y축: 모델의 양수 편향(Left 편애) 보정을 위해 시프트 후 증폭
-                val = (val - 0.15) * 2.0
-            
-            # 가장 가까운 타겟값 선택
-            closest_idx = np.argmin(np.abs(targets - val))
-            snapped.flat[i] = targets[closest_idx]
+        if action.ndim == 1:
+            for i in range(len(action)):
+                val = action[i]
+                if i % 2 == 0: # X-axis: Strong outputs (~0.8), use small gain
+                    amp = val * 1.4
+                else: # Y-axis: Very weak outputs (~0.01), use large gain
+                    amp = (val - 0.005) * 40.0
+                
+                if amp > threshold:
+                    snapped[i] = 1.15
+                elif amp < -threshold:
+                    snapped[i] = -1.15
+                else:
+                    snapped[i] = 0.0
+        else:
+            for t in range(action.shape[0]):
+                for i in range(action.shape[1]):
+                    val = action[t, i]
+                    if i % 2 == 0:
+                        amp = val * 1.4
+                    else:
+                        amp = (val - 0.005) * 40.0
+                    
+                    if amp > threshold:
+                        snapped[t, i] = 1.15
+                    elif amp < -threshold:
+                        snapped[t, i] = -1.15
+                    else:
+                        snapped[t, i] = 0.0
             
         return snapped
 
@@ -206,13 +242,14 @@ class MobileVLAInference:
             snap_threshold: Deadzone threshold (overrides config)
 
         Returns:
-            (action, full_chunk, latency_ms): 2DOF action [linear_x, linear_y]와 latency
+            (action, full_chunk, latency_ms, raw_action): 2DOF action [linear_x, linear_y], latency, and raw action
         """
         start_time = time.time()
         
         # Determine settings
         use_snap = snap_to_grid if snap_to_grid is not None else self.default_snap_to_grid
         threshold = snap_threshold if snap_threshold is not None else self.default_snap_threshold
+        original_action = None
         
         with torch.no_grad():
             # Preprocess image (base64 -> PIL)
@@ -262,15 +299,26 @@ class MobileVLAInference:
             
             # Prepare inputs for model.inference()
             rgb = inputs['pixel_values']  # (B, T, C, H, W)
-            language = inputs['input_ids']  # (B, T, seq_len) -> model expects (B, seq_len)?
-            # Note: RoboKosMos model typically handles language as (B, seq_len) 
-            # and applies it to the visual sequence.
-            if language.dim() == 3:
-                language = language[:, -1, :] # Take last instruction
+            language = inputs['input_ids']  # (B, T, seq_len)
+            text_mask = inputs['attention_mask']
+            
+            # Ensure batch size is 1 for language and mask (RoboVLMs repeats them internally)
+            if language.dim() == 2 and language.shape[0] > 1:
+                language = language[0:1, :]
+            elif language.dim() == 3:
+                language = language[:, -1, :] # (8, T, seq_len) -> (8, seq_len)
+                if language.shape[0] > 1:
+                    language = language[0:1, :]
+                
+            if text_mask.dim() == 2 and text_mask.shape[0] > 1:
+                text_mask = text_mask[0:1, :]
+            elif text_mask.dim() == 3:
+                text_mask = text_mask[:, -1, :]
+                if text_mask.shape[0] > 1:
+                    text_mask = text_mask[0:1, :]
             
             # Add hand_rgb dummy (B, T, C, H, W)
             hand_rgb = torch.zeros_like(rgb)
-            text_mask = inputs['attention_mask']  # (B, seq_len)
             
             # Call model.inference()
             prediction = self.model.model.inference(
@@ -295,16 +343,36 @@ class MobileVLAInference:
                 # Extract from tensor
                 if isinstance(action_output, torch.Tensor):
                     if action_output.dim() == 4:
-                        full_chunk = action_output[0, 0, :, :].cpu().numpy()
+                        if self.is_classification:
+                            # (B, T, chunk, num_classes)
+                            logits = action_output[0, 0, :, :].cpu().numpy()
+                            class_indices = np.argmax(logits, axis=-1)
+                            full_chunk = np.array([self.class_to_action[idx] for idx in class_indices])
+                        else:
+                            full_chunk = action_output[0, 0, :, :].cpu().numpy()
                         first_action = full_chunk[0]
                     elif action_output.dim() == 3:
-                        full_chunk = action_output[0, :, :].cpu().numpy()
+                        if self.is_classification:
+                            logits = action_output[0, :, :].cpu().numpy()
+                            class_indices = np.argmax(logits, axis=-1)
+                            full_chunk = np.array([self.class_to_action[idx] for idx in class_indices])
+                        else:
+                            full_chunk = action_output[0, :, :].cpu().numpy()
                         first_action = full_chunk[0]
                     elif action_output.dim() == 2:
-                        first_action = action_output[0, :].cpu().numpy()
+                        if self.is_classification:
+                            logits = action_output[0, :].cpu().numpy()
+                            idx = np.argmax(logits)
+                            first_action = self.class_to_action[idx]
+                        else:
+                            first_action = action_output[0, :].cpu().numpy()
                         full_chunk = np.expand_dims(first_action, axis=0)
                     elif action_output.dim() == 1:
-                        first_action = action_output.cpu().numpy()
+                        if self.is_classification:
+                            idx = torch.argmax(action_output).item()
+                            first_action = self.class_to_action[idx]
+                        else:
+                            first_action = action_output.cpu().numpy()
                         full_chunk = np.expand_dims(first_action, axis=0)
                     else:
                         raise ValueError(f"Unexpected action tensor shape: {action_output.shape}")
@@ -313,6 +381,11 @@ class MobileVLAInference:
             else:
                 raise ValueError("Could not find action in prediction output")
             
+            # Apply Smoothing
+            if self.last_action is not None:
+                first_action = self.smoothing_factor * first_action + (1 - self.smoothing_factor) * self.last_action
+            self.last_action = first_action.copy()
+
             # Apply Snap-to-Grid if enabled
             if use_snap:
                 original_action = first_action.copy()
@@ -328,7 +401,7 @@ class MobileVLAInference:
             
         latency_ms = (time.time() - start_time) * 1000
         
-        return first_action, full_chunk, latency_ms
+        return first_action, full_chunk, latency_ms, original_action if use_snap else first_action
 
 
 def get_model():
@@ -337,11 +410,11 @@ def get_model():
     
     if model_instance is None:
         # 환경 변수로 모델 선택 가능
-        model_name = os.getenv("VLA_MODEL_NAME", "chunk5_epoch6")
+        model_name = os.getenv("VLA_MODEL_NAME", "basket_classification")
         
         # 모델별 체크포인트 및 config 경로
         model_configs = {
-            "chunk5_epoch6": {
+            "basket_chunk5": {
                 "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json"
             },
@@ -349,16 +422,28 @@ def get_model():
                 "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=08-val_loss=val_loss=0.312.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_chunk10_20251217.json"
             },
-            "basket_chunk5": {
-                "checkpoint": "runs/mobile_vla_basket_chunk5/kosmos/mobile_vla_finetune/2026-01-29/mobile_vla_chunk5_basket_20260129/epoch_epoch=04-val_loss=val_loss=0.020.ckpt",
-                "config": "Mobile_VLA/configs/mobile_vla_chunk5_basket.json"
-            }
+            "basket_left_only": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-01/basket_left_only_20260201/last-v1.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_only.json"
+            },
+            "basket_grounded_epoch10": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-02/basket_left_grounded_20260202/epoch_epoch=10-val_loss=val_loss=0.002.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_only.json"
+            },
+            "basket_classification": {
+                "checkpoint": "checkpoints/basket_classification_v1.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification.json"
+            },
+            "basket_classification_epoch10": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-02/basket_left_classification_20260202/epoch_epoch=09-val_loss=val_loss=0.003.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification.json"
+            },
         }
         
         # Get model config
         if model_name not in model_configs:
-            logger.warning(f"Unknown model '{model_name}', defaulting to 'chunk5_epoch6'")
-            model_name = "chunk5_epoch6"
+            logger.warning(f"Unknown model '{model_name}', defaulting to 'basket_classification'")
+            model_name = "basket_classification"
         
         config = model_configs[model_name]
         checkpoint_path = os.getenv("VLA_CHECKPOINT_PATH", config["checkpoint"])
@@ -411,7 +496,7 @@ async def model_info(api_key: str = Depends(verify_api_key)):
         model = get_model()
         
         return {
-            "model_name": os.getenv("VLA_MODEL_NAME", "chunk5_epoch6"),
+            "model_name": os.getenv("VLA_MODEL_NAME", "basket_left_only"),
             "checkpoint_path": model.checkpoint_path,
             "config_path": model.config_path,
             "fwd_pred_next_n": model.fwd_pred_next_n,
@@ -430,30 +515,28 @@ async def list_models(api_key: str = Depends(verify_api_key)):
     """사용 가능한 모델 목록 조회 (API Key 필수)"""
     # 모델별 체크포인트 및 config 경로 (get_model 함수와 동일)
     model_configs = {
-        "chunk5_epoch6": {
+        "basket_chunk5_legacy": {
             "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
             "config": "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json",
-            "description": "Chunk5 Epoch 6 - Best model (val_loss=0.067)",
-            "fwd_pred_next_n": 5,
-            "recommended": False
+            "description": "Legacy Best model (val_loss=0.067)",
+            "fwd_pred_next_n": 5
         },
         "chunk10_epoch8": {
             "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk10_20251217/epoch_epoch=08-val_loss=val_loss=0.312.ckpt",
             "config": "Mobile_VLA/configs/mobile_vla_chunk10_20251217.json",
-            "description": "Chunk10 Epoch 8 (val_loss=0.312)",
-            "fwd_pred_next_n": 10,
-            "recommended": False
+            "description": "Chunk10 Epoch 8",
+            "fwd_pred_next_n": 10
         },
-        "basket_chunk5": {
-            "checkpoint": "runs/mobile_vla_basket_chunk5/kosmos/mobile_vla_finetune/2026-01-29/mobile_vla_chunk5_basket_20260129/epoch_epoch=04-val_loss=val_loss=0.020.ckpt",
-            "config": "Mobile_VLA/configs/mobile_vla_chunk5_basket.json",
-            "description": "Basket Navigation - Chunk5 (val_loss=0.020)",
+        "basket_left_only": {
+            "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-01/basket_left_only_20260201/last-v1.ckpt",
+            "config": "Mobile_VLA/configs/mobile_vla_basket_left_only.json",
+            "description": "Basket Navigation - LEFT ONLY (Epoch 10, v2)",
             "fwd_pred_next_n": 5,
             "recommended": True
         }
     }
     
-    current_model = os.getenv("VLA_MODEL_NAME", "chunk5_epoch6")
+    current_model = os.getenv("VLA_MODEL_NAME", "basket_left_only")
     
     return {
         "available_models": model_configs,
@@ -464,7 +547,7 @@ async def list_models(api_key: str = Depends(verify_api_key)):
 
 class ModelSwitchRequest(BaseModel):
     """모델 전환 요청 스키마"""
-    model_name: str  # chunk5_epoch6, chunk10_epoch8, no_chunk_epoch4
+    model_name: str  # basket_chunk5, chunk10_epoch8, no_chunk_epoch4
 
 
 @app.post("/model/switch")
@@ -476,7 +559,7 @@ async def switch_model(request: ModelSwitchRequest, api_key: str = Depends(verif
     global model_instance
     
     try:
-        available_models = ["chunk5_epoch6", "chunk10_epoch8", "basket_chunk5"]
+        available_models = ["basket_left_only", "basket_chunk5_legacy", "chunk10_epoch8"]
         
         if request.model_name not in available_models:
             raise HTTPException(
@@ -503,14 +586,14 @@ async def switch_model(request: ModelSwitchRequest, api_key: str = Depends(verif
         
         return {
             "status": "success",
-            "previous_model": os.getenv("VLA_MODEL_NAME", "chunk5_epoch6"),
+            "previous_model": os.getenv("VLA_MODEL_NAME", "basket_left_only"),
             "current_model": request.model_name,
             "model_info": {
                 "checkpoint_path": new_model.checkpoint_path,
                 "fwd_pred_next_n": new_model.fwd_pred_next_n,
                 "action_dim": new_model.action_dim,
                 "device": new_model.device
-            }
+            },
         }
         
     except Exception as e:
@@ -522,9 +605,11 @@ async def switch_model(request: ModelSwitchRequest, api_key: str = Depends(verif
 @app.post("/reset")
 async def reset_episode():
     """에피소드 초기화 (히스토리 버퍼 비우기)"""
-    if vla_server:
-        vla_server.image_history = []
-        logger.info("Episode history buffer reset")
+    model = get_model()
+    if model:
+        model.image_history = []
+        model.last_action = np.zeros(model.action_dim)
+        logger.info("Episode history and smoothing buffer reset")
     return {"status": "success", "message": "History buffer cleared"}
 
 @app.post("/predict", response_model=InferenceResponse)
@@ -541,7 +626,7 @@ async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_k
     try:
         model = get_model()
         
-        action, full_chunk, latency_ms = model.predict(
+        action, full_chunk, latency_ms, raw_action = model.predict(
             image_base64=request.image,
             instruction=request.instruction,
             snap_to_grid=request.snap_to_grid,
@@ -553,9 +638,10 @@ async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_k
         return InferenceResponse(
             action=action.tolist(),
             latency_ms=latency_ms,
-            model_name=os.getenv("VLA_MODEL_NAME", "chunk5_epoch6"),
+            model_name=os.getenv("VLA_MODEL_NAME", "basket_chunk5"),
             chunk_size=model.fwd_pred_next_n,
-            full_chunk=full_chunk.tolist()
+            full_chunk=full_chunk.tolist(),
+            raw_action=raw_action.tolist() if hasattr(raw_action, 'tolist') else raw_action
         )
         
     except Exception as e:
