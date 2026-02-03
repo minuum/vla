@@ -64,6 +64,7 @@
         "freeze_backbone": true,
         "freeze_resampler": true,
         "tune_mm_mlp_adapter": false,
+        "tune_mm_projector": true,
         "mm_use_im_start_end": false,
         "mm_use_im_patch_token": false,
         "gradient_checkpointing": false,

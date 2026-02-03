@@ -22,7 +22,7 @@ def image_to_base64(image):
 
 def test_api_batch(num_episodes=15):
     api_server = "http://localhost:8000"
-    api_key = "Cf7VGtw3-BykHjmsPa12V3QL41qk87Aywjg_8P8GKU4"
+    api_key = "test_key_1234"
     dataset_dir = Path("/home/billy/25-1kp/vla/ROS_action/basket_dataset")
     
     all_files = list(dataset_dir.glob("*.h5"))
@@ -38,44 +38,64 @@ def test_api_batch(num_episodes=15):
     results = []
 
     for file_path in tqdm(test_files, desc="Processing"):
+        # 에피소드 시작 전 히스토리 버퍼 초기화
+        try:
+            requests.post(f"{api_server}/reset", headers=headers, timeout=5)
+        except:
+            pass
+            
         with h5py.File(file_path, 'r') as f:
             images = f['images'][:]
             actions = f['actions'][:]
             total_len = len(images)
             
-            # 에피소드당 1개 지점만 테스트 (API 부하 고려)
-            if total_len < 1: continue
-            idx = random.randint(0, total_len - 1)
-            
-            img_pil = Image.fromarray(images[idx])
-            img_b64 = image_to_base64(img_pil)
-            true_action = actions[idx][:2]
+            # 윈도우 버퍼(8)를 채우기 위해 연속 프레임 선택
+            window_size = 8
+            if total_len < window_size:
+                continue
+            idx = random.randint(window_size - 1, total_len - 1)
             
             instruction = "Navigate to the brown pot on the left" if "left" in file_path.name else "Navigate to the brown pot on the right"
+            true_action = actions[idx][:2]
             
             try:
-                response = requests.post(
-                    f"{api_server}/predict",
-                    json={
-                        "image": img_b64,
-                        "instruction": instruction,
-                        "snap_to_grid": True
-                    },
-                    headers=headers,
-                    timeout=20
-                )
+                # 8개 프레임 순차 전송
+                response = None
+                for i in range(idx - window_size + 1, idx + 1):
+                    img_pil = Image.fromarray(images[i])
+                    img_b64 = image_to_base64(img_pil)
+                    
+                    response = requests.post(
+                        f"{api_server}/predict",
+                        json={
+                            "image": img_b64,
+                            "instruction": instruction,
+                            "snap_to_grid": True
+                        },
+                        headers=headers,
+                        timeout=20
+                    )
                 
-                if response.status_code == 200:
+                # 마지막 프레임 응답 확인
+                if response and response.status_code == 200:
                     data = response.json()
                     pred_action = np.array(data['action'])
+                    raw_y = data.get('raw_action', [0, 0])[1]
                     
                     is_match = np.allclose(pred_action, true_action, atol=0.01)
                     if is_match:
                         perfect_matches += 1
+                        status = "✅ MATCH"
+                    else:
+                        status = "❌ MISMATCH"
+                    
+                    target = "Left" if "left" in file_path.name else "Right"
+                    print(f"  [{target}] True: {true_action} | Pred: {pred_action} (RawY: {raw_y:.4f}) | {status}")
                     
                     total_frames += 1
                 else:
-                    print(f"❌ API 에러 ({file_path.name}): {response.status_code}")
+                    msg = response.status_code if response else "No response"
+                    print(f"❌ API 에러 ({file_path.name}): {msg}")
             except Exception as e:
                 print(f"❌ 통신 에러 ({file_path.name}): {e}")
 

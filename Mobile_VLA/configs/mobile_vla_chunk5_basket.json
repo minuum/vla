@@ -46,7 +46,7 @@
     "cache_root": "runs/cache",
     "model_load_path": null,
     "model_load_source": "torch",
-    "resume": null,
+    "resume": "runs/mobile_vla_basket_chunk5/kosmos/mobile_vla_finetune/2026-02-01/mobile_vla_chunk5_basket_20260129/last.ckpt",
     "model_path": ".vlms/kosmos-2-patch14-224",
     "model_config": ".vlms/kosmos-2-patch14-224/config.json",
     "gpus": 1,
