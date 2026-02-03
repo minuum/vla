@@ -434,9 +434,21 @@ def get_model():
                 "checkpoint": "checkpoints/basket_classification_v1.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification.json"
             },
+            "basket_classification_weighted": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-02/basket_left_classification_weighted_20260202/epoch_epoch=01-val_loss=val_loss=0.014.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification_weighted.json"
+            },
             "basket_classification_epoch10": {
                 "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-02/basket_left_classification_20260202/epoch_epoch=09-val_loss=val_loss=0.003.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification.json"
+            },
+            "basket_classification_weighted_norm": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-03/basket_left_weighted_norm/epoch_epoch=09-val_loss=val_loss=0.011.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification_weighted.json"
+            },
+            "basket_no_suffix_v1": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-03/basket_left_no_suffix_v1/last.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification_weighted.json"
             },
         }
         
