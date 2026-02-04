@@ -124,7 +124,7 @@ class MobileVLAInference:
         
         # Persistence for smoothing
         self.last_action = np.zeros(self.action_dim)
-        self.smoothing_factor = self.config.get('smoothing_factor', 0.3)
+        self.smoothing_factor = self.config.get('smoothing_factor', 1.0)
         
         logger.info("Model loaded successfully with smoothing enabled")
         
@@ -197,33 +197,21 @@ class MobileVLAInference:
         snapped = np.zeros_like(action)
         
         # Action Dim: [linear_x, linear_y]
+        # For Classification models, the model already outputs discrete targets (1.15, -1.15, etc.)
+        # so we only need to handle small drifts or zero preservation.
         if action.ndim == 1:
             for i in range(len(action)):
                 val = action[i]
-                if i % 2 == 0: # X-axis: Strong outputs (~0.8), use small gain
-                    amp = val * 1.4
-                else: # Y-axis: Very weak outputs (~0.01), use large gain
-                    amp = (val - 0.005) * 40.0
-                
-                if amp > threshold:
-                    snapped[i] = 1.15
-                elif amp < -threshold:
-                    snapped[i] = -1.15
+                if abs(val) > threshold:
+                    snapped[i] = 1.15 if val > 0 else -1.15
                 else:
                     snapped[i] = 0.0
         else:
             for t in range(action.shape[0]):
                 for i in range(action.shape[1]):
                     val = action[t, i]
-                    if i % 2 == 0:
-                        amp = val * 1.4
-                    else:
-                        amp = (val - 0.005) * 40.0
-                    
-                    if amp > threshold:
-                        snapped[t, i] = 1.15
-                    elif amp < -threshold:
-                        snapped[t, i] = -1.15
+                    if abs(val) > threshold:
+                        snapped[t, i] = 1.15 if val > 0 else -1.15
                     else:
                         snapped[t, i] = 0.0
             
@@ -259,9 +247,20 @@ class MobileVLAInference:
             # Use cached processor
             processor = self.processor
             
+            # Optional: Instruction Mapping for robustness (Phase 5 Standard)
+            # Short keywords are expanded to "Strong Prompts" identified during evaluation
+            instr_map = {
+                "left": "Steer left to the brown pot",
+                "right": "Steer right to the brown pot",
+                "straight": "Go straight to the brown pot",
+                "go left": "Steer left to the brown pot",
+                "go right": "Steer right to the brown pot",
+                "navigate left": "Perform left navigation to the object",
+                "navigate right": "Perform right navigation to the object"
+            }
+            
             # Prepare inputs (Kosmos format)
             # Match RoboVLMs training prompt: "<grounding>An image of a robot {instruction}"
-            # Only prepend if not already present to avoid duplication
             clean_instruction = instruction.strip()
             if not clean_instruction.startswith("<grounding>"):
                 if not clean_instruction.startswith("An image of a robot"):
@@ -278,8 +277,12 @@ class MobileVLAInference:
             
             # Pad history if not full
             current_history = self.image_history.copy()
-            while len(current_history) < self.window_size:
-                current_history.insert(0, current_history[0])
+            if len(current_history) < self.window_size:
+                # Use a zero-tensor like black image for initial padding if we want to emphasize 'start'
+                # But VLA usually likes first-image repetition. Let's keep repetition but ensure it is stable.
+                first_img = current_history[0]
+                while len(current_history) < self.window_size:
+                    current_history.insert(0, first_img)
             
             # Process all images in history
             inputs = processor(
@@ -345,19 +348,30 @@ class MobileVLAInference:
                     if action_output.dim() == 4:
                         if self.is_classification:
                             # (B, T, chunk, num_classes)
-                            logits = action_output[0, 0, :, :].cpu().numpy()
+                            # Use T=-1 to get prediction for the latest frame in the window
+                            logits = action_output[0, -1, :, :].cpu().numpy()
                             class_indices = np.argmax(logits, axis=-1)
                             full_chunk = np.array([self.class_to_action[idx] for idx in class_indices])
                         else:
-                            full_chunk = action_output[0, 0, :, :].cpu().numpy()
+                            # (B, T, chunk, action_dim)
+                            full_chunk = action_output[0, -1, :, :].cpu().numpy()
                         first_action = full_chunk[0]
                     elif action_output.dim() == 3:
                         if self.is_classification:
-                            logits = action_output[0, :, :].cpu().numpy()
-                            class_indices = np.argmax(logits, axis=-1)
-                            full_chunk = np.array([self.class_to_action[idx] for idx in class_indices])
+                            # (B, T, num_classes) or (B, chunk, num_classes)
+                            logits = action_output[0, -1, :].cpu().numpy() if action_output.dim() == 3 else action_output[0, :, :].cpu().numpy()
+                            # Ensure we have class indices
+                            if logits.ndim == 1: # (num_classes)
+                                idx = np.argmax(logits)
+                                first_action = self.class_to_action[idx]
+                                full_chunk = np.expand_dims(first_action, axis=0)
+                            else: # (chunk, num_classes)
+                                class_indices = np.argmax(logits, axis=-1)
+                                full_chunk = np.array([self.class_to_action[idx] for idx in class_indices])
                         else:
-                            full_chunk = action_output[0, :, :].cpu().numpy()
+                            full_chunk = action_output[0, -1, :].cpu().numpy() if action_output.dim() == 3 else action_output[0, :, :].cpu().numpy()
+                            if full_chunk.ndim == 1:
+                                full_chunk = np.expand_dims(full_chunk, axis=0)
                         first_action = full_chunk[0]
                     elif action_output.dim() == 2:
                         if self.is_classification:
@@ -409,11 +423,14 @@ def get_model():
     global model_instance
     
     if model_instance is None:
-        # 환경 변수로 모델 선택 가능
-        model_name = os.getenv("VLA_MODEL_NAME", "basket_classification")
+        model_name = os.getenv("VLA_MODEL_NAME", "unified_regression_win12")
         
         # 모델별 체크포인트 및 config 경로
         model_configs = {
+            "unified_regression_win12": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune/2026-02-05/unified_regression_win12_20260205/epoch=9-step=600.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_unified_regression_win12.json"
+            },
             "basket_chunk5": {
                 "checkpoint": "runs/mobile_vla_no_chunk_20251209/kosmos/mobile_vla_finetune/2025-12-17/mobile_vla_chunk5_20251217/epoch_epoch=06-val_loss=val_loss=0.067.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_chunk5_20251217.json"
@@ -450,12 +467,20 @@ def get_model():
                 "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-03/basket_left_no_suffix_v1/last.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification_weighted.json"
             },
+            "basket_grounding_v1": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-04/basket_mixed_grounding_v2_window12/last.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification_weighted.json"
+            },
+            "basket_grounding_v2_win12": {
+                "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-04/basket_mixed_grounding_v2_window12/last.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_basket_left_classification_weighted.json"
+            },
         }
         
         # Get model config
         if model_name not in model_configs:
-            logger.warning(f"Unknown model '{model_name}', defaulting to 'basket_classification'")
-            model_name = "basket_classification"
+            logger.warning(f"Unknown model '{model_name}', defaulting to 'unified_regression_win12'")
+            model_name = "unified_regression_win12"
         
         config = model_configs[model_name]
         checkpoint_path = os.getenv("VLA_CHECKPOINT_PATH", config["checkpoint"])
