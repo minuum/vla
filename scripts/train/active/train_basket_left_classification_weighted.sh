@@ -29,7 +29,7 @@ echo "🚀 config: $CONFIG_FILE"
 
 nohup python3 RoboVLMs_upstream/main.py \
     "$CONFIG_FILE" \
-    --exp_name "basket_left_no_suffix_v1" \
+    --exp_name "basket_mixed_grounding_v2_window12" \
     > "$LOG_FILE" 2>&1 &
 
 PID=$!

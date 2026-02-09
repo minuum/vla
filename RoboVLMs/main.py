@@ -127,7 +127,14 @@ def init_trainer_config(configs):
     trainer_config["callbacks"] = [
         init_setup_callback(configs),
         init_lr_monitor_callback(),
-        ModelCheckpoint(dirpath=configs["output_dir"], save_top_k=-1, every_n_epochs=1),
+        ModelCheckpoint(
+            dirpath=configs["output_dir"], 
+            save_top_k=3, 
+            monitor="val_loss", 
+            mode="min",
+            save_last=True,
+            filename="epoch={epoch:02d}-val_loss={val_loss:.4f}"
+        ),
     ]
 
     return trainer_config

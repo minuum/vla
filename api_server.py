@@ -76,7 +76,7 @@ class InferenceRequest(BaseModel):
     image: str  # base64 encoded image
     instruction: str  # Language instruction
     snap_to_grid: Optional[bool] = None  # Enable/Disable discrete action filtering
-    snap_threshold: Optional[float] = 0.1 # Deadzone threshold (default 0.1)
+    snap_threshold: Optional[float] = 0.8 # Optimized threshold
     
 
 class InferenceResponse(BaseModel):
@@ -113,7 +113,7 @@ class MobileVLAInference:
         
         # Inference settings (from config or defaults)
         self.default_snap_to_grid = self.config.get('snap_to_grid', True)  # Default Enable
-        self.default_snap_threshold = self.config.get('snap_threshold', 0.1)
+        self.default_snap_threshold = self.config.get('snap_threshold', 0.8)
         
         # Load model
         self._load_model()
@@ -415,6 +415,11 @@ class MobileVLAInference:
             
         latency_ms = (time.time() - start_time) * 1000
         
+        # Frame 1 Safety Override
+        if len(self.image_history) == 1:
+            logger.info("🛑 Frame 1: Safety override")
+            return np.array([0.0, 0.0]), np.zeros_like(full_chunk), latency_ms, np.array([0.0, 0.0])
+        
         return first_action, full_chunk, latency_ms, original_action if use_snap else first_action
 
 
@@ -442,6 +447,22 @@ def get_model():
             "basket_left_only": {
                 "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-01/basket_left_only_20260201/last-v1.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_basket_left_only.json"
+            },
+            "exp06_resampler": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune_resampler/2026-02-06/unified_reg_win12_k6_resampler_20260205/last.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_unified_reg_win12_k6_resampler.json"
+            },
+            "exp04_baseline": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune/2026-02-05/unified_regression_win12_20260205/epoch=9-step=600.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_unified_regression_win12.json"
+            },
+            "exp05_chunk1": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune_k1/2026-02-05/unified_reg_win12_k1_20260205/epoch=5-step=2136.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_unified_reg_win12_k1.json"
+            },
+            "exp09_latent128": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_exp09_resampler_latent128/2026-02-07/exp09_resampler_latent128/last.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_exp09_latent128.json"
             },
             "basket_grounded_epoch10": {
                 "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-02/basket_left_grounded_20260202/epoch_epoch=10-val_loss=val_loss=0.002.ckpt",
