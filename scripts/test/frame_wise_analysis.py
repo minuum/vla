@@ -1,74 +1,86 @@
+#!/usr/bin/env python3
+import os
 import h5py
-import numpy as np
 import requests
-import base64
-from PIL import Image
-from io import BytesIO
+import numpy as np
 from pathlib import Path
 from tqdm import tqdm
-import matplotlib.pyplot as plt
+from PIL import Image
+import io
+import base64
+from collections import defaultdict
 
-def image_to_base64(image):
-    buffer = BytesIO()
-    image.save(buffer, format='PNG')
-    return base64.b64encode(buffer.getvalue()).decode('utf-8')
+API_BASE = "http://localhost:8000"
+API_KEY = "vla-mobile-fixed-key-20260205"
+HEADERS = {"X-API-Key": API_KEY}
+DATASET_DIR = "/home/billy/25-1kp/vla/ROS_action/basket_dataset_v2/test"
+NUM_EPISODES = 20
+TOLERANCE = 0.05
 
-def analyze_per_frame_performance(num_episodes=20):
-    api_server = "http://localhost:8000"
-    api_key = "test_key_1234"
-    dataset_dir = Path("/home/billy/25-1kp/vla/ROS_action/basket_dataset_v2/test")
-    headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+def main():
+    print(f"🚀 초반 구간(Initial Phase) 프레임별 정밀 분석 시작")
+    dataset_path = Path(DATASET_DIR)
+    h5_files = sorted(list(dataset_path.glob("*.h5")))[:NUM_EPISODES]
     
-    test_files = sorted(list(dataset_dir.glob("*.h5")))[:num_episodes]
+    frame_stats = defaultdict(lambda: {"total": 0, "perfect": 0, "dir_match": 0, "avg_error": 0.0})
     
-    # Store results per frame index (0 to 17)
-    frame_stats = {i: {"total": 0, "dir_match": 0, "err_x": [], "err_y": []} for i in range(18)}
-    
-    print(f"Analyzing {len(test_files)} episodes frame-by-frame...")
-    
-    for file_path in tqdm(test_files):
-        requests.post(f"{api_server}/reset", headers=headers)
-        with h5py.File(file_path, 'r') as f:
+    for h5_path in tqdm(h5_files, desc="EP 분석 중"):
+        # Reset episode history at the start of each episode
+        try:
+            requests.post(f"{API_BASE}/reset", headers=HEADERS, timeout=5)
+        except:
+            pass
+            
+        with h5py.File(h5_path, 'r') as f:
             images = f['images'][:]
             actions = f['actions'][:]
-            instruction = "Navigate to the brown pot on the left" if "left" in file_path.name else "Navigate to the brown pot on the right"
             
-            for i in range(len(images)):
-                img_pil = Image.fromarray(images[i])
-                img_b64 = image_to_base64(img_pil)
-                true_act = actions[i][:2]
+        # 각 에피소드의 처음 10프레임 혹은 실제 길이만큼 분석
+        limit = min(len(images), 10)
+        
+        for i in range(limit):
+            img_pil = Image.fromarray(images[i])
+            buf = io.BytesIO()
+            img_pil.save(buf, format='PNG')
+            img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+            
+            try:
+                response = requests.post(f"{API_BASE}/predict", headers=HEADERS,
+                                         json={"image": img_b64, "instruction": "Navigate to the basket"},
+                                         timeout=10)
+                response.raise_for_status()
+                pred_action = np.array(response.json()['action']).flatten()[:2]
+            except:
+                continue
                 
-                try:
-                    resp = requests.post(
-                        f"{api_server}/predict",
-                        json={"image": img_b64, "instruction": instruction},
-                        headers=headers, timeout=10
-                    ).json()
-                    
-                    pred_act = np.array(resp['action'])
-                    
-                    # Direction Match
-                    true_dir = np.sign(true_act[1]) if abs(true_act[1]) > 0.1 else 0
-                    pred_dir = np.sign(pred_act[1]) if abs(pred_act[1]) > 0.1 else 0
-                    
-                    frame_stats[i]["total"] += 1
-                    if true_dir == pred_dir:
-                        frame_stats[i]["dir_match"] += 1
-                    
-                    frame_stats[i]["err_x"].append(abs(pred_act[0] - true_act[0]))
-                    frame_stats[i]["err_y"].append(abs(pred_act[1] - true_act[1]))
-                except:
-                    continue
+            gt_action = actions[i][:2]
+            
+            error = np.linalg.norm(gt_action - pred_action)
+            perfect = error < TOLERANCE
+            dir_match = (np.sign(gt_action[0]) == np.sign(pred_action[0])) and \
+                        (np.sign(gt_action[1]) == np.sign(pred_action[1]))
+            
+            frame_stats[i]["total"] += 1
+            if perfect: frame_stats[i]["perfect"] += 1
+            if dir_match: frame_stats[i]["dir_match"] += 1
+            frame_stats[i]["avg_error"] += error
 
-    print("\nFrame-wise Analysis Results:")
-    print("Frame | Dir Agreement | Avg X Err | Avg Y Err")
-    print("-" * 45)
-    for i in range(18):
-        s = frame_stats[i]
-        acc = (s["dir_match"] / s["total"] * 100) if s["total"] > 0 else 0
-        ex = np.mean(s["err_x"]) if s["err_x"] else 0
-        ey = np.mean(s["err_y"]) if s["err_y"] else 0
-        print(f"{i:5} | {acc:13.1f}% | {ex:9.3f} | {ey:9.3f}")
+    print("\n" + "="*70)
+    print(f"{'Index':<6} | {'Status':<10} | {'PM Rate':<10} | {'DA Rate':<10} | {'Avg Error':<10}")
+    print("-" * 70)
+    
+    for i in range(10):
+        stats = frame_stats[i]
+        if stats["total"] == 0: continue
+        
+        pm = stats["perfect"] / stats["total"] * 100
+        da = stats["dir_match"] / stats["total"] * 100
+        avg_err = stats["avg_error"] / stats["total"]
+        status = "Stop" if i == 0 else "Accelerating" if i < 4 else "Cruising"
+        
+        print(f"#{i:<4} | {status:<10} | {pm:>8.1f}% | {da:>8.1f}% | {avg_err:>9.4f}")
+    
+    print("="*70)
 
 if __name__ == "__main__":
-    analyze_per_frame_performance()
+    main()

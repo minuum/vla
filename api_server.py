@@ -126,6 +126,9 @@ class MobileVLAInference:
         self.last_action = np.zeros(self.action_dim)
         self.smoothing_factor = self.config.get('smoothing_factor', 1.0)
         
+        # Frame counter (for first-frame enforcement)
+        self.frame_count = 0
+        
         logger.info("Model loaded successfully with smoothing enabled")
         
     def _load_model(self):
@@ -452,6 +455,10 @@ def get_model():
                 "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune_resampler/2026-02-06/unified_reg_win12_k6_resampler_20260205/last.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_unified_reg_win12_k6_resampler.json"
             },
+            "exp12_hybrid": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_exp12_win6_k1_resampler/2026-02-11/exp12_win6_k1_resampler/epoch=epoch=06-val_loss=val_loss=0.0017.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_exp12_win6_k1_resampler.json"
+            },
             "exp04_baseline": {
                 "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune/2026-02-05/unified_regression_win12_20260205/epoch=9-step=600.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_unified_regression_win12.json"
@@ -463,6 +470,14 @@ def get_model():
             "exp09_latent128": {
                 "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_exp09_resampler_latent128/2026-02-07/exp09_resampler_latent128/last.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_exp09_latent128.json"
+            },
+            "exp16_win6": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_exp16_win6_k1/2026-02-09/exp16_win6_k1/last.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_exp16_win6_k1.json"
+            },
+            "exp17_win8": {
+                "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_exp17_win8_k1/2026-02-10/exp17_win8_k1/epoch=epoch=09-val_loss=val_loss=0.0013.ckpt",
+                "config": "Mobile_VLA/configs/mobile_vla_exp17_win8_k1.json"
             },
             "basket_grounded_epoch10": {
                 "checkpoint": "runs/basket_left_only/kosmos/mobile_vla_left_only_finetune/2026-02-02/basket_left_grounded_20260202/epoch_epoch=10-val_loss=val_loss=0.002.ckpt",
@@ -667,6 +682,7 @@ async def reset_episode():
     if model:
         model.image_history = []
         model.last_action = np.zeros(model.action_dim)
+        model.frame_count = 0
         logger.info("Episode history and smoothing buffer reset")
     return {"status": "success", "message": "History buffer cleared"}
 
@@ -684,12 +700,28 @@ async def predict(request: InferenceRequest, api_key: str = Depends(verify_api_k
     try:
         model = get_model()
         
-        action, full_chunk, latency_ms, raw_action = model.predict(
-            image_base64=request.image,
-            instruction=request.instruction,
-            snap_to_grid=request.snap_to_grid,
-            snap_threshold=request.snap_threshold
-        )
+        # Increment frame count
+        model.frame_count += 1
+        
+        # Force [0, 0] for the very first frame (mandatory stationary start)
+        if model.frame_count == 1:
+            logger.info("🆕 First frame detected: Enforcing mandatory [0.0, 0.0] action")
+            # We still add to history if we want to maintain context
+            # We call predict once just to update internal history/buffers, but ignore the result
+            _, full_chunk, latency_ms, raw_action = model.predict(
+                image_base64=request.image,
+                instruction=request.instruction,
+                snap_to_grid=request.snap_to_grid,
+                snap_threshold=request.snap_threshold
+            )
+            action = np.zeros(2) # Force zero
+        else:
+            action, full_chunk, latency_ms, raw_action = model.predict(
+                image_base64=request.image,
+                instruction=request.instruction,
+                snap_to_grid=request.snap_to_grid,
+                snap_threshold=request.snap_threshold
+            )
         
         logger.info(f"✅ Prediction: {action}, Chunk: {full_chunk.shape}, Latency: {latency_ms:.1f}ms")
         

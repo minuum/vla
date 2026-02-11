@@ -20,21 +20,23 @@
 | **09** | Resampler Latent 128 | 12 | 6 | **Resampler 128** | ✅ | ✅ | **77.50%** | ❌ **Failed** | EXP-06 대비 -5%p |
 | **10** | Window 16 | **16** | 6 | Resampler 64 | ✅ | ❌ | - | ❌ **Failed** | 데이터 부족 (1 step/epoch) |
 | **11** | Discrete Classification | 12 | 6 | Resampler 64 | ❌ | ❌ | - | ❌ **Failed** | KeyError: 'n_bin' |
-| **12** | k=1 + Resampler | 12 | **1** | Resampler 64 | ❌ | ❌ | - | 📅 **Planned** | 목표 92-93% |
+| **12** | k=1 + Resampler | 12 | **1** | Resampler 64 | ❌ | ❌ | - | ⏳ **Training** | Hybrid, W12 context |
 | **13** | k=3 Mid-range | 12 | **3** | Resampler 64 | ❌ | ❌ | - | 📅 **Planned** | Balance test |
 | **14** | Resampler Depth Ablation | 12 | 6 | Resampler 64 | ❌ | ❌ | - | 📅 **Planned** | depth=4,6,8,10 |
 | **15** | Final Optimized | 12 | 1 | Resampler (tuned) | ❌ | ❌ | - | 📅 **Planned** | 95% 목표 |
-| **16** | Window 6 + k=1 | **6** | **1** | Linear | ❌ | ❌ | - | ⏳ **Ready** | 예상 90-92% |
-| **17** | Window 8 + k=1 | **8** | **1** | Linear | ❌ | ❌ | - | ⏳ **Ready** | 예상 91-93% ⭐ |
+| **16** | Window 6 + k=1 | **6** | **1** | Linear | ✅ | ✅ | **89.72%** | 🥇 **Joint 1st** | Window 6 효율성 증명 |
+| **17** | Window 8 + k=1 | **8** | **1** | Linear | ✅ | ✅ | **94.72%** | 🥇 **Champion** | CALVIN cfg 최적화 증명 |
+| **12-B** | **W6 + k=1 + Res** | **6** | **1** | **Resampler 64** | ✅ | ✅ | **88.89%** | 🥈 **Joint 2nd** | Hybrid (Resampler 효과 입증) |
 
 ---
 
 ## 🏆 성능 순위 (추론 테스트 완료)
 
-| Rank | EXP | Model | PM/DA | Initial | Middle | Final | 특징 |
-| :---: | :---: | :--- | :---: | :---: | :---: | :---: | :--- |
-| 🥇 | **05** | Chunk k=1 | **89.72%** | 76% | **100%** | **100%** | 학습-추론 일치 |
-| 🥈 | **06** | Resampler 64 | **82.50%** | **81%** | 83.55% | 80% | Robust initial |
+| 🥇 | **17** | **Window 8/k=1** | **94.72%** | **83.0%** | **100.0%** | **100.0%** | **Best Sequence Modeling** |
+| 🥈 | **05** | Chunk k=1 | **89.72%** | 76% | 100% | 100% | 기초 최적화 모델 |
+| 🥈 | **16** | Window 6/k=1 | **89.72%** | 76% | 100% | 100% | 효율적 모델 |
+| 🥈 | **12** | **W6 Hybrid** | **88.89%** | **81.0%** | 100% | 77.89% | Resampler 시각효과 |
+| 🥉 | **06** | Resampler 64 | **82.50%** | 81% | 83.55% | 80% | Robust initial |
 | 🥉 | **09** | Resampler 128 | **77.50%** | 76% | 83.55% | 80% | Overfitting |
 | 4 | **04** | Baseline | **65.83%** | **9%** | 97.37% | 70.53% | Initial 취약 |
 
