@@ -4,6 +4,21 @@
 **프로젝트**: Mobile VLA Navigation Optimization  
 **목적**: 실험 과정의 논리적 흐름과 핵심 발견 정리
 
+**목적**: 실험 과정의 논리적 흐름과 핵심 발견 정리
+
+## 📊 실험 결과 요약 (Summary Table)
+
+| Exp ID | Model Config | Epochs | Success Rate | Key Insight / Failure Mode | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **EXP-17** | **Window 8, Chunk 1** | - | **94.72%** | Optimal Window Size (PM/DA 1위) | ✅ Done |
+| **EXP-16** | Window 6, Chunk 1 | - | 89.72% | Efficient Inference | ✅ Done |
+| **EXP-12** | Hybrid (W6+Resampler) | - | - | Training Combined Architecture | 🚀 Running |
+| EXP-05 | Window 12, Chunk 1 | - | 89.72% | Discovered Reactive Policy Benefit | ✅ Done |
+| EXP-06 | Resampler 64 | - | 82.50% | Solved Initial Frame Issue | ✅ Done |
+| EXP-09 | Latent 128 | - | 77.50% | Diminishing Returns on Size | ✅ Done |
+| EXP-04 | Baseline (Linear) | - | 65.83% | Poor Initial State Handling | ✅ Done |
+| EXP-10 | Window 16 | - | FAILED | Data Scarcity for Long Window | ❌ Fail |
+
 ---
 
 ## 📅 실험 타임라인 및 진화 과정
@@ -72,7 +87,7 @@
 
 - **EXP-17 (Window 8)**: ✅ 완료 (🏅 **New Best**)
   - 설정: Window 8, Chunk 1
-  - 결과: **93.28%** (PM/DA 1위 등극!)
+  - 결과: **94.72%** (PM/DA 1위 등극!)
   - **분석**: CALVIN 비율인 50% 수준의 Window가 우리 18프레임 데이터에도 최적임을 증명.
 
 - **EXP-12 (W6 Hybrid)**: 🚀 학습 중
