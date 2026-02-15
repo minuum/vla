@@ -1,0 +1,35 @@
+Traceback (most recent call last):
+  File "/home/billy/25-1kp/vla/src/robovlms_mobile_vla_inference.py", line 172, in load_model
+    from robovlms.train.mobile_vla_trainer import MobileVLATrainer
+  File "/home/billy/25-1kp/vla/RoboVLMs_upstream/robovlms/train/mobile_vla_trainer.py", line 8, in <module>
+    from robovlms.train.base_trainer import BaseTrainer
+  File "/home/billy/25-1kp/vla/RoboVLMs_upstream/robovlms/train/base_trainer.py", line 12, in <module>
+    import lightning.pytorch as pl
+ModuleNotFoundError: No module named 'lightning'
+📦 Transformers version: 4.36.2
+⚠️ Warning: transformers version mismatch. Found 4.36.2, expected 4.41.2 from RoboVLMs/pyproject.toml
+
+🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 
+VLA 추론 시스템 단계별 테스트
+🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 🎯 
+
+============================================================
+📦 Step 1: 모델 로딩 테스트
+============================================================
+📌 체크포인트: /home/billy/25-1kp/vla/RoboVLMs_upstream/runs/mobile_vla_kosmos2_right_only_20251207/kosmos/mobile_vla_finetune/2025-12-07/mobile_vla_kosmos2_right_only_20251207/last.ckpt
+✅ 체크포인트 파일 확인됨 (7.33GB)
+⚙️  설정:
+   - window_size: 2
+   - use_abs_action: True
+   - action_dim: 2
+   - fwd_pred_next_n: 10
+🔧 Device: cuda
+🎮 GPU: NVIDIA RTX A5000
+
+🚀 모델 로딩 중...
+🚀 모델 로딩: /home/billy/25-1kp/vla/RoboVLMs_upstream/runs/mobile_vla_kosmos2_right_only_20251207/kosmos/mobile_vla_finetune/2025-12-07/mobile_vla_kosmos2_right_only_20251207/last.ckpt
+⚙️  메모리 최적화 모드: CPU 로드 → FP16 변환 → GPU 전송
+❌ 모델 로드 실패: No module named 'lightning'
+❌ 모델 로딩 실패
+
+❌ Step 1 실패. 테스트 중단.

@@ -1,0 +1,35 @@
+{
+  "fp32": {
+    "before": {
+      "allocated_gb": 0.0,
+      "reserved_gb": 0.0,
+      "max_allocated_gb": 0.0
+    },
+    "after": {
+      "allocated_gb": 13.54,
+      "reserved_gb": 13.55,
+      "max_allocated_gb": 13.54
+    },
+    "model_params": 1677224724,
+    "memory_used_gb": 13.54
+  },
+  "quantized": {
+    "before": {
+      "allocated_gb": 13.54,
+      "reserved_gb": 13.55,
+      "max_allocated_gb": 13.54
+    },
+    "after": {
+      "allocated_gb": 5.8,
+      "reserved_gb": 5.81,
+      "max_allocated_gb": 5.8
+    },
+    "memory_used_gb": -7.739999999999999
+  },
+  "comparison": {
+    "fp32_gb": 13.54,
+    "quantized_gb": -7.739999999999999,
+    "reduction_gb": 21.279999999999998,
+    "reduction_percent": 157.16395864106352
+  }
+}

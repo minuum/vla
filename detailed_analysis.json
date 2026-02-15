@@ -1,0 +1,362 @@
+[
+  {
+    "episode": "episode_20260129_130716_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.2324,
+      0.298
+    ],
+    "snapped": [
+      0.0,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_120240_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.819,
+      -0.0088
+    ],
+    "snapped": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_014632_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.8112,
+      -0.0239
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_081010_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.7834,
+      -0.0415
+    ],
+    "snapped": [
+      0.0,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_065553_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.6843,
+      -0.0376
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_132146_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.7759,
+      -0.0154
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_083515_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.7432,
+      -0.0042
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_065308_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.6148,
+      -0.0114
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_115638_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.7545,
+      -0.0301
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_020231_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.8052,
+      -0.0373
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_121416_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.7733,
+      -0.0437
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_122337_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.683,
+      -0.0847
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_075249_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.7691,
+      -0.0325
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_061004_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.6885,
+      -0.0783
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_125430_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.6801,
+      -0.0362
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_064901_basket_1box_hori_left_core_medium.h5",
+    "frame": 9,
+    "target": "Left",
+    "truth": [
+      1.149999976158142,
+      0.0
+    ],
+    "raw": [
+      0.7046,
+      -0.0251
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u2705 MATCH"
+  },
+  {
+    "episode": "episode_20260129_132534_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.7621,
+      0.0047
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_115350_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.7526,
+      -0.0248
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_131312_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.7804,
+      0.0078
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  },
+  {
+    "episode": "episode_20260129_131621_basket_1box_hori_right_core_medium.h5",
+    "frame": 9,
+    "target": "Right",
+    "truth": [
+      1.149999976158142,
+      -1.149999976158142
+    ],
+    "raw": [
+      0.8075,
+      -0.071
+    ],
+    "snapped": [
+      1.149999976158142,
+      0.0
+    ],
+    "status": "\u274c MISMATCH"
+  }
+]

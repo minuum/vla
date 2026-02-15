@@ -1,0 +1,55 @@
+{
+    "exp_name": "brown_pot_right",
+    "model": "kosmos",
+    "model_url": "https://huggingface.co/microsoft/kosmos-2-patch14-224",
+    "description": "Brown Pot navigation with RIGHT instruction (VLM recognition: 70%, Gray Basket obstacle: 90%)",
+    "train_setup": {
+        "precision": "16-mixed",
+        "predict_action": true,
+        "freeze_backbone": true,
+        "train_vision": false,
+        "lora_enable": false,
+        "comment": "Frozen VLM, trainable action head only - no LoRA needed!"
+    },
+    "act_head": {
+        "type": "MobileVLALSTMDecoder",
+        "hidden_size": 512,
+        "num_layers": 4,
+        "action_dim": 2,
+        "chunk_size": 5,
+        "comment": "LSTM-based action head for continuous velocity prediction"
+    },
+    "train_dataset": {
+        "type": "MobileVLAH5Dataset",
+        "data_dir": "/home/billy/25-1kp/vla/ROS_action/brown_pot_dataset",
+        "episode_pattern": "episode_*_right.h5",
+        "instruction_filter": [
+            "right",
+            "RIGHT"
+        ],
+        "comment": "RIGHT instruction episodes only"
+    },
+    "vlm_prompt": {
+        "template": "<grounding> Is there a brown pot?",
+        "comment": "Simple prompt works best - VLM does object detection, action head does instruction grounding"
+    },
+    "trainer": {
+        "max_epochs": 10,
+        "batch_size": 8,
+        "learning_rate": 1e-4,
+        "gradient_clip_val": 1.0,
+        "val_check_interval": 0.25
+    },
+    "data_collection": {
+        "target_object": "Brown Pot (갈색 화분)",
+        "obstacle_object": "Gray Basket (회색 빨랫 바구니)",
+        "target_vlm_recognition": "70%",
+        "obstacle_vlm_recognition": "90%",
+        "episodes_needed": 200,
+        "instructions": [
+            "Navigate around obstacles and reach the front of the brown pot on the right",
+            "Navigate to the right of the brown pot",
+            "Go to the brown pot on the right"
+        ]
+    }
+}

@@ -1,0 +1,87 @@
+{
+  "task_name": "cup_reaching_with_obstacles",
+  "total_scenarios": 8,
+  "total_target_episodes": 120,
+  "scenarios": [
+    {
+      "id": "1box_vert_left",
+      "name": "1박스-세로-왼쪽경로",
+      "description": "박스 1개를 세로로 배치, 왼쪽으로 우회하여 컵 도달",
+      "obstacle_count": 1,
+      "obstacle_layout": "vertical",
+      "preferred_path": "left",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ → ⬛ → □ ← 컵\n     ↓   ↗\n     □ ← □\n                "
+    },
+    {
+      "id": "1box_vert_right",
+      "name": "1박스-세로-오른쪽경로",
+      "description": "박스 1개를 세로로 배치, 오른쪽으로 우회하여 컵 도달",
+      "obstacle_count": 1,
+      "obstacle_layout": "vertical",
+      "preferred_path": "right",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ → □ → ⬛ → 컵\n     ↘   ↗\n     □ → □\n                "
+    },
+    {
+      "id": "1box_hori_left",
+      "name": "1박스-가로-왼쪽경로",
+      "description": "박스 1개를 가로로 배치, 왼쪽으로 우회하여 컵 도달",
+      "obstacle_count": 1,
+      "obstacle_layout": "horizontal",
+      "preferred_path": "left",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ ← 컵\n     ↓   ↑\n     □ → ⬛ → □\n                "
+    },
+    {
+      "id": "1box_hori_right",
+      "name": "1박스-가로-오른쪽경로",
+      "description": "박스 1개를 가로로 배치, 오른쪽으로 우회하여 컵 도달",
+      "obstacle_count": 1,
+      "obstacle_layout": "horizontal",
+      "preferred_path": "right",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ → 컵\n     ↓   ↑\n     ⬛ → □\n                "
+    },
+    {
+      "id": "2box_vert_left",
+      "name": "2박스-세로-왼쪽경로",
+      "description": "박스 2개를 세로로 배치, 왼쪽으로 우회하여 컵 도달",
+      "obstacle_count": 2,
+      "obstacle_layout": "vertical",
+      "preferred_path": "left",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ → ⬛ → ⬛ ← 컵\n     ↓   ↗\n     □ ← □ ← □\n                "
+    },
+    {
+      "id": "2box_vert_right",
+      "name": "2박스-세로-오른쪽경로",
+      "description": "박스 2개를 세로로 배치, 오른쪽으로 우회하여 컵 도달",
+      "obstacle_count": 2,
+      "obstacle_layout": "vertical",
+      "preferred_path": "right",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ → □ → ⬛ → ⬛ → 컵\n     ↘   ↗\n     □ → □ → □\n                "
+    },
+    {
+      "id": "2box_hori_left",
+      "name": "2박스-가로-왼쪽경로",
+      "description": "박스 2개를 가로로 배치, 왼쪽으로 우회하여 컵 도달",
+      "obstacle_count": 2,
+      "obstacle_layout": "horizontal",
+      "preferred_path": "left",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ ← 컵\n     ↓   ↑\n     □ → ⬛ ⬛ → □\n                "
+    },
+    {
+      "id": "2box_hori_right",
+      "name": "2박스-가로-오른쪽경로",
+      "description": "박스 2개를 가로로 배치, 오른쪽으로 우회하여 컵 도달",
+      "obstacle_count": 2,
+      "obstacle_layout": "horizontal",
+      "preferred_path": "right",
+      "target_episodes": 15,
+      "example_path": "\n시작→ □ → 컵\n     ↓   ↑  \n     ⬛ ⬛ → □\n                "
+    }
+  ]
+}

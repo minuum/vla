@@ -1,0 +1,30 @@
+#!/bin/bash
+# 간단한 HTTP 서버 스크립트
+
+echo "=========================================="
+echo "Python HTTP 서버로 데이터 공유"
+echo "=========================================="
+echo ""
+
+echo "로봇 서버에서 실행할 명령어:"
+echo ""
+echo "1. HTTP 서버 시작:"
+echo "   cd /home/soda/vla/ROS_action/mobile_vla_dataset"
+echo "   python3 -m http.server 8000"
+echo ""
+echo "2. 백그라운드 실행:"
+echo "   nohup python3 -m http.server 8000 --bind 0.0.0.0 > /tmp/http_server.log 2>&1 &"
+echo ""
+echo "로컬 컴퓨터에서 다운로드:"
+echo ""
+echo "1. wget 사용:"
+echo "   cd /home/billy/25-1kp/vla/ROS_action/mobile_vla_dataset"
+echo "   wget -r -np -nH --cut-dirs=3 http://로봇서버IP:8000/*.h5"
+echo ""
+echo "2. curl 사용:"
+echo "   curl -O http://로봇서버IP:8000/episode_*.h5"
+echo ""
+echo "3. 브라우저에서 접속:"
+echo "   http://로봇서버IP:8000"
+echo ""
+
