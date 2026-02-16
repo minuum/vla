@@ -41,14 +41,14 @@ class MobileVLADataCollector(Node):
         
         # === 핵심 설정 ===
         self.WASD_TO_CONTINUOUS = {
-            'w': {"linear_x": 1.15, "linear_y": 0.0, "angular_z": 0.0},   # 전진
-            'a': {"linear_x": 0.0, "linear_y": 1.15, "angular_z": 0.0},   # 좌이동  
-            's': {"linear_x": -1.15, "linear_y": 0.0, "angular_z": 0.0},  # 후진
-            'd': {"linear_x": 0.0, "linear_y": -1.15, "angular_z": 0.0},  # 우이동
-            'q': {"linear_x": 1.15, "linear_y": 1.15, "angular_z": 0.0},   # 전좌대각
-            'e': {"linear_x": 1.15, "linear_y": -1.15, "angular_z": 0.0},  # 전우대각
-            'z': {"linear_x": -1.15, "linear_y": 1.15, "angular_z": 0.0},  # 후좌대각
-            'c': {"linear_x": -1.15, "linear_y": -1.15, "angular_z": 0.0}, # 후우대각
+            'w': {"linear_x": 0.5, "linear_y": 0.0, "angular_z": 0.0},   # 전진
+            'a': {"linear_x": 0.0, "linear_y": 0.5, "angular_z": 0.0},   # 좌이동  
+            's': {"linear_x": -0.5, "linear_y": 0.0, "angular_z": 0.0},  # 후진
+            'd': {"linear_x": 0.0, "linear_y": -0.5, "angular_z": 0.0},  # 우이동
+            'q': {"linear_x": 0.5, "linear_y": 0.5, "angular_z": 0.0},   # 전좌대각
+            'e': {"linear_x": 0.5, "linear_y": -0.5, "angular_z": 0.0},  # 전우대각
+            'z': {"linear_x": -0.5, "linear_y": 0.5, "angular_z": 0.0},  # 후좌대각
+            'c': {"linear_x": -0.5, "linear_y": -0.5, "angular_z": 0.0}, # 후우대각
             'r': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 0.5},   # 좌회전
             't': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": -0.5},  # 우회전
             ' ': {"linear_x": 0.0, "linear_y": 0.0, "angular_z": 0.0}    # 정지 (스페이스바)
