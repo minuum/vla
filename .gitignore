@@ -1,4 +1,9 @@
-# Python
+# ============================================================
+# VLA Project .gitignore
+# Updated: 2026-02-19
+# ============================================================
+
+# ─── Python ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -22,8 +27,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.pyc
+*.pyo
 
-# Virtualenv
+# ─── Virtual Environments ────────────────────────────────────
 .env
 .venv
 env/
@@ -32,7 +39,36 @@ ENV/
 env.bak/
 venv.bak/
 
-# ROS Catkin/Colcon Build Artifacts
+# ─── Jupyter ─────────────────────────────────────────────────
+.ipynb_checkpoints
+
+# ─── IDE / Editor ────────────────────────────────────────────
+# VSCode (로컬 설정만 무시, 공유 settings는 추적)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ─── OS Generated ────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ─── Log Files ───────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Temporary Files ─────────────────────────────────────────
+*.tmp
+*~
+*.whl
+
+# ─── ROS Catkin / Colcon Build Artifacts ─────────────────────
 ROS_action/build/
 ROS_action/install/
 ROS_action/log/
@@ -44,104 +80,69 @@ devel_isolated/
 build_isolated/
 install_isolated/
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# ─── Model Files (대용량 / Git LFS 처리 권장) ─────────────────
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.ckpt
+*.h5
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# 단, 특정 데이터셋 h5는 경로 지정
+ROS_action/mobile_vla_dataset/*.h5
 
-# Docker - poetry.lock might be version controlled, but Dockerfiles referencing specific versions could be an issue if not managed.
-# If Docker images are built and stored elsewhere, you might not need to ignore Dockerfile.
-# Consider your Docker strategy.
-
-# Poetry
-# .poetry.lock # Usually version controlled, but if generating from pyproject.toml in CI/CD, can be ignored.
-# .pdm.lock
-# pdm.lock
-# poetry.lock
-
-# Jupyter Notebook Checkpoints
-.ipynb_checkpoints
-
-# Log files
-*.log
-logs/
-
-# Temporary files
-*.tmp
-*~
-*.whl
-
-# VLA 모델 관련
+# ─── Model Caches / Checkpoints ──────────────────────────────
+.vla_models_cache/
+.vlms/
+RoboVLMs/.vlms/
+RoboVLMs_upstream/.vlms/
 ROS_action/.paligemma_ros_cache/
 Model_ws/.paligemma_ros_cache/
+
+# ─── Training Outputs (대용량 결과물) ────────────────────────
+runs/
+checkpoints/
+result/
+config/weights/
+pretrained_ckpts/
 Model_ws/build/
 Model_ws/install/
 Model_ws/log/
-*.pt
-# *.pth  # 주석 처리하여 .pth 파일 추적 허용
-*.bin
-*.safetensors
-.vla_models_cache/
-*.lock
 
-# 추가 Python 파일
-*.pyc
-*.pyo
-ROS_action/src/*.whl
-
-# 모델 체크포인트 및 대용량 데이터
-# (moved to Git LFS)
-# *.h5 -> Enable global ignore
-*.h5
-# Ignore numpy arrays
+# ─── Numpy & Binary Data ─────────────────────────────────────
 *.npy
+*.npz
 
-# Setup scripts (generated automatically)
+# ─── Robo+ / External Repos (별도 관리) ──────────────────────
+Robo+/
+simpler_env_repo/
+RoboVLMs_upstream/
+
+# ─── Auto-generated Setup Scripts ────────────────────────────
 setup_aliases_docker.sh
 setup_aliases_host.sh
 setup_ros2_docker.sh
 setup_ros2_host.sh
+
+# ─── Poetry / Package Lock ───────────────────────────────────
+poetry.lock
+*.lock
+
+# ─── Secrets / Credentials ───────────────────────────────────
+secrets.sh
+JETSON_HANDOFF_INFO.txt
+.env*
+!.env.example
+
+# ─── Git Recovery ────────────────────────────────────────────
+git_recovery_backup/
+
+# ─── API Test Results (임시) ─────────────────────────────────
+api_test_results.json
+
+# ─── ROS / VLA Source Wheels ─────────────────────────────────
+ROS_action/src/*.whl
 ./vla/RoboVLMs/.vlms
 RoboVLMs/.vlms/kosmos-2-patch14-224
 mobile-vla-omniwheel/
-*.whl
-*.pth
-config/weights/
-checkpoints/
-
-# 학습 실행 결과 및 체크포인트 (대용량)
-runs/
-*.ckpt
-result/
-
-# ONNX 모델
-*.onnx
-
-# VLM 모델 캐시
-.vlms/
-RoboVLMs_upstream/.vlms/
-
-# Robo+ 모델 파일
-Robo+/
-
-# Poetry lock file (자동 생성)
-poetry.lock
-
-# Git recovery backup
-git_recovery_backup/
-secrets.sh
-JETSON_HANDOFF_INFO.txt
-ROS_action/mobile_vla_dataset/*.h5
-api_test_results.json
-simpler_env_repo/
