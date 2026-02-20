@@ -17,6 +17,7 @@
   - Epoch 4 이후 Train Loss는 지속적으로 감소하나 Validation Loss가 상승하는 전형적인 **과적합(Overfitting)** 발생.
   - 적용된 강한 Augmentation(Color Jitter, Random Crop)이 학습 초기에는 도움이 되었으나, 데이터셋 규모 대비 복잡도를 높여 수렴을 방해했을 가능성 존재.
 - **조치**: 가장 성능이 좋은 Epoch 3 체크포인트를 별도 보관 및 추론 서버용으로 준비.
+  - 경로: `RoboVLMs_upstream/runs/v3_classification/kosmos/mobile_vla_v3_classification/2026-02-19/v3-exp01-aug/epoch_epoch=03-val_loss=val_loss=0.455.ckpt`
 
 ## 4. 향후 계획 및 변화 과정
 1. **성공 요인 이식 (V3-EXP-02)**:
@@ -27,6 +28,9 @@
 3. **체크포인트 관리**:
    - 우수 체크포인트를 원격 서버(`soda@100.85.118.58`)로 전송하여 실로봇 테스트 대기.
 
+## 5. 진행 중인 이슈
+- **샌드박스 설정 오류**: 에이전트 실행 환경 내의 `sandbox-exec` 부재로 인해 Git push 및 스크립트 실행이 제한됨. 해당 작업은 사용자 터미널에서 수동 실행 권장.
+
 ---
-*작성일: 2026-02-20*
+*최종 업데이트: 2026-02-20*
 *작성자: Antigravity*

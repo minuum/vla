@@ -17,6 +17,18 @@ from tqdm import tqdm
 from datetime import datetime
 from collections import defaultdict, Counter
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        return super(NpEncoder, self).default(obj)
+
 API_BASE = "http://localhost:8000"
 # Try multiple possible API keys
 POSSIBLE_KEYS = [
@@ -122,6 +134,13 @@ def analyze_episode(h5_path, api_base=API_BASE):
         'error_distribution': Counter()
     }
     
+    # 에피소드 시작 전 서버 상태 초기화
+    try:
+        # Use HEADERS to propagate API key if needed, though /reset may not require it
+        requests.post(f"{api_base}/reset", timeout=5)
+    except Exception as e:
+        print(f"  ⚠️  Failed to reset server: {e}")
+    
     # 프레임별 분석
     for i in tqdm(range(num_frames), desc=f"  {episode_name[:30]}", leave=False):
         # API 호출
@@ -179,9 +198,9 @@ def analyze_episode(h5_path, api_base=API_BASE):
             'frame_idx': i,
             'gt_action': gt_action.tolist(),
             'pred_action': pred_action.tolist(),
-            'error': np.linalg.norm(gt_action - pred_action),
-            'perfect_match': perfect,
-            'direction_match': dir_match,
+            'error': float(np.linalg.norm(gt_action - pred_action)),
+            'perfect_match': bool(perfect),
+            'direction_match': bool(dir_match),
             'error_type': error_type
         }
         results['frame_details'].append(frame_info)
@@ -199,7 +218,7 @@ def analyze_episode(h5_path, api_base=API_BASE):
             'range': (start, end),
             'perfect_match': pm_count / len(phase_frames) * 100,
             'direction_agreement': dm_count / len(phase_frames) * 100,
-            'avg_error': np.mean([f['error'] for f in phase_frames])
+            'avg_error': float(np.mean([f['error'] for f in phase_frames]))
         }
     
     # 전체 통계
@@ -209,7 +228,7 @@ def analyze_episode(h5_path, api_base=API_BASE):
     results['overall'] = {
         'perfect_match': pm_total / num_frames * 100,
         'direction_agreement': dm_total / num_frames * 100,
-        'avg_error': np.mean([f['error'] for f in results['frame_details']])
+        'avg_error': float(np.mean([f['error'] for f in results['frame_details']]))
     }
     
     return results
@@ -233,7 +252,6 @@ def main():
     aggregated_errors = Counter()
     
     for h5_path in h5_files:
-        print(f"Processing: {h5_path.name}")
         result = analyze_episode(h5_path)
         all_results.append(result)
         
@@ -241,6 +259,7 @@ def main():
         aggregated_errors.update(result['error_distribution'])
         
         # 요약 출력
+        print(f"Processing: {h5_path.name}")
         print(f"  Overall: PM={result['overall']['perfect_match']:.1f}%, DA={result['overall']['direction_agreement']:.1f}%")
         print(f"  Phases:")
         for phase, stats in result['phases'].items():
@@ -285,6 +304,9 @@ def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = f"logs/detailed_error_analysis_{timestamp}.json"
     
+    # Ensure logs directory exists
+    os.makedirs("logs", exist_ok=True)
+    
     with open(output_file, 'w') as f:
         json.dump({
             'test_config': {
@@ -298,7 +320,7 @@ def main():
             },
             'error_distribution': dict(aggregated_errors),
             'episode_results': all_results
-        }, f, indent=2)
+        }, f, indent=2, cls=NpEncoder)
     
     print(f"💾 Results saved: {output_file}")
 

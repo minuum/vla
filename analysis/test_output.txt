@@ -1,0 +1,77 @@
+2026-02-17 06:51:06.169608: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-02-17 06:51:06.199351: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+/home/billy/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+WARNING:inference_server:============================================================
+WARNING:inference_server:⚠️  VLA_API_KEY 환경 변수가 없습니다!
+WARNING:inference_server:생성된 API Key: Xt3eth9CeSjY8S811nvpe_1GM0F69j4iOQ_t5xV_Avw
+WARNING:inference_server:다음 명령어로 저장하세요:
+WARNING:inference_server:export VLA_API_KEY="Xt3eth9CeSjY8S811nvpe_1GM0F69j4iOQ_t5xV_Avw"
+WARNING:inference_server:============================================================
+/usr/local/lib/python3.10/dist-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in InferenceResponse has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+INFO:inference_server:Loading model from /home/billy/25-1kp/vla/runs/unified_regression_win12/kosmos/mobile_vla_exp17_win8_k1/2026-02-10/exp17_win8_k1/epoch=epoch=09-val_loss=val_loss=0.0013.ckpt
+INFO:inference_server:Using device: cuda
+/home/billy/.local/lib/python3.10/site-packages/lightning_utilities/core/imports.py:14: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+INFO:inference_server:🚀 [MODE] High-Precision BF16/FP16 (Action Diversity Prioritized)
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+INFO:inference_server:Loading checkpoint: /home/billy/25-1kp/vla/runs/unified_regression_win12/kosmos/mobile_vla_exp17_win8_k1/2026-02-10/exp17_win8_k1/epoch=epoch=09-val_loss=val_loss=0.0013.ckpt
+INFO:inference_server:✅ Model converted to Float16 (Optimized for LSTM consistency)
+INFO:inference_server:✅ Verified: policy_head found at model.act_head
+INFO:inference_server:📊 Actual GPU Memory: 3.183 GB
+INFO:inference_server:Processor initialized from .vlms/kosmos-2-patch14-224
+INFO:inference_server:Model loaded successfully
+INFO:inference_server:✅ act_head history reset
+INFO:inference_server:✅ Model history and logging reset (Internal)
+INFO:inference_server:🛡️ First-Frame Zero Enforcement 적용 (히든 스테이트는 업데이트됨)
+INFO:inference_server:📤 Action: Raw[0.000, 0.000] -> Scaled[0.000, 0.000]
+INFO:inference_server:📤 Action: Raw[0.695, -0.448] -> Scaled[0.800, -0.515]
+INFO:inference_server:✅ Driving log saved to /home/billy/25-1kp/vla/docs/inference_reports/inference_20260217_065107_2.json
+INFO:inference_server:✅ act_head history reset
+INFO:inference_server:✅ Model history and logging reset (Internal)
+INFO:inference_server:🛡️ First-Frame Zero Enforcement 적용 (히든 스테이트는 업데이트됨)
+INFO:inference_server:📤 Action: Raw[0.000, 0.000] -> Scaled[0.000, 0.000]
+INFO:inference_server:📤 Action: Raw[0.695, -0.448] -> Scaled[0.800, -0.515]
+--- Inference Test ---
+Checkpoint: /home/billy/25-1kp/vla/runs/unified_regression_win12/kosmos/mobile_vla_exp17_win8_k1/2026-02-10/exp17_win8_k1/epoch=epoch=09-val_loss=val_loss=0.0013.ckpt
+Config: /home/billy/25-1kp/vla/Mobile_VLA/configs/mobile_vla_exp17_win8_k1.json
+Image: /home/billy/25-1kp/vla/analysis/image.png
+--------------- model configs ---------------
+{'robovlm_name': 'RoboKosMos', 'exp_name': 'exp17_win8_k1', 'parent': None, 'task_name': 'mobile_vla_exp17_win8_k1', 'model': 'kosmos', 'model_url': 'https://huggingface.co/microsoft/kosmos-2-patch14-224', 'seq_len': 1, 'image_size': 224, 'image_mean': [0.48145466, 0.4578275, 0.40821073], 'image_std': [0.26862954, 0.26130258, 0.27577711], 'window_size': 8, 'fwd_pred_next_n': 1, 'arm_gripper_loss_ratio': 1.0, 'cap_loss_ratio': 0.05, 'fwd_loss_ratio': 0.05, 'seed': 123, 'batch_size': 1, 'num_workers': 2, 'data_scale': 1, 'optimizer': 'adamw', 'learning_rate': 0.0001, 'min_lr_scale': 0.001, 'weight_decay': 0.01, 'warmup_epochs': 0.1, 'warmup_steps': 0, 'warmup_ratio': None, 'use_hand_rgb': False, 'use_time_causal_attn': False, 'use_mim_obs_loss': False, 'use_pixel_loss': False, 'use_obs_queries': True, 'use_vision_resampler': False, 'vision_masked_ratio': 0.9, 'use_tube_mask': False, 'output_root': 'runs/unified_regression_win12', 'log_root': 'runs/unified_regression_win12', 'cache_root': 'runs/cache', 'model_load_path': '/home/billy/25-1kp/vla/pretrained_ckpts/checkpoints/kosmos_ph_google-robot-post-train.pt', 'model_load_source': 'lightning', 'resume': None, 'model_path': '.vlms/kosmos-2-patch14-224', 'model_config': '.vlms/kosmos-2-patch14-224/config.json', 'gpus': 1, 'num_nodes': 1, 'train_setup': {'precision': '16-mixed', 'predict_action': True, 'predict_forward': False, 'predict_forward_hand': False, 'predict_caption': False, 'train_vision': False, 'bits': -1, 'freeze_mm_mlp_adapter': False, 'freeze_backbone': True, 'freeze_resampler': True, 'tune_mm_mlp_adapter': False, 'tune_mm_projector': True, 'mm_use_im_start_end': False, 'mm_use_im_patch_token': False, 'gradient_checkpointing': True, 'lora_enable': False, 'mm_projector_lr': 0.0001, 'lora_r': 32, 'lora_alpha': 16, 'lora_dropout': 0.1, 'lora_bias': 'none', 'train_text_embedding': False}, 'vision_resampler': {'vis_dim': 1024, 'depth': 8, 'dim_head': 64, 'heads': 8, 'num_latents': 64}, 'act_encoder': None, 'trainer_type': 'MobileVLATrainer', 'act_head': {'type': 'MobileVLALSTMDecoder', 'hidden_size': 1024, 'action_dim': 2, 'down_sample': 'none', 'latent': 1, 'fwd_pred_next_n': 1, 'window_size': 8, 'action_space': 'continuous', 'with_history': True, 'history_type': 'post', 'num_layers': 4}, 'fwd_head': None, 'tokenizer': {'type': 'AutoProcessor', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224', 'tokenizer_type': 'kosmos', 'max_text_len': 256, 'additional_special_tokens': None}, 'vlm': {'type': 'AutoModelForVision2Seq', 'name': 'kosmos', 'pretrained_model_name_or_path': '.vlms/kosmos-2-patch14-224'}, 'trainer': {'accelerator': 'gpu', 'strategy': 'auto', 'precision': '16-mixed', 'logger': ['tensorboard'], 'gradient_clip_val': 1.0, 'use_distributed_sampler': False, 'log_every_n_steps': 5, 'max_epochs': 10, 'max_steps': -1, 'accumulate_grad_batches': 8}, 'train_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/basket_dataset', 'episode_pattern': 'episode_*.h5', 'shift_first': False, 'model_name': 'kosmos', 'rgb_pad': 10, 'train_split': 0.9, 'discrete_action': False, 'window_size': 8, 'fwd_pred_next_n': 1}, 'val_dataset': {'type': 'MobileVLAH5Dataset', 'data_dir': '/home/billy/25-1kp/vla/ROS_action/basket_dataset', 'episode_pattern': 'episode_*.h5', 'model_name': 'kosmos', 'train_split': 0.9, 'is_validation': True, 'discrete_action': False, 'window_size': 8, 'fwd_pred_next_n': 1}, 'norm_action': False, 'norm_min': -1.0, 'norm_max': 1.0}
+fwd next n: 1
+Unfreezing Multi-modal Projector...
+{'act_head.rnn.weight_ih_l2', 'act_head.rnn.weight_ih_l3', 'backbone.image_to_text_projection.dense.bias', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.bias_ih_l2', 'act_head.rnn.weight_ih_l1', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.weight_hh_l3', 'act_head.rnn.bias_ih_l1', 'act_head.velocities.mlp.6.bias', 'act_head.rnn.weight_ih_l0', 'act_head.velocities.mlp.4.weight', 'act_head.rnn.bias_hh_l3', 'backbone.image_to_text_projection.x_attn.k_proj.weight', 'action_token', 'act_head.rnn.bias_ih_l3', 'backbone.image_to_text_projection.dense.weight', 'act_head.velocities.mlp.2.bias', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.weight_hh_l1', 'backbone.image_to_text_projection.x_attn.v_proj.bias', 'backbone.image_to_text_projection.x_attn.k_proj.bias', 'backbone.image_to_text_projection.x_attn.q_proj.weight', 'act_head.rnn.bias_hh_l1', 'act_head.velocities.mlp.4.bias', 'act_head.velocities.mlp.6.weight', 'backbone.image_to_text_projection.x_attn.out_proj.bias', 'act_head.velocities.mlp.0.bias', 'backbone.image_to_text_projection.x_attn.v_proj.weight', 'act_head.rnn.weight_hh_l0', 'backbone.image_to_text_projection.x_attn.q_proj.bias', 'backbone.image_to_text_projection.x_attn.out_proj.weight', 'backbone.image_to_text_projection.latent_query'}
+{'act_head.rnn.weight_ih_l2', 'act_head.rnn.weight_ih_l3', 'backbone.image_to_text_projection.dense.bias', 'act_head.rnn.bias_hh_l0', 'act_head.rnn.bias_ih_l0', 'act_head.rnn.bias_hh_l2', 'act_head.rnn.bias_ih_l2', 'act_head.rnn.weight_ih_l1', 'act_head.velocities.mlp.0.weight', 'act_head.rnn.weight_hh_l2', 'act_head.rnn.weight_hh_l3', 'act_head.rnn.bias_ih_l1', 'act_head.velocities.mlp.6.bias', 'act_head.rnn.weight_ih_l0', 'act_head.velocities.mlp.4.weight', 'act_head.rnn.bias_hh_l3', 'backbone.image_to_text_projection.x_attn.k_proj.weight', 'action_token', 'act_head.rnn.bias_ih_l3', 'backbone.image_to_text_projection.dense.weight', 'act_head.velocities.mlp.2.bias', 'act_head.velocities.mlp.2.weight', 'act_head.rnn.weight_hh_l1', 'backbone.image_to_text_projection.x_attn.v_proj.bias', 'backbone.image_to_text_projection.x_attn.k_proj.bias', 'backbone.image_to_text_projection.x_attn.q_proj.weight', 'act_head.rnn.bias_hh_l1', 'act_head.velocities.mlp.4.bias', 'act_head.velocities.mlp.6.weight', 'backbone.image_to_text_projection.x_attn.out_proj.bias', 'act_head.velocities.mlp.0.bias', 'backbone.image_to_text_projection.x_attn.v_proj.weight', 'act_head.rnn.weight_hh_l0', 'backbone.image_to_text_projection.x_attn.q_proj.bias', 'backbone.image_to_text_projection.x_attn.out_proj.weight', 'backbone.image_to_text_projection.latent_query'}
+KosMos Model Parameters: 58.51M
+
+[Instruction]: Navigate to the brown pot
+DEBUG: output_hs shape: torch.Size([1, 257, 2048])
+DEBUG: action_token_mask sum: 1
+DEBUG: masked_hs shape: torch.Size([1, 2048])
+DEBUG: action_hs final shape: torch.Size([1, 1, 1, 2048])
+DEBUG: MobileVLALSTMDecoder forward input tok_seq shape: torch.Size([1, 1, 1, 2048])
+Step 1 (Safety): [0. 0.] (Latency: 187.46ms)
+DEBUG: output_hs shape: torch.Size([1, 257, 2048])
+DEBUG: action_token_mask sum: 1
+DEBUG: masked_hs shape: torch.Size([1, 2048])
+DEBUG: action_hs final shape: torch.Size([1, 1, 1, 2048])
+DEBUG: MobileVLALSTMDecoder forward input tok_seq shape: torch.Size([1, 1, 1, 2048])
+Step 2 (Actual): [ 0.8   -0.515] (Latency: 52.41ms)
+
+[Instruction]: Navigate to the target location
+DEBUG: output_hs shape: torch.Size([1, 257, 2048])
+DEBUG: action_token_mask sum: 1
+DEBUG: masked_hs shape: torch.Size([1, 2048])
+DEBUG: action_hs final shape: torch.Size([1, 1, 1, 2048])
+DEBUG: MobileVLALSTMDecoder forward input tok_seq shape: torch.Size([1, 1, 1, 2048])
+Step 1 (Safety): [0. 0.] (Latency: 51.87ms)
+DEBUG: output_hs shape: torch.Size([1, 257, 2048])
+DEBUG: action_token_mask sum: 1
+DEBUG: masked_hs shape: torch.Size([1, 2048])
+DEBUG: action_hs final shape: torch.Size([1, 1, 1, 2048])
+DEBUG: MobileVLALSTMDecoder forward input tok_seq shape: torch.Size([1, 1, 1, 2048])
+Step 2 (Actual): [ 0.8   -0.515] (Latency: 51.04ms)
