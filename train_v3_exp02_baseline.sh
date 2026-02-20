@@ -8,9 +8,6 @@ export CUDA_VISIBLE_DEVICES=0
 
 cd RoboVLMs_upstream
 
-python3 main.py ../Mobile_VLA/configs/mobile_vla_v3_exp02_baseline.json \
-    --trainer.max_epochs 10 \
-    --learning_rate 1e-4 \
-    --trainer.accumulate_grad_batches 8
+python3 -u main.py ../Mobile_VLA/configs/mobile_vla_v3_exp02_baseline.json 2>&1 | tee ../logs/train_v3_exp02_baseline.log
 
 echo "✅ V3-EXP-02 Baseline Training Started!"

@@ -1,7 +1,7 @@
 {
     "robovlm_name": "RoboKosMos",
     "exp_name": "v3-exp02-baseline",
-    "parent": "v3-exp01-aug",
+    "parent": "/home/billy/25-1kp/vla/Mobile_VLA/configs/mobile_vla_v3_exp01_aug.json",
     "task_name": "mobile_vla_v3_exp02_baseline",
     "model": "kosmos",
     "model_url": "https://huggingface.co/microsoft/kosmos-2-patch14-224",
@@ -47,8 +47,8 @@
     "model_load_path": "/home/billy/25-1kp/vla/pretrained_ckpts/checkpoints/kosmos_ph_google-robot-post-train.pt",
     "model_load_source": "lightning",
     "resume": null,
-    "model_path": ".vlms/kosmos-2-patch14-224",
-    "model_config": ".vlms/kosmos-2-patch14-224/config.json",
+    "model_path": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224",
+    "model_config": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224/config.json",
     "gpus": 1,
     "num_nodes": 1,
     "train_setup": {
@@ -88,11 +88,14 @@
         "type": "MobileVLAClassificationDecoder",
         "hidden_size": 1024,
         "num_classes": 9,
+        "n_bin": 256,
+        "min_action": -1,
+        "max_action": 1,
         "down_sample": "none",
         "latent": 1,
         "fwd_pred_next_n": 1,
         "window_size": 8,
-        "action_space": "discrete",
+        "action_space": "continuous",
         "with_history": true,
         "history_type": "post",
         "num_layers": 4
@@ -100,7 +103,7 @@
     "fwd_head": null,
     "tokenizer": {
         "type": "AutoProcessor",
-        "pretrained_model_name_or_path": ".vlms/kosmos-2-patch14-224",
+        "pretrained_model_name_or_path": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224",
         "tokenizer_type": "kosmos",
         "max_text_len": 256,
         "additional_special_tokens": null
@@ -108,7 +111,7 @@
     "vlm": {
         "type": "AutoModelForVision2Seq",
         "name": "kosmos",
-        "pretrained_model_name_or_path": ".vlms/kosmos-2-patch14-224"
+        "pretrained_model_name_or_path": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224"
     },
     "trainer": {
         "accelerator": "gpu",
