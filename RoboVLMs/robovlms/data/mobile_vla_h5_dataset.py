@@ -42,6 +42,8 @@ class MobileVLAH5Dataset(Dataset):
         abs_action=False,  # 액션 절대값 사용 (방향 제거)
         augment=False,     # 데이터 증강 (Mirroring 등)
         discrete_action=False, # 분류 방식 사용 여부 (6개 클래스)
+        episode_filter_keyword=None,  # 파일명 키워드 필터 (예: 'left', 'right')
+        history_dropout_prob=0.0,     # 히스토리 프레임 랜덤 마스킹 확률 (0.0 ~ 1.0)
         **kwargs
     ):
         self.data_dir = data_dir
@@ -57,11 +59,20 @@ class MobileVLAH5Dataset(Dataset):
         self.abs_action = abs_action  # 방향 제거 옵션
         self.augment = augment and (not is_validation)  # 검증셋에는 증강 미적용
         self.is_training = not is_validation
+        # 스텝 시퀀스 암기 방지: 히스토리 중 과거 프레임 일부를 랜덤 zero-masking
+        # 학습 시에만 적용 (검증셋은 항상 0.0)
+        self.history_dropout_prob = history_dropout_prob if not is_validation else 0.0
         
         # 에피소드 파일 로드
         episode_files = sorted(glob.glob(f"{data_dir}/{episode_pattern}"))
         if len(episode_files) == 0:
             raise ValueError(f"No episodes found in {data_dir} with pattern {episode_pattern}")
+        
+        # 파일명 키워드 필터링 (예: 'left'만 사용)
+        if episode_filter_keyword is not None:
+            before = len(episode_files)
+            episode_files = [f for f in episode_files if episode_filter_keyword.lower() in Path(f).name.lower()]
+            print(f"  [episode_filter] '{episode_filter_keyword}': {before} → {len(episode_files)}개 에피소드")
         
         # Train/Val 분할
         split_idx = int(len(episode_files) * train_split)
@@ -162,7 +173,9 @@ class MobileVLAH5Dataset(Dataset):
             
             # 이미지 로드 (random start부터 total_frames_needed 프레임)
             images = []
-            for t in range(start_frame, min(start_frame + total_frames_needed, total_len)):
+            mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).view(3, 1, 1)
+            std  = torch.tensor([0.26862954, 0.26130258, 0.27577711]).view(3, 1, 1)
+            for frame_offset, t in enumerate(range(start_frame, min(start_frame + total_frames_needed, total_len))):
                 img_array = f['images'][t]
                 img = Image.fromarray(img_array.astype(np.uint8))
                 img = img.resize((self.image_size, self.image_size), Image.BILINEAR)
@@ -170,10 +183,17 @@ class MobileVLAH5Dataset(Dataset):
                 img_tensor = img_tensor.permute(2, 0, 1)
                 
                 # Normalization (CLIP/Kosmos-2 mean & std)
-                # Fixes domain shift between training (was [0,1]) and inference (Normalized)
-                mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).view(3, 1, 1)
-                std = torch.tensor([0.26862954, 0.26130258, 0.27577711]).view(3, 1, 1)
                 img_tensor = (img_tensor - mean) / std
+                
+                # ── History Dropout: 스텝 시퀀스 암기 방지 ──────────────────────
+                # 히스토리 윈도우(첫 window_size 프레임 중 과거 프레임) 일부를 랜덤 zero-mask 처리.
+                # 모델이 "몇 번째 스텝인가"를 히스토리로 역산하지 못하게 차단.
+                # 가장 최신 프레임(frame_offset == window_size - 1)은 항상 유지.
+                is_history_frame = frame_offset < (self.window_size - 1)
+                if self.is_training and is_history_frame and self.history_dropout_prob > 0.0:
+                    if np.random.rand() < self.history_dropout_prob:
+                        img_tensor = torch.zeros_like(img_tensor)  # zero mask
+                # ─────────────────────────────────────────────────────────────────
                 
                 images.append(img_tensor)
             
