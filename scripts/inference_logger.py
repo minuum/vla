@@ -22,6 +22,11 @@ class InferenceLogger:
     def start_session(self, model_name, instruction):
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_file = os.path.join(self.log_dir, f"session_{self.session_id}.json")
+        self.image_log_dir = os.path.join(self.log_dir, f"session_{self.session_id}")
+        
+        # Create directory for images if it doesn't exist
+        os.makedirs(self.image_log_dir, exist_ok=True)
+        
         self.data = {
             "session_id": self.session_id,
             "timestamp": datetime.now().isoformat(),
@@ -31,12 +36,36 @@ class InferenceLogger:
         }
         print(f"📝 Logging session started: {self.log_file}")
 
+
     def update_instruction(self, instruction):
         if hasattr(self, "data"):
             self.data["instruction"] = instruction
             print(f"📝 Instruction updated: {instruction}")
+            
+    def log_image(self, step_idx, image):
+        if not hasattr(self, "image_log_dir") or not getattr(self, "image_log_dir"):
+            return None
+            
+        try:
+            if not os.path.exists(self.image_log_dir):
+                os.makedirs(self.image_log_dir, exist_ok=True)
+                
+            img_filename = f"frame_{step_idx:02d}.jpg"
+            img_path = os.path.join(self.image_log_dir, img_filename)
+            
+            if hasattr(image, 'save'): # PIL Image
+                image.save(img_path, format="JPEG")
+            elif isinstance(image, np.ndarray):
+                from PIL import Image
+                if len(image.shape) == 3 and image.shape[2] == 3:
+                    Image.fromarray(image).save(img_path, format="JPEG")
+                    
+            return img_path
+        except Exception as e:
+            print(f"⚠️ Failed to log image: {e}")
+            return None
         
-    def log_step(self, step_idx, action, latency, chunk=None):
+    def log_step(self, step_idx, action, latency, chunk=None, image=None):
         if not hasattr(self, "data") or self.data is None:
             self.data = {"history": []}
 
@@ -48,6 +77,12 @@ class InferenceLogger:
         }
         if chunk is not None:
              step_data["chunk_preview"] = chunk.tolist() if isinstance(chunk, np.ndarray) else chunk
+             
+        if image is not None:
+             img_path = self.log_image(step_idx, image)
+             if img_path:
+                 # Ensure we log relative path into JSON
+                 step_data["image_file"] = os.path.relpath(img_path, self.log_dir)
              
         self.data["history"].append(step_data)
         

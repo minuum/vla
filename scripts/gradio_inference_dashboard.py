@@ -311,6 +311,10 @@ def update_ui(mode, instr, apply_cc, is_running_ui):
                     except TypeError:
                         # Fallback for older interface
                         local_model_instance.reset()
+                        
+                # 📸 [Image Cap] Always log step1 image if possible
+                if logger_instance:
+                    logger_instance.log_image(current_step, img)
                 
                 return img, log, lat, act, chunk_info, gr.update(value="Running (1/18)..."), state["camera_status"], state["model_path"]
 
@@ -322,7 +326,11 @@ def update_ui(mode, instr, apply_cc, is_running_ui):
                 
                 # [LOGGING] If local model is running, it already logged the step. Don't double log.
                 if not local_model_instance and logger_instance: 
-                    logger_instance.log_step(current_step, raw_act, raw_lat, raw_chunk)
+                    logger_instance.log_step(current_step, raw_act, raw_lat, raw_chunk, image=img)
+                
+                # 📸 [Image Cap] Log the current frame
+                if logger_instance:
+                    logger_instance.log_image(current_step, img)
                 
                 log = f"{current_step}/18 | {log_inf}"
                 return img, log, lat_str, act_str, chunk_str, gr.update(value=f"Running ({current_step}/18)"), state["camera_status"], state["model_path"]
