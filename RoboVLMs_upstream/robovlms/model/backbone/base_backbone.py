@@ -557,10 +557,11 @@ class BaseRoboVLM(nn.Module):
 
         if hasattr(model, "enable_input_require_grads"):
             model.enable_input_require_grads()
-            if hasattr(model, "gradient_checkpointing_enable"):
-                model.gradient_checkpointing_enable()
-            else:
-                model.gradient_checkpointing = True
+            if self.train_setup_configs.get("gradient_checkpointing", False):
+                if hasattr(model, "gradient_checkpointing_enable"):
+                    model.gradient_checkpointing_enable()
+                else:
+                    model.gradient_checkpointing = True
             model.training = True
         else:
 
@@ -595,7 +596,9 @@ class BaseRoboVLM(nn.Module):
                 import types
                 model.prepare_inputs_for_generation = types.MethodType(prepare_inputs_for_generation, model)
             
-            self.model = get_peft_model(model, lora_config)
+            self.backbone = get_peft_model(model, lora_config)
+            if self.train_setup_configs.get("gradient_checkpointing", False):
+                self.backbone.gradient_checkpointing_enable()
         # import pdb; pdb.set_trace()
         if self.train_setup_configs.get("train_text_embedding", False):
             self.word_embedding.requires_grad_(True)
@@ -1210,6 +1213,9 @@ class BaseRoboVLM(nn.Module):
                     multimodal_attention_mask, "(b l) n -> b (l n)", l=seq_len
                 )
 
+        if multimodal_embeds.requires_grad is False:
+            multimodal_embeds.requires_grad_(True)
+
         try:
             output = self.model(
                 input_ids=None,
@@ -1316,6 +1322,8 @@ class BaseRoboVLM(nn.Module):
                 
                 # 3. Clone inputs_embeds to make it a non-leaf variable (computed variable)
                 inputs_embeds = inputs_embeds.clone()
+                if inputs_embeds.requires_grad is False:
+                    inputs_embeds.requires_grad_(True)
                 
                 # Initialize action_token_mask for Kosmos
                 batch_size, token_seq_len = inputs_embeds.shape[:2]
@@ -1483,16 +1491,10 @@ class BaseRoboVLM(nn.Module):
                         bs, seq_len, self.latent_num, hidden_size
                     )
             else:
-                # Debug
                 masked_hs = output_hs[action_token_mask]
-                print(f"DEBUG: output_hs shape: {output_hs.shape}")
-                print(f"DEBUG: action_token_mask sum: {action_token_mask.sum()}")
-                print(f"DEBUG: masked_hs shape: {masked_hs.shape}")
-                
                 action_hs = masked_hs.reshape(
                     bs, seq_len, self.latent_num, -1
                 )
-                print(f"DEBUG: action_hs final shape: {action_hs.shape}")
 
         elif action_space == "down_sample":
             action_hs = output_hs

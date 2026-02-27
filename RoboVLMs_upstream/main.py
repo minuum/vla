@@ -1,5 +1,4 @@
 import os
-import sys
 import argparse
 import json
 from pathlib import Path
@@ -10,19 +9,7 @@ from re import L
 from typing import Dict, Any
 import datetime
 
-# Ensure lightning module can be imported
-try:
-    from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
-except ImportError:
-    # Try alternative import path
-    try:
-        import lightning
-        from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
-    except ImportError:
-        print("Error: Cannot import lightning module. Please ensure it is installed.")
-        print(f"Python path: {sys.path}")
-        print(f"Python executable: {sys.executable}")
-        sys.exit(1)
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 from lightning.pytorch.strategies import DDPStrategy
@@ -31,8 +18,6 @@ import torch
 import torch.distributed as dist
 
 from robovlms.train.base_trainer import BaseTrainer
-from robovlms.train.mobile_vla_trainer import MobileVLATrainer
-from robovlms.train.mobile_vla_qat_trainer import MobileVLAQATTrainer
 from robovlms.data.datamodule.gr_datamodule import GRDataModule
 from robovlms.data.data_utils import preprocess_image
 from robovlms.utils.setup_callback import SetupCallback
@@ -143,19 +128,12 @@ def init_trainer_config(configs):
         init_setup_callback(configs),
         init_lr_monitor_callback(),
         ModelCheckpoint(
-            dirpath=configs["output_dir"],
-            save_top_k=3,              # 최고 성능 3개만 저장 (디스크 공간 절약)
-            every_n_epochs=1,          # 매 epoch마다 체크 (최고 성능 갱신 시 저장)
-            monitor="val_loss",        # validation loss 기준
-            mode="min",                # loss 최소화
-            save_last=True,            # 마지막 epoch도 저장
-            filename="epoch_{epoch:02d}-val_loss={val_loss:.3f}"
-        ),
-        EarlyStopping(
-            monitor="val_loss",
-            patience=3,              # 3 epoch 동안 개선 안되면 중단
+            dirpath=configs["output_dir"], 
+            save_top_k=3, 
+            monitor="val_loss", 
             mode="min",
-            verbose=True
+            save_last=True,
+            filename="epoch={epoch:02d}-val_loss={val_loss:.4f}"
         ),
     ]
 
@@ -237,21 +215,7 @@ def experiment(variant):
     variant["gpus"] = trainer.num_devices
     variant["train_setup"]["precision"] = variant["trainer"]["precision"]
 
-    if variant["fwd_head"] is not None:
-        variant["train_setup"]["predict_forward_hand"] = variant["fwd_head"].get(
-            "pred_hand_image", False
-        )
-    
-    # Trainer 타입 선택 (Mobile VLA QAT, Mobile VLA, Base)
-    trainer_type = variant.get("trainer_type", "BaseTrainer")
-    if trainer_type == "MobileVLAQATTrainer":
-        TrainerClass = MobileVLAQATTrainer
-    elif trainer_type == "MobileVLATrainer":
-        TrainerClass = MobileVLATrainer
-    else:
-        TrainerClass = BaseTrainer
-    
-    model = TrainerClass.from_checkpoint(
+    model = BaseTrainer.from_checkpoint(
         model_load_path, variant.get("model_load_source", "torch"), variant
     )
 
@@ -284,12 +248,14 @@ def experiment(variant):
                 model_type=variant["model"],
             ),
             discrete=(
-                variant.get("discrete_action", False) or 
-                (variant["act_head"].get("action_space", "continuous") == "discrete" if variant["act_head"] is not None else False)
+                False
+                if variant["act_head"] is None
+                else variant["act_head"].get("action_space", "continuous") == "discrete"
             ),
             discrete_action=(
-                variant.get("discrete_action", False) or 
-                (variant["act_head"].get("action_space", "continuous") == "discrete" if variant["act_head"] is not None else False)
+                False
+                if variant["act_head"] is None
+                else variant["act_head"].get("action_space", "continuous") == "discrete"
             ),
             use_mu_law=variant.get("use_mu_law", False),
             mu_val=variant.get("mu_val", 255),
