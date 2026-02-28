@@ -139,8 +139,12 @@ class MobileVLAInference:
         logger.info(f"Using device: {device}")
         
         # [INTEGRATION] Load config and set inference mode
-        with open(config_path, 'r') as f:
-            self.config = json.load(f)
+        try:
+            from robovlms.utils.config_utils import load_config
+            self.config = load_config(config_path)
+        except ImportError:
+            with open(config_path, 'r') as f:
+                self.config = json.load(f)
         
         self.mode = self.config.get("inference_mode", "regression")
         self.scale_factor = self.config.get("scale_factor", 1.15)
@@ -393,8 +397,6 @@ class MobileVLAInference:
                 action[1] = np.clip(action[1], -1.5, 1.5)
                 
                 logger.info(f"📤 Action: {'[CLASS]' if self.mode == 'classification' else '[REG]'} Raw[{raw_action[0]:.3f}, {raw_action[1]:.3f}] -> Final[{action[0]:.3f}, {action[1]:.3f}]")
-                if "left" in instruction.lower() and action[1] < 0:
-                   logger.warning("⚠️ Direction Mismatch: Left instruction but Negative Y (Right movement) predicted!")
                 
             except Exception as e:
                 logger.error(f"Inference failed: {e}")
