@@ -1,0 +1,23 @@
+{
+  "session_id": "2026-02-22-default",
+  "last_updated": "2026-02-25T11:41:58.308427+00:00",
+  "conversation": [
+    {
+      "role": "assistant",
+      "content": "[2026-02-22] Git cleanup session: renamed local branch test/vla-driving -> vla-driving; set upstream to origin/vla-driving; preserved diverged local fix branch as backup/fix-local-diverged-20260222; kept session logs local-only via .git/info/exclude (docs/inference_reports/session_*.json, docs/inference_reports/V3_EXP01_ANALYSIS_20260220.md, docs/session_notes/, scripts/summarize_reports.py); verified session log files remain on disk and are not tracked."
+    },
+    {
+      "role": "assistant",
+      "content": "[2026-02-25] Session update: loaded prior memory and verified previous git-cleanup state (branch/upstream/backup/exclude rules); disabled CE skills by moving ce-* under /home/soda/.codex/skills/_disabled_ce_20260225_201248 and renaming SKILL.md -> SKILL.disabled; created new reusable skill /home/soda/.codex/skills/ce-toggle with script scripts/ce_toggle.sh supporting status/disable/enable/restore/list-backups; validated with quick_validate.py and bash syntax check."
+    },
+    {
+      "role": "assistant",
+      "content": "[2026-02-25] Menemory feature session: implemented hybrid memory strategy in /home/soda/vla/menemory by keeping summary+recent conversation while appending full raw turns to sessions/history/<session_id>.jsonl; added CLI command 'menemory history' (--session-id, --limit) and status field raw_history_turns; added tests in tests/test_session_history.py; pushed branch feat/session-history-hybrid with commit b9f3f1b; opened PR https://github.com/minuum/menemory/pull/1."
+    },
+    {
+      "role": "assistant",
+      "content": "[2026-02-25] Clarification saved: code changes are persisted via GitHub PR flow (branch feat/session-history-hybrid, commit b9f3f1b, PR https://github.com/minuum/menemory/pull/1), while menemory session entries are stored separately in local workspace memory (.menemory), not inside the PR."
+    }
+  ],
+  "summary": ""
+}

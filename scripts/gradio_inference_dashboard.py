@@ -105,8 +105,8 @@ except ImportError as e:
     print(f"⚠️ ROS2 environment partially missing: {e}")
 
 # --- Custom Control Library ---
-sys.path.insert(0, "/home/soda/vla")  # Prioritize local modules (Fix for AttributeError: 'MobileVLAInference' object has no attribute 'reset')
-from Mobile_VLA.vla_control_utils import VLAControlManager
+sys.path.insert(0, "/home/soda/vla")
+from robovlm_nav.serve.vla_control_utils import VLAControlManager
 
 
 # --- Configuration ---
@@ -122,12 +122,13 @@ if VLA_ROOT not in sys.path:
     sys.path.insert(0, VLA_ROOT)
 
 # Ensure RoboVLMs is searchable as a package
-ROBOVLMS_ROOT = os.path.join(VLA_ROOT, "RoboVLMs")
-if ROBOVLMS_ROOT not in sys.path:
-    sys.path.insert(0, ROBOVLMS_ROOT)
+for root_name in ['RoboVLMs', 'RoboVLMs_upstream', 'third_party/RoboVLMs']:
+    p = os.path.join(VLA_ROOT, root_name)
+    if os.path.exists(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
 try:
-    from Mobile_VLA.inference_server import MobileVLAInference
+    from robovlm_nav.serve.inference_server import MobileVLAInference
     LOCAL_MODEL_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ Local model modules not found: {e}")

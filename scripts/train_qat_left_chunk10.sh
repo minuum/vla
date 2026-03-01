@@ -1,47 +1,13 @@
 #!/bin/bash
-# QAT 학습 스크립트 - Left Turn Model
-# INT8 Vision Encoder + INT4 LLM
+# Updated to RoboVLM-Nav structure
 
 set -e
+PROJECT_ROOT="/home/billy/25-1kp/vla"
+CONFIG="$PROJECT_ROOT/configs/mobile_vla_qat_left_chunk10_20251223.json"
 
-echo "=================================================="
-echo "🚀 QAT Training - Left Turn Model"
-echo "=================================================="
-echo ""
+echo "🚀 [RoboVLM-Nav] Running training with config: $CONFIG"
 
-# GPU 설정
-export CUDA_VISIBLE_DEVICES=0
+export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/third_party/RoboVLMs"
+cd $PROJECT_ROOT
 
-# 타임스탬프
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-
-# Log 디렉토리
-LOG_DIR="logs/qat_training"
-mkdir -p "$LOG_DIR"
-
-# Log 파일
-LOG_FILE="$LOG_DIR/train_qat_left_chunk10_${TIMESTAMP}.log"
-
-echo "📋 Configuration:"
-echo "  - Config: Mobile_VLA/configs/mobile_vla_qat_left_chunk10_20251223.json"
-echo "  - Data: ROS_action/mobile_vla_dataset (Left turn episodes)"
-echo "  - Trainer: MobileVLAQATTrainer"
-echo "  - Vision: INT8 (QAT)"
-echo "  - LLM: INT4 (BitsAndBytes)"
-echo "  - Action Head: FP16 (Trainable)"
-echo "  - Log: $LOG_FILE"
-echo ""
-
-# 학습 실행
-echo "🔥 Starting QAT training..."
-python3 RoboVLMs_upstream/robovlms/train/main.py \
-    --config Mobile_VLA/configs/mobile_vla_qat_left_chunk10_20251223.json \
-    2>&1 | tee "$LOG_FILE"
-
-echo ""
-echo "=================================================="
-echo "✅ QAT Training Complete!"
-echo "=================================================="
-echo "📁 Log saved to: $LOG_FILE"
-echo "📊 Checkpoints: runs/mobile_vla_qat_20251223/"
-echo ""
+python3 robovlm_nav/train.py $CONFIG

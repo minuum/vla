@@ -20,7 +20,7 @@ def image_to_base64(image):
 
 def test_api_batch(num_episodes=50):
     api_server = "http://localhost:8000"
-    api_key = "test_key_1234"
+    api_key = "test_key_123"
     dataset_dir = Path("/home/billy/25-1kp/vla/ROS_action/basket_dataset_v2")
     
     all_files = list(dataset_dir.glob("*.h5"))
