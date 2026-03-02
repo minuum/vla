@@ -1,5 +1,5 @@
 {
-    "_comment": "EXP-V3-01: V2 + Color Jitter + Random Crop (\uc2dc\uac01\uc801 \uc77c\ubc18\ud654 \uac1c\uc120)",
+    "_comment": "EXP-V3-01: V2 + Color Jitter + Random Crop (시각적 일반화 개선)",
     "inference_mode": "classification",
     "robovlm_name": "RoboVLM-Nav",
     "exp_name": "v3-exp01-aug",
@@ -30,7 +30,7 @@
     "num_workers": 4,
     "data_scale": 1,
     "optimizer": "adamw",
-    "learning_rate": 5e-05,
+    "learning_rate": 5e-5,
     "min_lr_scale": 0.001,
     "weight_decay": 0.01,
     "warmup_epochs": 0.1,
@@ -47,11 +47,11 @@
     "output_root": "runs/v3_classification",
     "log_root": "runs/v3_classification",
     "cache_root": "runs/cache",
-    "model_load_path": "/home/soda/vla/pretrained_ckpts/checkpoints/kosmos_ph_google-robot-post-train.pt",
+    "model_load_path": "/home/billy/25-1kp/vla/pretrained_ckpts/checkpoints/kosmos_ph_google-robot-post-train.pt",
     "model_load_source": "lightning",
     "resume": null,
-    "model_path": ".vlms/kosmos-2-patch14-224",
-    "model_config": ".vlms/kosmos-2-patch14-224",
+    "model_path": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224",
+    "model_config": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224/config.json",
     "gpus": 1,
     "num_nodes": 1,
     "train_setup": {
@@ -71,7 +71,7 @@
         "mm_use_im_patch_token": false,
         "gradient_checkpointing": true,
         "lora_enable": false,
-        "mm_projector_lr": 5e-05,
+        "mm_projector_lr": 0.00005,
         "lora_r": 32,
         "lora_alpha": 16,
         "lora_dropout": 0.1,
@@ -104,7 +104,7 @@
     "fwd_head": null,
     "tokenizer": {
         "type": "AutoProcessor",
-        "pretrained_model_name_or_path": ".vlms/kosmos-2-patch14-224",
+        "pretrained_model_name_or_path": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224",
         "tokenizer_type": "kosmos",
         "max_text_len": 256,
         "additional_special_tokens": null
@@ -112,7 +112,7 @@
     "vlm": {
         "type": "AutoModelForVision2Seq",
         "name": "kosmos",
-        "pretrained_model_name_or_path": ".vlms/kosmos-2-patch14-224"
+        "pretrained_model_name_or_path": "/home/billy/25-1kp/vla/.vlms/kosmos-2-patch14-224"
     },
     "trainer": {
         "accelerator": "gpu",
@@ -129,33 +129,29 @@
         "accumulate_grad_batches": 16
     },
     "train_dataset": {
-        "dataset_setup": {
-            "type": "NavDataset",
-            "data_dir": "/home/soda/vla/ROS_action/basket_dataset_v2",
-            "episode_pattern": "episode_*.h5",
-            "shift_first": false,
-            "model_name": "kosmos",
-            "rgb_pad": 10,
-            "train_split": 0.9,
-            "discrete_action": true,
-            "window_size": 8,
-            "fwd_pred_next_n": 1,
-            "use_color_jitter": true,
-            "use_random_crop": true
-        }
+        "type": "NavDataset",
+        "data_dir": "/home/billy/25-1kp/vla/ROS_action/basket_dataset_v2",
+        "episode_pattern": "episode_*.h5",
+        "shift_first": false,
+        "model_name": "kosmos",
+        "rgb_pad": 10,
+        "train_split": 0.9,
+        "discrete_action": true,
+        "window_size": 8,
+        "fwd_pred_next_n": 1,
+        "use_color_jitter": true,
+        "use_random_crop": true
     },
     "val_dataset": {
-        "dataset_setup": {
-            "type": "NavDataset",
-            "data_dir": "/home/soda/vla/ROS_action/basket_dataset_v2",
-            "episode_pattern": "episode_*.h5",
-            "model_name": "kosmos",
-            "train_split": 0.9,
-            "is_validation": true,
-            "discrete_action": true,
-            "window_size": 8,
-            "fwd_pred_next_n": 1
-        }
+        "type": "NavDataset",
+        "data_dir": "/home/billy/25-1kp/vla/ROS_action/basket_dataset_v2",
+        "episode_pattern": "episode_*.h5",
+        "model_name": "kosmos",
+        "train_split": 0.9,
+        "is_validation": true,
+        "discrete_action": true,
+        "window_size": 8,
+        "fwd_pred_next_n": 1
     },
     "norm_action": false,
     "norm_min": -1.0,
