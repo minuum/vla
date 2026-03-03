@@ -106,27 +106,27 @@ robovlm_nav/
 - ❌ Creating `RoboVLMs*/` top-level directories (모두 삭제됨)
 - ❌ **직접 수정 `third_party/RoboVLMs/robovlms/`** → robovlm_nav/에 구현 후 setattr 주입
 
-## Cleanup Status (2026-03-01 완료)
+## Cleanup Status (2026-03-03 업데이트)
 
-| Directory                   | Action                                  | Status |
-| --------------------------- | --------------------------------------- | ------ |
-| `RoboVLMs/`                 | 삭제                                    | ✅ 완료 |
-| `RoboVLMs_upstream_backup/` | 삭제                                    | ✅ 완료 |
-| `v3-exp04-lora/`            | 삭제 (심볼릭 링크만 있었음)             | ✅ 완료 |
-| `config/`                   | README → docs/archives, 폴더 삭제       | ✅ 완료 |
-| `src/`                      | → `tools/legacy_inference/`             | ✅ 완료 |
-| `core/`                     | → `tools/mcp_integration/`              | ✅ 완료 |
-| `models/`                   | → `tools/model_analysis/`               | ✅ 완료 |
-| `whisper2/`                 | → `ros2_client/whisper/`                | ✅ 완료 |
-| `simpler_env_repo/`         | → `third_party/simpler_env/`            | ✅ 완료 |
-| `debug_*/`                  | 삭제 (이미지 파일)                      | ✅ 완료 |
-| `memora/`                   | `.md` → `docs/`, 폴더 삭제              | ✅ 완료 |
-| `test_images/`              | → `assets/images/`                      | ✅ 완료 |
-| `__pycache__/` (루트)       | 삭제                                    | ✅ 완료 |
-| `Robo+/`                    | `.md` 보존, 나머지 → 별도 논의          | 🟡 보류 |
-| `git_recovery_backup/`      | 내용 확인 후 결정                       | 🟡 보류 |
-| `result/`                   | 내용 확인 후 결정                       | 🟡 보류 |
-| `menemory/`                 | 별도 프레임워크 데이터, 현재 유지       | 🟡 보류 |
-| `Model_ws/`                 | 사용 여부 확인 필요                     | 🟡 보류 |
+| Directory                   | Action                                 | Status |
+| --------------------------- | -------------------------------------- | ------ |
+| `RoboVLMs/`                 | 삭제                                   | ✅ 완료 |
+| `RoboVLMs_upstream_backup/` | 삭제                                   | ✅ 완료 |
+| `v3-exp04-lora/`            | 삭제 (심볼릭 링크만 있었음)            | ✅ 완료 |
+| `config/`                   | README → docs/archives, 폴더 삭제      | ✅ 완료 |
+| `src/`                      | → `tools/legacy_inference/`            | ✅ 완료 |
+| `core/`                     | → `tools/mcp_integration/`             | ✅ 완료 |
+| `models/`                   | → `tools/model_analysis/`              | ✅ 완료 |
+| `whisper2/`                 | → `ros2_client/whisper/`               | ✅ 완료 |
+| `simpler_env_repo/`         | → `third_party/simpler_env/`           | ✅ 완료 |
+| `debug_*/`                  | 삭제 (이미지 파일)                     | ✅ 완료 |
+| `memora/`                   | **삭제** (menemory로 통합)             | ✅ 완료 |
+| `menemory/`                 | 독립 git 저장소 유지 (minuum/menemory) | ✅ 확정 |
+| `test_images/`              | → `assets/images/`                     | ✅ 완료 |
+| `__pycache__/` (루트)       | 삭제                                   | ✅ 완료 |
+| `Robo+/`                    | `.md` 보존, 나머지 → 별도 논의         | 🟡 보류 |
+| `git_recovery_backup/`      | 내용 확인 후 결정                      | 🟡 보류 |
+| `result/`                   | 내용 확인 후 결정                      | 🟡 보류 |
+| `Model_ws/`                 | 사용 여부 확인 필요                    | 🟡 보류 |
 | `ROS_action/`               | **데이터셋 원본 - 절대 이동/삭제 금지** | 🔒 보존 |
 

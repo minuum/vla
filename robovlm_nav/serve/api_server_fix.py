@@ -169,11 +169,12 @@ class MobileVLAInference:
         
         # Check if classification model
         act_head_config = self.config.get('act_head', {})
-        self.is_classification = act_head_config.get('type') == 'MobileVLAClassificationDecoder'
-        logger.info(f"Is classification model: {self.is_classification}")
+        act_type = act_head_config.get('type')
+        self.is_classification = act_type in ['MobileVLAClassificationDecoder', 'NavPolicy']
+        logger.info(f"Is classification model: {self.is_classification} (Type: {act_type})")
         
         # Class mapping for classification models
-        # 0: Stop, 1: Forward, 2: Left, 3: Right, 4: Diag FL, 5: Diag FR
+        # Default (Legacy/V2)
         self.class_to_action = {
             0: np.array([0.0, 0.0]),
             1: np.array([1.15, 0.0]),
@@ -182,6 +183,21 @@ class MobileVLAInference:
             4: np.array([1.15, 1.15]),
             5: np.array([1.15, -1.15])
         }
+        
+        # V3 Model Mapping (9 classes)
+        if self.config.get('exp_name', '').startswith('v3-') or act_head_config.get('num_classes') == 9:
+            logger.info("Using V3 classification mapping (9 classes)")
+            self.class_to_action = {
+                0: np.array([0.0, 0.0]),    # STOP
+                1: np.array([1.15, 0.0]),  # F
+                2: np.array([-1.15, 0.0]), # B
+                3: np.array([0.0, 1.15]),   # L
+                4: np.array([0.0, -1.15]),  # R
+                5: np.array([1.15, 1.15]),  # FL
+                6: np.array([1.15, -1.15]), # FR
+                7: np.array([-1.15, 1.15]), # BL
+                8: np.array([-1.15, -1.15]) # BR
+            }
         
         logger.info(f"Model: Chunk={self.fwd_pred_next_n}, Action_dim={self.action_dim}")
         
@@ -431,10 +447,14 @@ def get_model():
     global model_instance
     
     if model_instance is None:
-        model_name = os.getenv("VLA_MODEL_NAME", "unified_regression_win12")
+        model_name = os.getenv("VLA_MODEL_NAME", "v3_exp07_lora")
         
         # 모델별 체크포인트 및 config 경로
         model_configs = {
+            "v3_exp07_lora": {
+                "checkpoint": "third_party/RoboVLMs/runs/v3_classification/kosmos/mobile_vla_v3_exp07_lora/2026-02-28/v3-exp07-lora/epoch_epoch=05-val_loss=val_loss=0.044.ckpt",
+                "config": "configs/mobile_vla_v3_exp07_lora.json"
+            },
             "unified_regression_win12": {
                 "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune/2026-02-05/unified_regression_win12_20260205/epoch=9-step=600.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_unified_regression_win12.json"
