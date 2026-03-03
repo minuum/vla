@@ -107,9 +107,8 @@ class MobileVLAInference:
         logger.info(f"Using device: {device}")
         
         # Load config
-        import json
-        with open(config_path, 'r') as f:
-            self.config = json.load(f)
+        # Load config recursively
+        self.config = self._load_config_recursive(config_path)
         
         # Inference settings (from config or defaults)
         self.default_snap_to_grid = self.config.get('snap_to_grid', True)  # Default Enable
@@ -131,15 +130,52 @@ class MobileVLAInference:
         
         logger.info("Model loaded successfully with smoothing enabled")
         
+    def _load_config_recursive(self, config_path):
+        import json
+        import os
+        from robovlms.model.backbone.base_backbone import deep_update
+        
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            
+        parent_path = config.get("parent")
+        if parent_path is not None:
+            # resolve relative to current config file
+            base_dir = os.path.dirname(config_path)
+            # handle cases where parent path in config is relative to VLA_ROOT
+            if parent_path.startswith("configs/") or parent_path.startswith("Mobile_VLA/"):
+                parts = parent_path.split("/")
+                if "configs" in parts:
+                    idx = parts.index("configs")
+                    parent_path = os.path.join(*parts[idx:])
+                parent_path = os.path.join(os.path.dirname(base_dir), parent_path)
+            else:
+                parent_path = os.path.join(base_dir, parent_path)
+                
+            if os.path.exists(parent_path):
+                parent_config = self._load_config_recursive(parent_path)
+                # merge: config overrides parent
+                config = deep_update(parent_config, config)
+            else:
+                logger.warning(f"Parent config not found: {parent_path}")
+                
+        return config
+
     def _load_model(self):
         """모델 로딩"""
         import sys
         from pathlib import Path
         
         # Add RoboVLMs to path
-        robovlms_path = str(Path(__file__).parent / 'RoboVLMs_upstream')
-        if robovlms_path not in sys.path:
-            sys.path.insert(0, robovlms_path)
+        vla_root = Path(__file__).parent.parent.parent
+        robovlms_paths = [
+            vla_root / 'third_party' / 'RoboVLMs',
+            vla_root / 'RoboVLMs_upstream',
+            vla_root / 'RoboVLMs'
+        ]
+        for p in robovlms_paths:
+            if p.exists() and str(p) not in sys.path:
+                sys.path.insert(0, str(p))
         
         from robovlms.train.mobile_vla_trainer import MobileVLATrainer
         
@@ -149,7 +185,7 @@ class MobileVLAInference:
         
         self.model = MobileVLATrainer.load_from_checkpoint(
             self.checkpoint_path,
-            config_path=self.config_path,
+            configs=self.config,
             strict=False  # Allow missing keys
         )
         
@@ -159,7 +195,9 @@ class MobileVLAInference:
         
         # Load and cache processor
         from transformers import AutoProcessor
-        processor_path = self.config.get('model_path', '.vlms/kosmos-2-patch14-224')
+        processor_path = self.config.get('model_path', '')
+        if not processor_path or not os.path.exists(processor_path):
+            processor_path = 'microsoft/kosmos-2-patch14-224'
         logger.info(f"Loading processor from {processor_path}")
         self.processor = AutoProcessor.from_pretrained(processor_path)
         
@@ -169,18 +207,21 @@ class MobileVLAInference:
         
         # Check if classification model
         act_head_config = self.config.get('act_head', {})
-        self.is_classification = act_head_config.get('type') == 'MobileVLAClassificationDecoder'
+        self.is_classification = act_head_config.get('type') in ['MobileVLAClassificationDecoder', 'NavPolicy']
         logger.info(f"Is classification model: {self.is_classification}")
         
         # Class mapping for classification models
-        # 0: Stop, 1: Forward, 2: Left, 3: Right, 4: Diag FL, 5: Diag FR
+        # 9개 클래스(STOP, F, B, L, R, FL, FR, BL, BR)에 대한 액션 매핑 추가
         self.class_to_action = {
             0: np.array([0.0, 0.0]),
             1: np.array([1.15, 0.0]),
-            2: np.array([0.0, 1.15]),
-            3: np.array([0.0, -1.15]),
-            4: np.array([1.15, 1.15]),
-            5: np.array([1.15, -1.15])
+            2: np.array([-1.15, 0.0]),
+            3: np.array([0.0, 1.15]),
+            4: np.array([0.0, -1.15]),
+            5: np.array([1.15, 1.15]),
+            6: np.array([1.15, -1.15]),
+            7: np.array([-1.15, 1.15]),
+            8: np.array([-1.15, -1.15])
         }
         
         logger.info(f"Model: Chunk={self.fwd_pred_next_n}, Action_dim={self.action_dim}")
@@ -431,10 +472,14 @@ def get_model():
     global model_instance
     
     if model_instance is None:
-        model_name = os.getenv("VLA_MODEL_NAME", "unified_regression_win12")
+        model_name = os.getenv("VLA_MODEL_NAME", "v3_exp07_lora")
         
         # 모델별 체크포인트 및 config 경로
         model_configs = {
+            "v3_exp07_lora": {
+                "checkpoint": "/home/soda/vla/epoch_epoch=05-val_loss=val_loss=0.044.ckpt",
+                "config": "/home/soda/vla/configs/mobile_vla_v3_exp07_lora.json"
+            },
             "unified_regression_win12": {
                 "checkpoint": "runs/unified_regression_win12/kosmos/mobile_vla_unified_finetune/2026-02-05/unified_regression_win12_20260205/epoch=9-step=600.ckpt",
                 "config": "Mobile_VLA/configs/mobile_vla_unified_regression_win12.json"
@@ -523,8 +568,8 @@ def get_model():
         
         # Get model config
         if model_name not in model_configs:
-            logger.warning(f"Unknown model '{model_name}', defaulting to 'unified_regression_win12'")
-            model_name = "unified_regression_win12"
+            logger.warning(f"Unknown model '{model_name}', defaulting to 'v3_exp07_lora'")
+            model_name = "v3_exp07_lora"
         
         config = model_configs[model_name]
         checkpoint_path = os.getenv("VLA_CHECKPOINT_PATH", config["checkpoint"])

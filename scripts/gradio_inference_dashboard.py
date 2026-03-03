@@ -296,26 +296,24 @@ def update_ui(mode, instr, apply_cc, is_running_ui):
                 act = "STOP"
                 chunk_info = "Waiting..."
                 
-                # [LOGGING] If local model is used, it handles logging internally via reset() and predict()
-                # Only use dashboard logger if local model is NOT active (e.g. Remote API mode, though Inference mode forces local)
-                if not local_model_instance and logger_instance: 
-                    logger_instance.start_session("Mobile-VLA-Dashboard", instr)
+                # [LOGGING] Unified session start
+                if logger_instance: 
+                    model_id = os.path.basename(os.getenv("VLA_CHECKPOINT_PATH", "Mobile-VLA"))
+                    logger_instance.start_session(model_id, instr)
 
                 if ROS_AVAILABLE and ros_node:
                      ros_node.control.robust_stop(source="inference_start")
                 
                 # Reset model history ensuring clean state
-                # Pass instruction to local model so it can start logging session correctly
                 if local_model_instance: 
                     try:
                         local_model_instance.reset(instruction=instr)
                     except TypeError:
-                        # Fallback for older interface
                         local_model_instance.reset()
                         
-                # 📸 [Image Cap] Always log step1 image if possible
+                # 📸 [Image Cap] Always log step1 image
                 if logger_instance:
-                    logger_instance.log_image(current_step, img)
+                    logger_instance.log_step(current_step, [0.0, 0.0], 0, image=img)
                 
                 return img, log, lat, act, chunk_info, gr.update(value="Running (1/18)..."), state["camera_status"], state["model_path"]
 
@@ -325,13 +323,9 @@ def update_ui(mode, instr, apply_cc, is_running_ui):
                 res = run_api_inference(img, instr, use_local=True)
                 log_inf, lat_str, act_str, chunk_str, raw_act, raw_lat, raw_chunk = res
                 
-                # [LOGGING] If local model is running, it already logged the step. Don't double log.
-                if not local_model_instance and logger_instance: 
+                # [LOGGING] Unified step logging
+                if logger_instance: 
                     logger_instance.log_step(current_step, raw_act, raw_lat, raw_chunk, image=img)
-                
-                # 📸 [Image Cap] Log the current frame
-                if logger_instance:
-                    logger_instance.log_image(current_step, img)
                 
                 log = f"{current_step}/18 | {log_inf}"
                 return img, log, lat_str, act_str, chunk_str, gr.update(value=f"Running ({current_step}/18)"), state["camera_status"], state["model_path"]
