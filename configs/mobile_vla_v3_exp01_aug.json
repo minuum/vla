@@ -1,7 +1,7 @@
 {
     "_comment": "EXP-V3-01: V2 + Color Jitter + Random Crop (시각적 일반화 개선)",
     "inference_mode": "classification",
-    "robovlm_name": "RoboVLM-Nav",
+    "robovlm_name": "RoboKosMos",
     "exp_name": "v3-exp01-aug",
     "parent": null,
     "task_name": "mobile_vla_v3_classification",
