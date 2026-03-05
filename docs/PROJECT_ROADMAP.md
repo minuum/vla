@@ -20,10 +20,10 @@
 
 ## 📊 현재 최고 성능 모델
 
-| 실험 | 설명 | Val Loss | 비고 |
-|------|------|----------|------|
+| 실험                           | 설명                                                      | Val Loss  | 비고        |
+| ------------------------------ | --------------------------------------------------------- | --------- | ----------- |
 | **V3-EXP07** (`v3-exp07-lora`) | 좌우통합 528ep + 역수 class_weight + LoRA(r=32) + lr=1e-5 | **0.044** | ✅ 현재 최고 |
-| V3-EXP06 | 이전 실험 | - | 비교용 |
+| V3-EXP06                       | 이전 실험                                                 | -         | 비교용      |
 
 ### V3-EXP07 9-class 액션 매핑
 
@@ -44,20 +44,22 @@
 - [x] API 서버 V3 대응 (`robovlm_nav/serve/api_server_fix.py`)
 - [x] 레거시 디렉토리 정리 (RoboVLMs/, config/, src/, core/, memora/ 등)
 - [x] 원격 서버(soda) 모델 배포 및 인퍼런스 테스트 준비
+- [x] `vla-driving` 브랜치 최신 인퍼런스 코드 & 세션 데이터 분석 완료 (`inference_session_analysis.md`)
 
 ### 🔄 진행 중
-- [ ] 원격 서버(soda@100.85.118.58) 인퍼런스 테스트 완료
-- [ ] V3-EXP07 실제 로봇 테스트 (PM/DM Score 측정)
+- [ ] 원격 서버(soda@100.85.118.58) 인퍼런스 테스트 완료 (15개 세션 수집됨)
+- [ ] **Reactive behavior 해결**: 대상이 시야를 벗어날 시 조향이 멈추는 문제 (Object Permanence 부족) 개선 데이터 수집
+- [ ] **Jetson 메모리 최적화**: Orin NX 16GB 한계 극복을 위한 `Direct Image Injection` (Base64 제거) 및 캐시 제거 적용
 
-### 📋 단기 TODO
-1. **인퍼런스 품질 검증**
-   - Turn bias, Snap-to-Grid 파라미터 최적화
-   - 실제 로봇 PM/DM 스코어 측정
+### 📋 단기 TODO (vla-driving 피드백 반영)
+1. **인퍼런스 품질 검증 & 데이터 전략**
+   - **문제 발견**: 동일 지시어("brown pot on the left")에 대해 특정 세션에서는 우편향 조향 발생, 대상 시야 손실 시 정지.
+   - **대응**: Recovery/Search 시나리오 데이터 100+ 에피소드 추가 수집.
    
 2. **V3-EXP08 설계** (개선 아이디어)
-   - 추가 데이터 수집 (B/BL/BR 클래스 확보)
-   - Learning Rate Schedule 실험 (Cosine Annealing)
-   - Window Size 튜닝 (8 → 4/12 비교)
+   - 재귀적 설정 로딩(`_load_config_recursive`) 기반 멀티 실험 관리.
+   - P1: Base64 이미지 직렬화 제거하여 Jetson 메모리 오버헤드 50% 이상 감축 목표.
+   - Window Size 튜닝 (8 → 4/12 비교).
 
 3. **Jetson 배포 준비**
    - 모델 경량화 / 양자화 검토 (`tools/quantization/`)

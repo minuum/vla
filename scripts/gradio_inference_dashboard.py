@@ -18,7 +18,7 @@ os.environ["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
 print(f"🔧 Forced ROS_DOMAIN_ID={os.environ['ROS_DOMAIN_ID']}, RMW={os.environ['RMW_IMPLEMENTATION']}")
 
 # --- Load .vla_env_settings manually ---
-env_path = "/home/soda/vla/.vla_env_settings"
+env_path = "/home/billy/25-1kp/vla/.vla_env_settings"
 if os.path.exists(env_path):
     with open(env_path, "r") as f:
         for line in f:
@@ -77,7 +77,7 @@ warnings.filterwarnings("ignore", message="Unable to import Axes3D")
 def setup_ros_paths():
     """Ensure colcon install paths are in sys.path"""
     import sys
-    ros_ws = "/home/soda/vla/ROS_action"
+    ros_ws = "/home/billy/25-1kp/vla/ROS_action"
     install_base = os.path.join(ros_ws, "install")
     if os.path.exists(install_base):
         for pkg in os.listdir(install_base):
@@ -105,8 +105,8 @@ except ImportError as e:
     print(f"⚠️ ROS2 environment partially missing: {e}")
 
 # --- Custom Control Library ---
-sys.path.insert(0, "/home/soda/vla")  # Prioritize local modules (Fix for AttributeError: 'MobileVLAInference' object has no attribute 'reset')
-from Mobile_VLA.vla_control_utils import VLAControlManager
+sys.path.insert(0, "/home/billy/25-1kp/vla")
+from robovlm_nav.serve.vla_control_utils import VLAControlManager
 
 
 # --- Configuration ---
@@ -117,17 +117,18 @@ LINEAR_SPEED_VLA = 1.15
 ANGULAR_SPEED_VLA = 1.15
 
 # --- Local Model Support ---
-VLA_ROOT = os.getenv("VLA_ROOT", "/home/soda/vla")
+VLA_ROOT = os.getenv("VLA_ROOT", "/home/billy/25-1kp/vla")
 if VLA_ROOT not in sys.path:
     sys.path.insert(0, VLA_ROOT)
 
 # Ensure RoboVLMs is searchable as a package
-ROBOVLMS_ROOT = os.path.join(VLA_ROOT, "RoboVLMs")
-if ROBOVLMS_ROOT not in sys.path:
-    sys.path.insert(0, ROBOVLMS_ROOT)
+for root_name in ['RoboVLMs', 'RoboVLMs_upstream', 'third_party/RoboVLMs']:
+    p = os.path.join(VLA_ROOT, root_name)
+    if os.path.exists(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
 try:
-    from Mobile_VLA.inference_server import MobileVLAInference
+    from robovlm_nav.serve.inference_server import MobileVLAInference
     LOCAL_MODEL_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ Local model modules not found: {e}")
@@ -163,7 +164,7 @@ def init_local_model(use_quant_str):
         if not config or not os.path.exists(config):
             import re
             import glob
-            configs_dir = "/home/soda/vla/Mobile_VLA/configs"
+            configs_dir = "/home/billy/25-1kp/vla/Mobile_VLA/configs"
             # Extract identifiers like exp04, exp-04, etc.
             match = re.search(r'(exp[-_]?\d+)', ckpt.lower())
             if match:
@@ -177,7 +178,7 @@ def init_local_model(use_quant_str):
             
             # Fallback if detection fails
             if not config or not os.path.exists(config):
-                config = "/home/soda/vla/Mobile_VLA/configs/mobile_vla_v3_exp01_aug.json"
+                config = "/home/billy/25-1kp/vla/Mobile_VLA/configs/mobile_vla_v3_exp01_aug.json"
                 print(f"⚠️ Could not auto-detect. Using fallback config: {os.path.basename(config)}")
         else:
             print(f"✅ Using explicitly set config from VLA_CONFIG_PATH: {os.path.basename(config)}")
@@ -295,26 +296,24 @@ def update_ui(mode, instr, apply_cc, is_running_ui):
                 act = "STOP"
                 chunk_info = "Waiting..."
                 
-                # [LOGGING] If local model is used, it handles logging internally via reset() and predict()
-                # Only use dashboard logger if local model is NOT active (e.g. Remote API mode, though Inference mode forces local)
-                if not local_model_instance and logger_instance: 
-                    logger_instance.start_session("Mobile-VLA-Dashboard", instr)
+                # [LOGGING] Unified session start
+                if logger_instance: 
+                    model_id = os.path.basename(os.getenv("VLA_CHECKPOINT_PATH", "Mobile-VLA"))
+                    logger_instance.start_session(model_id, instr)
 
                 if ROS_AVAILABLE and ros_node:
                      ros_node.control.robust_stop(source="inference_start")
                 
                 # Reset model history ensuring clean state
-                # Pass instruction to local model so it can start logging session correctly
                 if local_model_instance: 
                     try:
                         local_model_instance.reset(instruction=instr)
                     except TypeError:
-                        # Fallback for older interface
                         local_model_instance.reset()
                         
-                # 📸 [Image Cap] Always log step1 image if possible
+                # 📸 [Image Cap] Always log step1 image
                 if logger_instance:
-                    logger_instance.log_image(current_step, img)
+                    logger_instance.log_step(current_step, [0.0, 0.0], 0, image=img)
                 
                 return img, log, lat, act, chunk_info, gr.update(value="Running (1/18)..."), state["camera_status"], state["model_path"]
 
@@ -324,13 +323,9 @@ def update_ui(mode, instr, apply_cc, is_running_ui):
                 res = run_api_inference(img, instr, use_local=True)
                 log_inf, lat_str, act_str, chunk_str, raw_act, raw_lat, raw_chunk = res
                 
-                # [LOGGING] If local model is running, it already logged the step. Don't double log.
-                if not local_model_instance and logger_instance: 
+                # [LOGGING] Unified step logging
+                if logger_instance: 
                     logger_instance.log_step(current_step, raw_act, raw_lat, raw_chunk, image=img)
-                
-                # 📸 [Image Cap] Log the current frame
-                if logger_instance:
-                    logger_instance.log_image(current_step, img)
                 
                 log = f"{current_step}/18 | {log_inf}"
                 return img, log, lat_str, act_str, chunk_str, gr.update(value=f"Running ({current_step}/18)"), state["camera_status"], state["model_path"]
