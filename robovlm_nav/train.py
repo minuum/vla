@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT_DIR / "third_party" / "RoboVLMs"))
 
 import robovlms.data
 import robovlms.model.policy_head
+import robovlms.model.backbone
 import robovlms.train
 
 # ── 커스텀 컴포넌트 import ─────────────────────────────────────
@@ -50,11 +51,39 @@ setattr(robovlms.model.policy_head, "MobileVLAClassificationDecoder", NavClassif
 setattr(robovlms.model.policy_head, "MobileVLALSTMDecoder", NavLSTMDecoder)
 setattr(robovlms.model.policy_head, "HybridActionHead", HybridActionHead)
 
+# Backbone — 'RoboVLM-Nav' → RoboKosMos 주입
+# base_trainer.py L26: self.model_fn = getattr(RoboVLM_Backbone, configs["robovlm_name"])
+from robovlms.model.backbone.robokosmos import RoboKosMos
+setattr(robovlms.model.backbone, "RoboVLM-Nav", RoboKosMos)
+
 # Trainer
 setattr(robovlms.train, "MobileVLATrainer", NavTrainer)
 
 if __name__ == "__main__":
-    # third_party/RoboVLMs/main.py를 그대로 사용
-    os.chdir(ROOT_DIR / "third_party" / "RoboVLMs")
-    from main import main
-    main()
+    # third_party/RoboVLMs/main.py의 함수들을 직접 import해서 사용.
+    # chdir을 PROJECT_ROOT로 유지: parent 상대 경로가 configs/ 기준으로 resolve됨.
+    # EXP-07과 동일한 방식: python3 robovlm_nav/train.py <config> 실행 시 cwd=PROJECT_ROOT
+    os.chdir(ROOT_DIR)  # cwd = /home/billy/25-1kp/vla (configs/가 있는 위치)
+    from main import parse_args, load_config, update_configs, experiment, dist, DDPStrategy
+    import torch
+    args = parse_args()
+    configs = load_config(args.get("config"))
+    configs = update_configs(configs, args)
+
+    # DDP 초기화 (main.py의 __main__ 블록과 동일)
+    is_ddp_strategy = False
+    trainer_strategy_conf = configs.get("trainer", {}).get("strategy")
+    if isinstance(trainer_strategy_conf, str) and "ddp" in trainer_strategy_conf.lower():
+        is_ddp_strategy = True
+    elif isinstance(trainer_strategy_conf, DDPStrategy):
+        is_ddp_strategy = True
+    config_strategy_conf = configs.get("strategy")
+    if isinstance(config_strategy_conf, str) and "ddp" in config_strategy_conf.lower():
+        is_ddp_strategy = True
+
+    if configs.get("accelerator") != "mps" and is_ddp_strategy:
+        if dist.is_available() and not dist.is_initialized():
+            backend = 'nccl' if torch.cuda.is_available() else 'gloo'
+            dist.init_process_group(backend=backend)
+
+    experiment(variant=configs)
