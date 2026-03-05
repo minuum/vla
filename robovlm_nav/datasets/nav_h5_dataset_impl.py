@@ -226,37 +226,61 @@ class MobileVLAH5Dataset(Dataset):
             while len(actions) < total_frames_needed:
                 actions.append(np.zeros(2))
             
-            # 언어 명령 로드 (H5 파일에서 실제 읽기)
+            # ----------------------------------------------------------------
+            # 언어 명령 생성 (우선순위 순)
+            # 1) H5 내부 'language_instruction' 필드 (미래 수집 데이터용)
+            # 2) H5 attrs['episode_name'] 파싱 (현재 528 에피소드 전부 해당)
+            # 3) 파일명 fallback
+            # ----------------------------------------------------------------
             if 'language_instruction' in f:
-                language_bytes = f['language_instruction'][0]
-                language_base = language_bytes.decode('utf-8') if isinstance(language_bytes, bytes) else str(language_bytes)
+                # 미래에 데이터 수집 시 language_instruction 필드를 H5에 저장하면
+                # 하드코딩 없이 바로 사용 가능
+                raw = f['language_instruction'][0]
+                language_base = raw.decode('utf-8') if isinstance(raw, bytes) else str(raw)
             else:
-                # 파일명에서 방향 정보 추출 (Basket Navigation task 등)
-                filename = Path(self.episode_files[ep_idx]).name.lower()
-                if 'left' in filename:
+                # episode_name attr 파싱: e.g.
+                # "episode_20260129_010041_basket_1box_hori_left_core_medium"
+                ep_name = str(f.attrs.get('episode_name', '')).lower()
+                if not ep_name:
+                    ep_name = Path(self.episode_files[ep_idx]).stem.lower()
+
+                # 방향 추출
+                if 'left' in ep_name:
+                    direction = 'left'
+                elif 'right' in ep_name:
+                    direction = 'right'
+                else:
+                    direction = None
+
+                if direction == 'left':
+                    # 학습 시: instruction variation으로 grounding 다양성 확보
+                    # - 위치 명시 표현("visible on the left side of the frame")으로
+                    #   VLM의 시각 위치 단서와 텍스트를 동시에 활성화
                     if self.is_training:
                         variations = [
-                            "Navigate to the gray basket on the left",
-                            "Go to the left gray basket",
-                            "Move towards the basket on the left side",
-                            "Steer left to the gray basket",
-                            "Navigate to the gray basket"
+                            "Navigate to the gray basket visible on the left side of the frame",
+                            "Move toward the basket located on the left side",
+                            "Steer left to reach the gray basket in view",
+                            "Go to the gray basket on the left",
+                            "Navigate to the gray basket",
                         ]
                         language_base = np.random.choice(variations)
                     else:
-                        language_base = "Navigate to the gray basket on the left"
-                elif 'right' in filename:
+                        language_base = "Navigate to the gray basket visible on the left side of the frame"
+
+                elif direction == 'right':
                     if self.is_training:
                         variations = [
-                            "Navigate to the gray basket on the right",
-                            "Go to the right gray basket",
-                            "Move towards the basket on the right side",
-                            "Steer right to the gray basket",
-                            "Navigate to the gray basket"
+                            "Navigate to the gray basket visible on the right side of the frame",
+                            "Move toward the basket located on the right side",
+                            "Steer right to reach the gray basket in view",
+                            "Go to the gray basket on the right",
+                            "Navigate to the gray basket",
                         ]
                         language_base = np.random.choice(variations)
                     else:
-                        language_base = "Navigate to the gray basket on the right"
+                        language_base = "Navigate to the gray basket visible on the right side of the frame"
+
                 else:
                     language_base = "Navigate to the gray basket"
 

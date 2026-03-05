@@ -137,17 +137,20 @@ class MobileVLAActionDataset(ActionPredictionDataset):
         self.h5_files = valid_files
         assert len(self.h5_files) > 0, f"No valid .h5 files in {data_dir}"
 
-        # Scenario → English instruction (VLA standard: OpenVLA, RT-2)
-        # Changed from Korean to English for better Kosmos-2 VLM compatibility
+        # Scenario → English instruction
+        # 위치 명시 표현("visible on the left/right side of the frame")을 사용하여
+        # VLM의 시각 위치 인식과 Action Head의 instruction grounding을 동일한 텍스트로 통합.
+        # base_action_prediction_dataset.py의 prompt builder가 이를
+        # "What action should the robot take to {task_description}?" 형식으로 래핑.
         self.scenario_instructions = {
-            "1box_vert_left": "Navigate around the obstacle on the left side and reach the cup",
-            "1box_vert_right": "Navigate around the obstacle on the right side and reach the cup",
-            "1box_hori_left": "Navigate around the obstacle on the left side and reach the cup",
-            "1box_hori_right": "Navigate around the obstacle on the right side and reach the cup",
-            "2box_vert_left": "Navigate around the obstacle on the left side and reach the cup",
-            "2box_vert_right": "Navigate around the obstacle on the right side and reach the cup",
-            "2box_hori_left": "Navigate around the obstacle on the left side and reach the cup",
-            "2box_hori_right": "Navigate around the obstacle on the right side and reach the cup",
+            "1box_vert_left":  "Navigate to the cup visible on the left side of the frame",
+            "1box_vert_right": "Navigate to the cup visible on the right side of the frame",
+            "1box_hori_left":  "Navigate to the cup visible on the left side of the frame",
+            "1box_hori_right": "Navigate to the cup visible on the right side of the frame",
+            "2box_vert_left":  "Navigate to the cup visible on the left side of the frame",
+            "2box_vert_right": "Navigate to the cup visible on the right side of the frame",
+            "2box_hori_left":  "Navigate to the cup visible on the left side of the frame",
+            "2box_hori_right": "Navigate to the cup visible on the right side of the frame",
         }
 
     def _extract_scenario_from_filename(self, filename: str) -> str:
