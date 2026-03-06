@@ -382,6 +382,15 @@ class MobileVLAInference:
             if fallback_path not in sys.path:
                 sys.path.append(fallback_path)
             from mobile_vla_trainer import MobileVLATrainer
+
+        # Inject model backbone mapping required by newer V3 configs
+        try:
+            from robovlms.model.backbone.robokosmos import RoboKosMos
+            import robovlms.model.backbone as backbone
+            backbone.__dict__["RoboVLM-Nav"] = RoboKosMos
+            logger.info("🔧 Injected RoboVLM-Nav backbone mapping")
+        except Exception as base_e:
+            logger.warning(f"⚠️ Failed to inject RoboVLM-Nav backbone mapping: {base_e}")
         
         if self.use_quant:
             from transformers import BitsAndBytesConfig

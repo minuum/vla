@@ -179,6 +179,15 @@ class MobileVLAInference:
         
         from robovlms.train.mobile_vla_trainer import MobileVLATrainer
         
+        # Inject model backbone mapping required by newer V3 configs
+        try:
+            from robovlms.model.backbone.robokosmos import RoboKosMos
+            import robovlms.model.backbone as backbone
+            backbone.__dict__["RoboVLM-Nav"] = RoboKosMos
+            logger.info("🔧 Injected RoboVLM-Nav backbone mapping")
+        except Exception as base_e:
+            logger.warning(f"⚠️ Failed to inject RoboVLM-Nav backbone mapping: {base_e}")
+
         # Load from Lightning checkpoint
         logger.info(f"Loading checkpoint: {self.checkpoint_path}")
         logger.info(f"Using config: {self.config_path}")
