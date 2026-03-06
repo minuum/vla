@@ -2264,13 +2264,15 @@ class MobileVLADataCollector(Node):
                                         pass  # 추정 실패해도 계속 진행
                         except:
                             pass  # 시간대 정보가 없어도 계속 진행
-                        scenario_matched += 1
-                        self.get_logger().info(f"✅ {h5_file.name} → {scenario}")
+                        # scenario_matched += 1
+                        # self.get_logger().info(f"✅ {h5_file.name} → {scenario}")
                     else:
                         old_format_files.append(h5_file.name)
-                        self.get_logger().info(f"⚠️ {h5_file.name} → 시나리오 이름 없음 (구형 파일)")
+                        # self.get_logger().info(f"⚠️ {h5_file.name} → 시나리오 이름 없음 (구형 파일)")
                 except Exception as e:
-                    self.get_logger().warning(f"⚠️ {h5_file.name} 분석 실패: {e}")
+                    self.get_logger().debug(f"⚠️ {h5_file.name} 분석 실패: {e}")
+            
+            self.get_logger().info(f"✅ 동기화 완료! 총 {len(h5_files)}개 중 {len(h5_files) - len(old_format_files)}개의 시나리오 매칭 완료")
             
             # 구형 파일들 정보 출력
             if old_format_files:
