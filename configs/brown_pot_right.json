@@ -2,22 +2,21 @@
     "exp_name": "brown_pot_right",
     "model": "kosmos",
     "model_url": "https://huggingface.co/microsoft/kosmos-2-patch14-224",
-    "description": "Brown Pot navigation with RIGHT instruction (VLM recognition: 70%, Gray Basket obstacle: 90%)",
+    "description": "Brown Pot navigation with RIGHT instruction",
+    "_prompt_design_note": "Unified prompt: VLM과 Action Head가 동일한 instruction 텍스트를 사용. 분리된 vlm_prompt 제거. 위치 명시 표현('visible on the right side of the frame') 포함.",
     "train_setup": {
         "precision": "16-mixed",
         "predict_action": true,
         "freeze_backbone": true,
         "train_vision": false,
-        "lora_enable": false,
-        "comment": "Frozen VLM, trainable action head only - no LoRA needed!"
+        "lora_enable": false
     },
     "act_head": {
         "type": "MobileVLALSTMDecoder",
         "hidden_size": 512,
         "num_layers": 4,
         "action_dim": 2,
-        "chunk_size": 5,
-        "comment": "LSTM-based action head for continuous velocity prediction"
+        "chunk_size": 5
     },
     "train_dataset": {
         "type": "MobileVLAH5Dataset",
@@ -26,12 +25,18 @@
         "instruction_filter": [
             "right",
             "RIGHT"
-        ],
-        "comment": "RIGHT instruction episodes only"
+        ]
     },
-    "vlm_prompt": {
-        "template": "<grounding> Is there a brown pot?",
-        "comment": "Simple prompt works best - VLM does object detection, action head does instruction grounding"
+    "unified_instruction": {
+        "template": "Navigate to the brown pot visible on the right side of the frame",
+        "train_variations": [
+            "Navigate to the brown pot visible on the right side of the frame",
+            "Move toward the brown pot on the right side",
+            "Steer right to reach the brown pot in view",
+            "Go to the brown pot on the right",
+            "Navigate to the brown pot"
+        ],
+        "design_rationale": "단일 통합 instruction. base_action_prediction_dataset.py의 prompt builder가 'What action should the robot take to {instruction}?' 형식으로 래핑하여 VLM과 Action Head 모두에 동일하게 적용됨."
     },
     "trainer": {
         "max_epochs": 10,
@@ -45,11 +50,6 @@
         "obstacle_object": "Gray Basket (회색 빨랫 바구니)",
         "target_vlm_recognition": "70%",
         "obstacle_vlm_recognition": "90%",
-        "episodes_needed": 200,
-        "instructions": [
-            "Navigate around obstacles and reach the front of the brown pot on the right",
-            "Navigate to the right of the brown pot",
-            "Go to the brown pot on the right"
-        ]
+        "episodes_needed": 200
     }
 }

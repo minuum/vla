@@ -18,7 +18,7 @@ os.environ["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
 print(f"🔧 Forced ROS_DOMAIN_ID={os.environ['ROS_DOMAIN_ID']}, RMW={os.environ['RMW_IMPLEMENTATION']}")
 
 # --- Load .vla_env_settings manually ---
-env_path = "/home/soda/vla/.vla_env_settings"
+env_path = "/home/billy/25-1kp/vla/.vla_env_settings"
 if os.path.exists(env_path):
     with open(env_path, "r") as f:
         for line in f:
@@ -77,7 +77,7 @@ warnings.filterwarnings("ignore", message="Unable to import Axes3D")
 def setup_ros_paths():
     """Ensure colcon install paths are in sys.path"""
     import sys
-    ros_ws = "/home/soda/vla/ROS_action"
+    ros_ws = "/home/billy/25-1kp/vla/ROS_action"
     install_base = os.path.join(ros_ws, "install")
     if os.path.exists(install_base):
         for pkg in os.listdir(install_base):
@@ -117,7 +117,7 @@ LINEAR_SPEED_VLA = 1.15
 ANGULAR_SPEED_VLA = 1.15
 
 # --- Local Model Support ---
-VLA_ROOT = os.getenv("VLA_ROOT", "/home/soda/vla")
+VLA_ROOT = os.getenv("VLA_ROOT", "/home/billy/25-1kp/vla")
 if VLA_ROOT not in sys.path:
     sys.path.insert(0, VLA_ROOT)
 
@@ -164,7 +164,7 @@ def init_local_model(use_quant_str):
         if not config or not os.path.exists(config):
             import re
             import glob
-            configs_dir = "/home/soda/vla/Mobile_VLA/configs"
+            configs_dir = "/home/billy/25-1kp/vla/Mobile_VLA/configs"
             # Extract identifiers like exp04, exp-04, etc.
             match = re.search(r'(exp[-_]?\d+)', ckpt.lower())
             if match:
@@ -178,7 +178,7 @@ def init_local_model(use_quant_str):
             
             # Fallback if detection fails
             if not config or not os.path.exists(config):
-                config = "/home/soda/vla/Mobile_VLA/configs/mobile_vla_v3_exp01_aug.json"
+                config = "/home/billy/25-1kp/vla/Mobile_VLA/configs/mobile_vla_v3_exp01_aug.json"
                 print(f"⚠️ Could not auto-detect. Using fallback config: {os.path.basename(config)}")
         else:
             print(f"✅ Using explicitly set config from VLA_CONFIG_PATH: {os.path.basename(config)}")

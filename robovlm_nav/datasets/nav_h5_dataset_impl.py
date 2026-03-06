@@ -45,6 +45,7 @@ class MobileVLAH5Dataset(Dataset):
         discrete_action=False, # 분류 방식 사용 여부 (6개 클래스)
         use_color_jitter=False,  # [V3] Color Jitter 증강
         use_random_crop=False,   # [V3] Random Crop 증강
+        instruction_preset=None, # [EXP-08+] instruction 프리셋 ('center_goal' 등)
         **kwargs
     ):
         self.data_dir = data_dir
@@ -60,6 +61,8 @@ class MobileVLAH5Dataset(Dataset):
         self.abs_action = abs_action  # 방향 제거 옵션
         self.augment = augment and (not is_validation)  # 검증셋에는 증강 미적용
         self.is_training = not is_validation
+        # [EXP-08+] instruction 프리셋: None = 기본(EXP-07 등), 'center_goal' = EXP-08
+        self.instruction_preset = instruction_preset
         
         # [V3] Color Jitter & Random Crop — 학습셋에만 적용
         self.use_color_jitter = use_color_jitter and (not is_validation)
@@ -226,41 +229,95 @@ class MobileVLAH5Dataset(Dataset):
             while len(actions) < total_frames_needed:
                 actions.append(np.zeros(2))
             
-            # 언어 명령 로드 (H5 파일에서 실제 읽기)
+            # ----------------------------------------------------------------
+            # 언어 명령 생성 (우선순위 순)
+            # 1) H5 내부 'language_instruction' 필드 (미래 수집 데이터용)
+            # 2) instruction_preset 설정 (EXP-08+ 전용 프리셋)
+            # 3) H5 attrs['episode_name'] 파싱 (현재 528 에피소드 전부 해당)
+            # 4) 파일명 fallback
+            # ----------------------------------------------------------------
             if 'language_instruction' in f:
-                language_bytes = f['language_instruction'][0]
-                language_base = language_bytes.decode('utf-8') if isinstance(language_bytes, bytes) else str(language_bytes)
+                raw = f['language_instruction'][0]
+                language_base = raw.decode('utf-8') if isinstance(raw, bytes) else str(raw)
             else:
-                # 파일명에서 방향 정보 추출 (Basket Navigation task 등)
-                filename = Path(self.episode_files[ep_idx]).name.lower()
-                if 'left' in filename:
+                # episode_name attr 파싱: e.g.
+                # "episode_20260129_010041_basket_1box_hori_left_core_medium"
+                ep_name = str(f.attrs.get('episode_name', '')).lower()
+                if not ep_name:
+                    ep_name = Path(self.episode_files[ep_idx]).stem.lower()
+
+                # 방향 추출
+                if 'left' in ep_name:
+                    direction = 'left'
+                elif 'right' in ep_name:
+                    direction = 'right'
+                else:
+                    direction = None
+
+                # ------ EXP-08+: center_goal 프리셋 ------
+                if self.instruction_preset == 'center_goal':
+                    if direction == 'left':
+                        if self.is_training:
+                            variations = [
+                                "Navigate toward the gray basket until it is centered in the frame",
+                                "Move until the gray basket appears at the center of the image",
+                                "Approach the gray basket on the left until it is in the center of your view",
+                                "Steer to center the gray basket in the frame",
+                                "Navigate to the gray basket",
+                            ]
+                            language_base = np.random.choice(variations)
+                        else:
+                            language_base = "Navigate toward the gray basket until it is centered in the frame"
+                    elif direction == 'right':
+                        if self.is_training:
+                            variations = [
+                                "Navigate toward the gray basket until it is centered in the frame",
+                                "Move until the gray basket appears at the center of the image",
+                                "Approach the gray basket on the right until it is in the center of your view",
+                                "Steer to center the gray basket in the frame",
+                                "Navigate to the gray basket",
+                            ]
+                            language_base = np.random.choice(variations)
+                        else:
+                            language_base = "Navigate toward the gray basket until it is centered in the frame"
+                    else:
+                        language_base = "Navigate toward the gray basket until it is centered in the frame"
+
+                # ------ 기본 프리셋 (EXP-07 등, None) ------
+                elif direction == 'left':
+                    # 학습 시: instruction variation으로 grounding 다양성 확보
+                    # - 위치 명시 표현("visible on the left side of the frame")으로
+                    #   VLM의 시각 위치 단서와 텍스트를 동시에 활성화
                     if self.is_training:
                         variations = [
-                            "Navigate to the gray basket on the left",
-                            "Go to the left gray basket",
-                            "Move towards the basket on the left side",
-                            "Steer left to the gray basket",
-                            "Navigate to the gray basket"
+                            "Navigate to the gray basket visible on the left side of the frame",
+                            "Move toward the basket located on the left side",
+                            "Steer left to reach the gray basket in view",
+                            "Go to the gray basket on the left",
+                            "Navigate to the gray basket",
                         ]
                         language_base = np.random.choice(variations)
                     else:
-                        language_base = "Navigate to the gray basket on the left"
-                elif 'right' in filename:
+                        language_base = "Navigate to the gray basket visible on the left side of the frame"
+
+                elif direction == 'right':
                     if self.is_training:
                         variations = [
-                            "Navigate to the gray basket on the right",
-                            "Go to the right gray basket",
-                            "Move towards the basket on the right side",
-                            "Steer right to the gray basket",
-                            "Navigate to the gray basket"
+                            "Navigate to the gray basket visible on the right side of the frame",
+                            "Move toward the basket located on the right side",
+                            "Steer right to reach the gray basket in view",
+                            "Go to the gray basket on the right",
+                            "Navigate to the gray basket",
                         ]
                         language_base = np.random.choice(variations)
                     else:
-                        language_base = "Navigate to the gray basket on the right"
+                        language_base = "Navigate to the gray basket visible on the right side of the frame"
+
                 else:
                     language_base = "Navigate to the gray basket"
 
             language = language_base
+
 
         # -------------------------------------------------------------------------
         # Data Augmentation: Mirroring (Left <-> Right)
