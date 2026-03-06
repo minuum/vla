@@ -327,11 +327,12 @@ class MobileVLADataCollector(Node):
         self.time_period_file = self.data_dir / "time_period_stats.json"
         self.core_pattern_file = self.data_dir / "core_patterns.json"
         
-        # 데이터셋 통계 로드
+        # 데이터셋 통계 로드 및 실제 파일 기준 재동기화 (데이터 폴더 분리 및 마이그레이션 호환성 보장)
         self.load_dataset_stats()
         self.load_scenario_progress()
         self.load_time_period_stats()
         self.load_core_patterns()
+        self.resync_scenario_progress()  # 시작 시 항상 실제 파일들과 동기화하여 정확한 진행률 표시
         
         self.get_logger().info("🤖 Mobile VLA Data Collector 준비 완료!")
         self.get_logger().info("📋 조작 방법:")
@@ -1922,9 +1923,9 @@ class MobileVLADataCollector(Node):
         
     def extract_scenario_from_episode_name(self, episode_name: str) -> str:
         """에피소드명에서 시나리오 추출 (기존 형식 호환: vert/hori 포함된 형식도 처리)"""
-        # 먼저 새로운 형식(4개 시나리오) 확인
+        # 먼저 새로운 형식(4개 시나리오) 확인 - 부분 일치가 아닌 언더바 포함 패턴으로 정확히 매칭
         for scenario in self.cup_scenarios.keys():
-            if scenario in episode_name:
+            if f"_{scenario}_" in episode_name or episode_name.endswith(f"_{scenario}"):
                 return scenario
         
         # 기존 형식 호환: 1box_vert_left → 1box_left로 변환
