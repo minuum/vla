@@ -2685,15 +2685,17 @@ class MobileVLADataCollector(Node):
             self.get_logger().warn("⚠️ 알 수 없는 거리 레벨, 기본값 medium 사용")
             distance_level = 'medium'
         label = levels[distance_level]['label']
-        
-        # 에피소드명 생성 (배치 타입은 기본값으로 자동 설정)
+        # 배치 타입 제거
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        # 기존 형식 호환: episode_..._{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}
-        # 기본값으로 가로(hori) 배치 사용
-        num_box = scenario_id.split("_")[0]  # "1box" or "2box"
-        direction = scenario_id.split("_")[1]  # "left" or "right"
-        layout_type = self.default_layout_type  # 기본값: "hori"
-        episode_name = f"episode_{timestamp}_{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}"
+        if self.mode == "2":
+            episode_name = f"episode_{timestamp}_{scenario_id}_{pattern_type}_{distance_level}"
+        else:
+            # 기존 형식 호환: episode_..._{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}
+            # 기본값으로 가로(hori) 배치 사용
+            num_box = scenario_id.split("_")[0]  # "1box" or "2box"
+            direction = scenario_id.split("_")[1]  # "left"  or "right"
+            layout_type = self.default_layout_type  # 기본값: "hori"
+            episode_name = f"episode_{timestamp}_{num_box}_{layout_type}_{direction}_{pattern_type}_{distance_level}"
         
         # 현재 선택 상태를 저장해서 종료 시 통계 업데이트에 사용
         self.selected_scenario = scenario_id
