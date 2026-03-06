@@ -388,9 +388,15 @@ class MobileVLAInference:
             from robovlms.model.backbone.robokosmos import RoboKosMos
             import robovlms.model.backbone as backbone
             backbone.__dict__["RoboVLM-Nav"] = RoboKosMos
-            logger.info("🔧 Injected RoboVLM-Nav backbone mapping")
+            
+            import robovlms.model.policy_head as policy_head
+            from robovlms.model.policy_head.mobile_vla_policy import MobileVLAClassificationDecoder, MobileVLALSTMDecoder
+            policy_head.__dict__["NavPolicy"] = MobileVLAClassificationDecoder
+            policy_head.__dict__["NavPolicyRegression"] = MobileVLALSTMDecoder
+            
+            logger.info("🔧 Injected RoboVLM-Nav & NavPolicy mapping")
         except Exception as base_e:
-            logger.warning(f"⚠️ Failed to inject RoboVLM-Nav backbone mapping: {base_e}")
+            logger.warning(f"⚠️ Failed to inject model mapping: {base_e}")
         
         if self.use_quant:
             from transformers import BitsAndBytesConfig
