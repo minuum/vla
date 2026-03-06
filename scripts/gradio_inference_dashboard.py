@@ -112,7 +112,7 @@ from robovlm_nav.serve.vla_control_utils import VLAControlManager
 # --- Configuration ---
 API_URL = "http://localhost:8000"
 API_KEY = os.getenv("VLA_API_KEY", "vla_devel_key_2026")
-DEFAULT_INSTRUCTION = "Navigate to the brown pot on the left"
+DEFAULT_INSTRUCTION = "Navigate toward the gray basket until it is centered in the frame"
 LINEAR_SPEED_VLA = 1.15
 ANGULAR_SPEED_VLA = 1.15
 
