@@ -90,7 +90,8 @@ class MobileVLADataCollector(Node):
                 "v3_center": {"target": 40, "description": "V3 정중앙 (Center)", "key": "1"},
                 "v3_left": {"target": 30, "description": "V3 좌측 (Left)", "key": "2"},
                 "v3_right": {"target": 30, "description": "V3 우측 (Right)", "key": "3"},
-                "v3_noise": {"target": 60, "description": "V3 오류회복(Recovery) & 잡음(Noise)", "key": "4"}
+                "v3_recovery": {"target": 40, "description": "V3 오류회복 (Recovery)", "key": "4"},
+                "v3_noise": {"target": 20, "description": "V3 잡음 (Noise)", "key": "5"}
             }
             # 장애물(박스) 위치 대체 (화분 위치 대신 바구니 거리/위치로 활용)
             self.distance_levels = {
@@ -478,7 +479,7 @@ class MobileVLADataCollector(Node):
         elif key == 't' and not self.collecting:
             # 측정 태스크 표 보기
             self.show_measurement_task_table()
-        elif key in ['1', '2', '3', '4'] and not self.repeat_count_mode:
+        elif key in ['1', '2', '3', '4', '5'] and not self.repeat_count_mode:
             if self.scenario_selection_mode:
                 # 동적 시나리오 매핑
                 scenario_map = {v["key"]: k for k, v in self.cup_scenarios.items()}
@@ -1299,10 +1300,7 @@ class MobileVLADataCollector(Node):
 
     def _normalize_to_18_keys(self, keys: List[str]) -> List[str]:
         """핵심 패턴 키 시퀀스를 17 길이로 정규화 (초기 프레임 1개 + 17개 액션 = 18 프레임)"""
-        if self.mode == "2":
-            action_count = 100
-        else:
-            action_count = self.fixed_episode_length - 1  # 18 - 1 = 17 (초기 프레임 제외)
+        action_count = self.fixed_episode_length - 1  # 18 - 1 = 17 (초기 프레임 제외)
         normalized = list(keys[:action_count])
         if len(normalized) < action_count:
             normalized += ['SPACE'] * (action_count - len(normalized))
@@ -2388,12 +2386,21 @@ class MobileVLADataCollector(Node):
         # 핵심 패턴 가이드 표시
         core_pattern = self.get_core_pattern_guide(self.selected_scenario)
         
-        self.get_logger().info(f"📍 C키: 핵심 패턴 (Core) - 목표: {self.pattern_targets.get('core', 0)}개")
+        # 시나리오 목표 대비 50/50 분배 (V3) 또는 기존 분배
+        if self.mode == "2":
+            total_target = config.get('target', 40)
+            core_target = total_target // 2
+            variant_target = total_target - core_target
+        else:
+            core_target = self.pattern_targets.get('core', 150)
+            variant_target = self.pattern_targets.get('variant', 100)
+
+        self.get_logger().info(f"📍 C키: 핵심 패턴 (Core) - 목표: {core_target}개")
         self.get_logger().info(f"   🎮 가이드: {core_pattern}")
         self.get_logger().info("   💡 위 순서를 참고하여 정확히 따라하세요!")
         self.get_logger().info("")
         
-        self.get_logger().info(f"🔄 V키: 변형 패턴 (Variant) - 목표: {self.pattern_targets.get('variant', 0)}개")
+        self.get_logger().info(f"🔄 V키: 변형 패턴 (Variant) - 목표: {variant_target}개")
         if self.mode == "2":
             self.get_logger().info("   🎮 목표물 도달을 위한 스네이크 주행/시야 변경 등 의도적 변형")
         else:
