@@ -2392,13 +2392,16 @@ class MobileVLADataCollector(Node):
         # 핵심 패턴 가이드 표시
         core_pattern = self.get_core_pattern_guide(self.selected_scenario)
         
-        self.get_logger().info("📍 C키: 핵심 패턴 (Core) - 6개 수집 목표")
+        self.get_logger().info(f"📍 C키: 핵심 패턴 (Core) - 목표: {self.pattern_targets.get('core', 0)}개")
         self.get_logger().info(f"   🎮 가이드: {core_pattern}")
         self.get_logger().info("   💡 위 순서를 참고하여 정확히 따라하세요!")
         self.get_logger().info("")
         
-        self.get_logger().info("🔄 V키: 변형 패턴 (Variant) - 4개 수집 목표")
-        self.get_logger().info("   🎮 핵심 패턴의 타이밍이나 순서를 조금 변경")
+        self.get_logger().info(f"🔄 V키: 변형 패턴 (Variant) - 목표: {self.pattern_targets.get('variant', 0)}개")
+        if self.mode == "2":
+            self.get_logger().info("   🎮 목표물 도달을 위한 스네이크 주행/시야 변경 등 의도적 변형")
+        else:
+            self.get_logger().info("   🎮 핵심 패턴의 타이밍이나 순서를 조금 변경")
         self.get_logger().info("   💡 창의적으로 변형하여 움직이세요!")
         self.get_logger().info("")
         
@@ -2418,7 +2421,10 @@ class MobileVLADataCollector(Node):
         }
         pattern_display = pattern_names.get(self.selected_pattern_type, self.selected_pattern_type)
         
-        self.get_logger().info("🎯 장애물 위치 선택")
+        if self.mode == "2":
+            self.get_logger().info("🎯 바구니 목표 거리(Distance) 선택")
+        else:
+            self.get_logger().info("🎯 장애물 위치 선택")
         self.get_logger().info("=" * 50)
         self.get_logger().info(f"📦 선택된 시나리오: {scenario_config.get('description', self.selected_scenario)}")
         self.get_logger().info(f"📋 선택된 패턴: {pattern_display}")
@@ -2435,7 +2441,10 @@ class MobileVLADataCollector(Node):
         self.get_logger().info(f"   📍 {levels['far']['label']}")
         self.get_logger().info(f"   💡 {levels['far']['hint']}")
         self.get_logger().info("")
-        self.get_logger().info("✨ J/K/L 중 장애물 위치를 선택하세요!")
+        if self.mode == "2":
+            self.get_logger().info("✨ J/K/L 중 거리를 선택하세요!")
+        else:
+            self.get_logger().info("✨ J/K/L 중 장애물 위치를 선택하세요!")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
         
     def show_repeat_count_selection(self):
