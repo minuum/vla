@@ -428,7 +428,7 @@ class MobileVLADataCollector(Node):
                 self.stop_episode()
         elif key == 'p':
             self.resync_and_show_progress()
-        elif key == 'v':
+        elif key == 'v' and not self.pattern_selection_mode:
             if self.collecting:
                 self.get_logger().warn("⚠️ 수집 중에는 H5 파일 검증을 할 수 없습니다. 먼저 M키로 에피소드를 종료하세요.")
             else:
@@ -475,10 +475,10 @@ class MobileVLADataCollector(Node):
                 self.get_logger().warn("⚠️ 복귀할 경로가 없습니다. 먼저 에피소드를 수집하세요.")
             else:
                 self.start_auto_return()
-        elif key == 't':
+        elif key == 't' and not self.collecting:
             # 측정 태스크 표 보기
             self.show_measurement_task_table()
-        elif key in ['1', '2', '3', '4']:
+        elif key in ['1', '2', '3', '4'] and not self.repeat_count_mode:
             if self.scenario_selection_mode:
                 # 동적 시나리오 매핑
                 scenario_map = {v["key"]: k for k, v in self.cup_scenarios.items()}
@@ -498,41 +498,35 @@ class MobileVLADataCollector(Node):
                     self.show_pattern_selection()
             else:
                 self.get_logger().info("⚠️ 먼저 'N' 키를 눌러 에피소드 시작을 해주세요.")
-        elif key in ['c', 'v']:
-            if self.pattern_selection_mode:
-                # 패턴 선택 모드에서 c/v 키 입력
-                pattern_map = {
-                    'c': "core",      # 핵심 패턴
-                    'v': "variant"   # 변형 패턴  
-                }
-                pattern_type = pattern_map[key]
-                self.pattern_selection_mode = False  # 패턴 선택 모드 해제
-                self.selected_pattern_type = pattern_type
-                
-                if self.guide_edit_selection_mode:
-                    # 가이드 편집을 위한 선택 모드: 핵심 패턴만 지원
-                    if pattern_type == "variant":
-                        self.get_logger().warn("⚠️ 가이드 편집은 핵심 패턴(Core)만 지원합니다. 'C' 키를 눌러주세요.")
-                        self.show_pattern_selection()  # 다시 패턴 선택
-                    else:
-                        # 핵심 패턴 선택 시 거리 선택으로 전환
-                        self.show_distance_selection()
-                elif self.auto_measurement_mode:
-                    # 자동 측정 모드: 핵심 패턴만 지원
-                    if pattern_type == "variant":
-                        self.get_logger().warn("⚠️ 자동 측정은 핵심 패턴(Core)만 지원합니다. 'C' 키를 눌러주세요.")
-                        self.show_pattern_selection()  # 다시 패턴 선택
-                    else:
-                        # 핵심 패턴 선택 시 거리 선택으로 전환
-                        self.show_distance_selection()
+        elif key in ['c', 'v'] and self.pattern_selection_mode:
+            # 패턴 선택 모드에서 c/v 키 입력
+            pattern_map = {
+                'c': "core",      # 핵심 패턴
+                'v': "variant"   # 변형 패턴  
+            }
+            pattern_type = pattern_map[key]
+            self.pattern_selection_mode = False  # 패턴 선택 모드 해제
+            self.selected_pattern_type = pattern_type
+            
+            if self.guide_edit_selection_mode:
+                # 가이드 편집을 위한 선택 모드: 핵심 패턴만 지원
+                if pattern_type == "variant":
+                    self.get_logger().warn("⚠️ 가이드 편집은 핵심 패턴(Core)만 지원합니다. 'C' 키를 눌러주세요.")
+                    self.show_pattern_selection()  # 다시 패턴 선택
                 else:
-                    # 일반 모드: 거리 선택으로 전환
+                    # 핵심 패턴 선택 시 거리 선택으로 전환
+                    self.show_distance_selection()
+            elif self.auto_measurement_mode:
+                # 자동 측정 모드: 핵심 패턴만 지원
+                if pattern_type == "variant":
+                    self.get_logger().warn("⚠️ 자동 측정은 핵심 패턴(Core)만 지원합니다. 'C' 키를 눌러주세요.")
+                    self.show_pattern_selection()  # 다시 패턴 선택
+                else:
+                    # 핵심 패턴 선택 시 거리 선택으로 전환
                     self.show_distance_selection()
             else:
-                # 패턴 선택 모드가 아닐 때는 일반 대각선 움직임으로 처리
-                if key == 'c':
-                    # C키가 패턴 선택에 사용되지 않을 때만 움직임으로 처리
-                    pass  # 아래 WASD 처리로 넘어감
+                # 일반 모드: 거리 선택으로 전환
+                self.show_distance_selection()
         elif key in ['j', 'k', 'l']:
             if self.distance_selection_mode:
                 # 거리 선택 모드: j=근거리, k=중거리, l=원거리
