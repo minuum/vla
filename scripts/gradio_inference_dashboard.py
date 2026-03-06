@@ -18,7 +18,9 @@ os.environ["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
 print(f"🔧 Forced ROS_DOMAIN_ID={os.environ['ROS_DOMAIN_ID']}, RMW={os.environ['RMW_IMPLEMENTATION']}")
 
 # --- Load .vla_env_settings manually ---
-env_path = "/home/billy/25-1kp/vla/.vla_env_settings"
+env_path = os.getenv("VLA_ENV_PATH", "/home/soda/vla/.vla_env_settings")
+if not os.path.exists(env_path):
+    env_path = "/home/billy/25-1kp/vla/.vla_env_settings" # fallback
 if os.path.exists(env_path):
     with open(env_path, "r") as f:
         for line in f:
@@ -152,6 +154,22 @@ def init_local_model(use_quant_str):
              import torch
              torch.cuda.empty_cache()
              print("🔄 Unloaded existing model")
+
+        # Dynamically reload env settings to catch VSCode changes
+        env_path = os.getenv("VLA_ENV_PATH", "/home/soda/vla/.vla_env_settings")
+        if not os.path.exists(env_path):
+            env_path = "/home/billy/25-1kp/vla/.vla_env_settings" # fallback
+        if os.path.exists(env_path):
+            with open(env_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("export "):
+                        try:
+                            key, val = line.replace("export ", "", 1).split("=", 1)
+                            os.environ[key] = val.strip('"').strip("'")
+                        except ValueError:
+                            continue
+            print("🔄 Reloaded .vla_env_settings dynamically")
 
         ckpt = os.getenv("VLA_CHECKPOINT_PATH")
         if not ckpt:
