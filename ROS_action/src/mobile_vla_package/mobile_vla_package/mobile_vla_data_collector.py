@@ -1219,7 +1219,10 @@ class MobileVLADataCollector(Node):
         
         # 간소화된 로그: 현재 수집 개수와 남은 개수만 표시
         current_count = len(self.episode_data)
-        total_target = self.fixed_episode_length
+        if self.mode == "2":
+            total_target = float("inf")
+        else:
+            total_target = self.fixed_episode_length
         remaining = max(0, total_target - current_count)
         
         # 핵심 패턴 불일치 감지 및 다음 키 가져오기
@@ -1284,7 +1287,10 @@ class MobileVLADataCollector(Node):
 
     def _normalize_to_18_keys(self, keys: List[str]) -> List[str]:
         """핵심 패턴 키 시퀀스를 17 길이로 정규화 (초기 프레임 1개 + 17개 액션 = 18 프레임)"""
-        action_count = self.fixed_episode_length - 1  # 18 - 1 = 17 (초기 프레임 제외)
+        if self.mode == "2":
+            action_count = 100
+        else:
+            action_count = self.fixed_episode_length - 1  # 18 - 1 = 17 (초기 프레임 제외)
         normalized = list(keys[:action_count])
         if len(normalized) < action_count:
             normalized += ['SPACE'] * (action_count - len(normalized))
@@ -1450,6 +1456,11 @@ class MobileVLADataCollector(Node):
         end_time = time.time()
         total_duration = end_time - self.episode_start_time
         
+        # V3 모드에서 아무것도 수집하지 않고 종료했을 때 방어
+        if len(self.episode_data) <= 1:
+            self.get_logger().warn("너무 짧은 에피소드(1 프레임 이하)는 저장하지 않습니다.")
+            return
+
         save_path = self.save_episode_data(self.episode_data, self.episode_name, total_duration)
 
         # 핵심 패턴 표준 저장/갱신
@@ -1457,7 +1468,10 @@ class MobileVLADataCollector(Node):
         if scenario and ("_core_" in self.episode_name or self.episode_name.endswith("_core")):
             if self.record_core_pattern and len(self.current_episode_keys) > 0:
                 # SPACE는 명시적 정지일 때만 기록. 자동 패딩은 저장 시 제거
-                normalized = self._normalize_to_18_keys(self.current_episode_keys)
+                if self.mode != "2":
+                    normalized = self._normalize_to_18_keys(self.current_episode_keys)
+                else:
+                    normalized = self.current_episode_keys
                 # 끝에 SPACE만 남았을 경우 제거하여 불필요한 SPACE 표준 방지
                 while normalized and normalized[-1] == 'SPACE':
                     normalized.pop()
@@ -3014,10 +3028,15 @@ class MobileVLADataCollector(Node):
         return_actions.reverse()
         
         # 🔴 17개 액션으로 정규화 (초기 프레임 1개 + 17개 액션 = 18프레임)
-        target_action_count = self.fixed_episode_length - 1  # 18 - 1 = 17
-        if len(return_actions) < target_action_count:
-            padding_count = target_action_count - len(return_actions)
-            self.get_logger().info(f"📏 복귀 액션 정규화: {len(return_actions)}개 → {target_action_count}개 (STOP {padding_count}개 추가)")
+        if self.mode == "2":
+            target_action_count = len(return_actions) # 무제한/제한없음
+        else:
+            target_action_count = self.fixed_episode_length - 1  # 18 - 1 = 17
+            
+        if self.mode != "2":
+            if len(return_actions) < target_action_count:
+                padding_count = target_action_count - len(return_actions)
+                self.get_logger().info(f"📏 복귀 액션 정규화: {len(return_actions)}개 → {target_action_count}개 (STOP {padding_count}개 추가)")
             return_actions.extend([self.STOP_ACTION.copy() for _ in range(padding_count)])
         elif len(return_actions) > target_action_count:
             self.get_logger().warn(f"⚠️ 복귀 액션이 {target_action_count}개를 초과합니다 ({len(return_actions)}개). 첫 {target_action_count}개만 사용합니다.")
