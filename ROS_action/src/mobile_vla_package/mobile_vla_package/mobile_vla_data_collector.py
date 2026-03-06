@@ -36,8 +36,9 @@ except ImportError:
     ROBOT_AVAILABLE = False
 
 class MobileVLADataCollector(Node):
-    def __init__(self):
+    def __init__(self, mode="1"):
         super().__init__('mobile_vla_data_collector')
+        self.mode = mode
         self.WASD_TO_CONTINUOUS = {
             'w': {"linear_x": 1.15, "linear_y": 0.0, "angular_z": 0.0},
             'a': {"linear_x": 0.0, "linear_y": 1.15, "angular_z": 0.0},
@@ -83,28 +84,36 @@ class MobileVLADataCollector(Node):
         self.time_period_stats = defaultdict(int)  # 시간대별 통계
         
         # 4가지 탄산음료 페트병 도달 시나리오 목표 설정 (총 1000개 목표)
-        # 시나리오별 목표: 각 250개 (1000개 ÷ 4개 시나리오)
-        # 배치 타입(vert/hori)은 메타데이터로만 기록, 학습에는 영향 없음
-        self.cup_scenarios = {
-            "1box_left": {"target": 250, "description": "1박스-왼쪽경로", "key": "1"},
-            "1box_right": {"target": 250, "description": "1박스-오른쪽경로", "key": "2"},
-            "2box_left": {"target": 250, "description": "2박스-왼쪽경로", "key": "3"},
-            "2box_right": {"target": 250, "description": "2박스-오른쪽경로", "key": "4"}
-        }
+        if self.mode == "2":
+            # V3 Phase 1.5 (장애물 없는 Target-reahing 수집)
+            self.cup_scenarios = {
+                "v3_center": {"target": 120, "description": "V3 정중앙 (Center) [목표물 접근]", "key": "1"},
+                "v3_left": {"target": 80, "description": "V3 좌측 (Left)", "key": "2"},
+                "v3_right": {"target": 80, "description": "V3 우측 (Right)", "key": "3"},
+                "v3_noise": {"target": 80, "description": "V3 시각 흔들림/오류회복 궤도(Recovery)", "key": "4"}
+            }
+            # 장애물(박스) 위치 대체 (화분 위치 대신 바구니 거리/위치로 활용)
+            self.distance_levels = {
+                "close":   {"label": "가까움 (Close/Slight)",      "hint": "바구니가 가깝거나 약간 편향됨", "samples_per_scenario": 3},
+                "medium":  {"label": "중간 거리 (Medium)",         "hint": "표준 접근 전진 (2.5m 내외)", "samples_per_scenario": 4},
+                "far":     {"label": "멀리 / 극단적 (Far/Extreme)", "hint": "멀리서 길게 조향하거나 극단적 편향", "samples_per_scenario": 3}
+            }
+        else:
+            # 기존 1번 모드 (장애물 회피 기반)
+            self.cup_scenarios = {
+                "1box_left": {"target": 250, "description": "1박스-왼쪽경로", "key": "1"},
+                "1box_right": {"target": 250, "description": "1박스-오른쪽경로", "key": "2"},
+                "2box_left": {"target": 250, "description": "2박스-왼쪽경로", "key": "3"},
+                "2box_right": {"target": 250, "description": "2박스-오른쪽경로", "key": "4"}
+            }
+            self.distance_levels = {
+                "close":   {"label": "로봇과 가까운 위치",   "hint": "로봇 바로 앞에 가까운 장애물", "samples_per_scenario": 3},
+                "medium":  {"label": "중간 거리",          "hint": "장애물이 중간 거리에 배치", "samples_per_scenario": 4},
+                "far":     {"label": "로봇과 먼 위치",     "hint": "로봇에서 멀리 배치된 장애물", "samples_per_scenario": 3}
+            }
         
         # 장애물 배치 타입 기본값 설정 (학습에 불필요하지만 호환성을 위해 기본값 사용)
         self.default_layout_type = "hori"  # 기본값: 가로 배치
-        
-        # 장애물(박스) 위치 단계 (3단계)
-        # label: 안내용 텍스트, hint: 콘솔 힌트
-        self.distance_levels = {
-            "close":   {"label": "로봇과 가까운 위치",   "hint": "로봇 바로 앞에 가까운 장애물",
-                         "samples_per_scenario": 3},
-            "medium":  {"label": "중간 거리",          "hint": "장애물이 중간 거리에 배치",
-                         "samples_per_scenario": 4},
-            "far":     {"label": "로봇과 먼 위치",     "hint": "로봇에서 멀리 배치된 장애물",
-                         "samples_per_scenario": 3}
-        }
         
         self.dataset_stats = defaultdict(int)
         self.scenario_stats = defaultdict(int)
@@ -3305,6 +3314,30 @@ class MobileVLADataCollector(Node):
 
 
 def main(args=None):
+    import termios, tty, sys, select
+    mode = "1"
+    try:
+        print("\n" + "="*70)
+        print("🚀 VLA 데이터 수집 모드 선택")
+        print("  [1] 기존 모드 (Default)   : 1box/2box 장애물 포함 경로 (기존 로직)")
+        print("  [2] V3 수집 모드 (Phase 1.5): Target-Reaching Only (장애물 없이 바구니 목표)")
+        print("="*70)
+        print("원하는 모드 번호를 입력 후 Enter (아무 입력 없으면 5초 뒤 기본값 1 적용): ", end='', flush=True)
+        i, o, e = select.select([sys.stdin], [], [], 5)
+        if i:
+            val = sys.stdin.readline().strip()
+            if val == "2":
+                mode = "2"
+                print("\n✅ V3 수집 모드(Phase 1.5 - 장애물 없음)로 시작합니다!\n")
+            else:
+                print("\n✅ 기존 1번 모드로 시작합니다.\n")
+        else:
+            print("\n⏳ 시간 초과: 기본값인 1번(기존 모드)으로 시작합니다.\n")
+    except EOFError:
+        print("\n✅ 기존 1번 모드로 시작합니다.\n")
+    except KeyboardInterrupt:
+        sys.exit(0)
+
     # ROS2 초기화
     try:
         rclpy.init(args=args)
@@ -3314,7 +3347,7 @@ def main(args=None):
     
     collector = None
     try:
-        collector = MobileVLADataCollector()
+        collector = MobileVLADataCollector(mode=mode)
         rclpy.spin(collector)
     except KeyboardInterrupt:
         pass
