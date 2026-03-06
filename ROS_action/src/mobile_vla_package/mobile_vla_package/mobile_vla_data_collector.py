@@ -340,16 +340,25 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("   M: 에피소드 종료, P: 현재 진행 상황 확인")
         self.get_logger().info("   V: H5 파일 검증 및 추출 (최신 파일 또는 선택)")
         self.get_logger().info("   X: 리셋 (첫 화면으로 돌아가기, 수집 중에도 가능)")
-        self.get_logger().info("   B: 자동 복귀 (에피소드 종료 후 시작 위치로 복귀)")
-        self.get_logger().info("   A: 자동 측정 (가이드 기반 자동 측정)")
-        self.get_logger().info("   T: 측정 태스크 표 보기")
-        self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 장애물 위치(J/K/L)")
-        self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 (총 1000개 목표):")
-        self.get_logger().info("   📦 4개 시나리오 × 250개 샘플 × 18프레임 고정 (RoboVLMs 기준: window=8 + pred_next=10)")
-        self.get_logger().info("   🎯 수집 목표: 18프레임 기준 (RoboVLMs 학습에 최적화)")
-        self.get_logger().info("   💡 총 목표: 1000개 (시나리오당 250개)")
-        self.get_logger().info("   🌅 시간대 분포: 새벽(200) + 아침(200) + 저녁(300) + 밤(300)")
-        self.get_logger().info("   🔬 패턴 분포: Core(150) + Variant(100) / 시나리오")
+        
+        if self.mode == "2":
+            self.get_logger().info("   T: 수집 플랜 표 보기 (V3 1.5 Phase 160개 플랜)")
+            self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 거리(J/K/L)")
+            self.get_logger().info("   (※ V3 수동 수집에서는 B: 자동복귀, A: 자동측정을 허용하지 않습니다)")
+            self.get_logger().info("🎯 V3 Target-Reaching 시나리오 (총 160개 목표):")
+            self.get_logger().info("   📦 100% 수동으로 바구니를 향해 접근 및 조향")
+        else:
+            self.get_logger().info("   B: 자동 복귀 (에피소드 종료 후 시작 위치로 복귀)")
+            self.get_logger().info("   A: 자동 측정 (가이드 기반 자동 측정)")
+            self.get_logger().info("   T: 측정 태스크 표 보기")
+            self.get_logger().info("🎯 수집 단계: N → 시나리오(1-4) → 패턴(C/V) → 장애물 위치(J/K/L)")
+            self.get_logger().info("🎯 탄산음료 페트병 도달 시나리오 (총 1000개 목표):")
+            self.get_logger().info("   📦 4개 시나리오 × 250개 샘플 × 18프레임 고정 (RoboVLMs 기준: window=8 + pred_next=10)")
+            self.get_logger().info("   🎯 수집 목표: 18프레임 기준 (RoboVLMs 학습에 최적화)")
+            self.get_logger().info("   💡 총 목표: 1000개 (시나리오당 250개)")
+            self.get_logger().info("   🌅 시간대 분포: 새벽(200) + 아침(200) + 저녁(300) + 밤(300)")
+            self.get_logger().info("   🔬 패턴 분포: Core(150) + Variant(100) / 시나리오")
+            
         self.get_logger().info("   📊 카테고리 분류: 데이터셋 통계 모니터링용 (수집 목표와는 별개)")
         self.get_logger().info("   ✨ 단순화: 배치 타입 선택 단계 제거 (학습에 불필요)")
         self.get_logger().info("   Ctrl+C: 프로그램 종료")
@@ -469,11 +478,11 @@ class MobileVLADataCollector(Node):
             self.show_measurement_task_table()
         elif key in ['1', '2', '3', '4']:
             if self.scenario_selection_mode:
-                # 시나리오 선택 모드에서 숫자키 입력 (4개 시나리오로 축소)
-                scenario_map = {
-                    '1': "1box_left", '2': "1box_right",
-                    '3': "2box_left", '4': "2box_right"
-                }
+                # 동적 시나리오 매핑
+                scenario_map = {v["key"]: k for k, v in self.cup_scenarios.items()}
+                if key not in scenario_map:
+                    self.get_logger().info(f"⚠️ 유효하지 않은 시나리오입니다 (입력: {key})")
+                    return
                 self.selected_scenario = scenario_map[key]
                 self.scenario_selection_mode = False  # 시나리오 선택 모드 해제
                 if self.guide_edit_selection_mode:
@@ -2157,12 +2166,19 @@ class MobileVLADataCollector(Node):
         self.get_logger().info("")
         
         # 시나리오별 상세 정보 표시 (4개로 축소)
-        scenario_details = [
-            {"key": "1", "id": "1box_left", "path": "W W W → A A → W W → D D"},
-            {"key": "2", "id": "1box_right", "path": "W W → D D → W W W → A A"},
-            {"key": "3", "id": "2box_left", "path": "W W → A A A → W W → D D D"},
-            {"key": "4", "id": "2box_right", "path": "W → D D D → W W W → A A A"}
-        ]
+        scenario_details = []
+        for s_id, s_info in self.cup_scenarios.items():
+            if self.mode == "2":
+                path_info = "수동 조작 (직진/조향/정지)"
+            else:
+                pm = {
+                    "1box_left": "W W W → A A → W W → D D",
+                    "1box_right": "W W → D D → W W W → A A",
+                    "2box_left": "W W → A A A → W W → D D D",
+                    "2box_right": "W → D D D → W W W → A A A"
+                }
+                path_info = pm.get(s_id, "")
+            scenario_details.append({"key": s_info["key"], "id": s_id, "path": path_info})
         
         for scenario in scenario_details:
             scenario_id = scenario["id"]
