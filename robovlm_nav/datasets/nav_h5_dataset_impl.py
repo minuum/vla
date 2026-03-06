@@ -46,6 +46,7 @@ class MobileVLAH5Dataset(Dataset):
         use_color_jitter=False,  # [V3] Color Jitter 증강
         use_random_crop=False,   # [V3] Random Crop 증강
         instruction_preset=None, # [EXP-08+] instruction 프리셋 ('center_goal' 등)
+        min_episode_frames=None, # [EXP-09+] 허용 최소 에피소드 프레임 수. None이면 window+chunk 기준
         **kwargs
     ):
         self.data_dir = data_dir
@@ -63,6 +64,9 @@ class MobileVLAH5Dataset(Dataset):
         self.is_training = not is_validation
         # [EXP-08+] instruction 프리셋: None = 기본(EXP-07 등), 'center_goal' = EXP-08
         self.instruction_preset = instruction_preset
+        # [EXP-09+] 가변 길이 에피소드 허용을 위한 최소 프레임 수
+        # None이면 window_size + fwd_pred_next_n 과 동일 (기존 동작 유지)
+        self.min_episode_frames = min_episode_frames
         
         # [V3] Color Jitter & Random Crop — 학습셋에만 적용
         self.use_color_jitter = use_color_jitter and (not is_validation)
@@ -139,12 +143,15 @@ class MobileVLAH5Dataset(Dataset):
     
     def __len__(self):
         # 각 에피소드에서 window_size + fwd_pred_next_n 만큼의 프레임이 필요
-        # RoboVLMs 구조: 8 + 10 = 18 프레임
+        # [EXP-09+] min_episode_frames 설정 시 해당 값 이상의 에피소드도 포함
         total_frames_needed = self.window_size + self.fwd_pred_next_n
+        min_valid = self.min_episode_frames if self.min_episode_frames is not None else total_frames_needed
         valid_frames = 0
         for length in self.episode_lengths:
-            if length >= total_frames_needed:
-                valid_frames += length - total_frames_needed + 1
+            if length >= min_valid:
+                # 짧은 에피소드는 항상 start=0에서만 샘플링 (range 1)
+                max_samples = max(1, length - total_frames_needed + 1) if length >= total_frames_needed else 1
+                valid_frames += max_samples
         return max(1, valid_frames)
     
     def _find_episode_and_frame(self, idx):
