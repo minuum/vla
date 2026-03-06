@@ -87,10 +87,10 @@ class MobileVLADataCollector(Node):
         if self.mode == "2":
             # V3 Phase 1.5 (장애물 없는 Target-reahing 수집)
             self.cup_scenarios = {
-                "v3_center": {"target": 120, "description": "V3 정중앙 (Center) [목표물 접근]", "key": "1"},
-                "v3_left": {"target": 80, "description": "V3 좌측 (Left)", "key": "2"},
-                "v3_right": {"target": 80, "description": "V3 우측 (Right)", "key": "3"},
-                "v3_noise": {"target": 80, "description": "V3 시각 흔들림/오류회복 궤도(Recovery)", "key": "4"}
+                "v3_center": {"target": 40, "description": "V3 정중앙 (Center)", "key": "1"},
+                "v3_left": {"target": 30, "description": "V3 좌측 (Left)", "key": "2"},
+                "v3_right": {"target": 30, "description": "V3 우측 (Right)", "key": "3"},
+                "v3_noise": {"target": 60, "description": "V3 오류회복(Recovery) & 잡음(Noise)", "key": "4"}
             }
             # 장애물(박스) 위치 대체 (화분 위치 대신 바구니 거리/위치로 활용)
             self.distance_levels = {
@@ -124,11 +124,18 @@ class MobileVLADataCollector(Node):
         # 시나리오당 250개 목표를 패턴/거리별로 분배
         # Core: 150개 (60%), Variant: 100개 (40%)
         # 거리 분배: Core(50/75/25), Variant(25/25/50)
-        self.pattern_targets = {"core": 150, "variant": 100}
-        self.distance_targets_per_pattern = {
-            "core": {"close": 50, "medium": 75, "far": 25},
-            "variant": {"close": 25, "medium": 25, "far": 50},
-        }
+        if self.mode == "2":
+            self.pattern_targets = {"core": 20, "variant": 20}
+            self.distance_targets_per_pattern = {
+                "core": {"close": 5, "medium": 10, "far": 5},
+                "variant": {"close": 5, "medium": 10, "far": 5},
+            }
+        else:
+            self.pattern_targets = {"core": 150, "variant": 100}
+            self.distance_targets_per_pattern = {
+                "core": {"close": 50, "medium": 75, "far": 25},
+                "variant": {"close": 25, "medium": 25, "far": 50},
+            }
         
         # 시나리오/패턴/거리 선택 모드 및 상태 (배치 타입 제거로 단순화)
         self.scenario_selection_mode = False
