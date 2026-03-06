@@ -214,7 +214,9 @@ def init_local_model(use_quant_str):
             
         state["model_status"] = f"Loaded ({'INT8' if use_quant else 'FP16'})"
         state["model_path"] = ckpt
-        return f"✅ Loaded: {os.path.basename(ckpt)} ({'INT8' if use_quant else 'FP16'})"
+        # Get parent directory name for better context instead of just epoch_epoch...ckpt
+        short_name = f"{os.path.basename(os.path.dirname(ckpt))}/{os.path.basename(ckpt)}"
+        return f"✅ Loaded: {short_name} ({'INT8' if use_quant else 'FP16'})"
     except Exception as e:
         import traceback
         traceback.print_exc()
