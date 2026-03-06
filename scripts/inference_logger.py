@@ -22,9 +22,9 @@ class InferenceLogger:
     def start_session(self, model_name, instruction):
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_file = os.path.join(self.log_dir, f"session_{self.session_id}.json")
-        self.image_log_dir = os.path.join(self.log_dir, f"session_{self.session_id}")
+        self.image_log_dir = os.path.join(self.log_dir, f"session_{self.session_id}_images")
         
-        # Create directory for images if it doesn't exist
+        # Create directory for images
         os.makedirs(self.image_log_dir, exist_ok=True)
         
         self.data = {
@@ -35,6 +35,7 @@ class InferenceLogger:
             "history": []
         }
         print(f"📝 Logging session started: {self.log_file}")
+        print(f"📸 Image directory: {self.image_log_dir}")
 
 
     def update_instruction(self, instruction):
@@ -43,26 +44,25 @@ class InferenceLogger:
             print(f"📝 Instruction updated: {instruction}")
             
     def log_image(self, step_idx, image):
-        if not hasattr(self, "image_log_dir") or not getattr(self, "image_log_dir"):
+        if not hasattr(self, "image_log_dir") or not self.image_log_dir:
             return None
             
         try:
-            if not os.path.exists(self.image_log_dir):
-                os.makedirs(self.image_log_dir, exist_ok=True)
-                
-            img_filename = f"frame_{step_idx:02d}.jpg"
+            img_filename = f"frame_{step_idx:03d}.jpg"
             img_path = os.path.join(self.image_log_dir, img_filename)
             
             if hasattr(image, 'save'): # PIL Image
-                image.save(img_path, format="JPEG")
+                image.save(img_path, format="JPEG", quality=90)
             elif isinstance(image, np.ndarray):
                 from PIL import Image
-                if len(image.shape) == 3 and image.shape[2] == 3:
-                    Image.fromarray(image).save(img_path, format="JPEG")
-                    
+                # Assume BGR if from OpenCV, convert to RGB for saving
+                if len(image.shape) == 3:
+                    if image.shape[2] == 3:
+                        Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if image.dtype == np.uint8 else image).save(img_path, format="JPEG")
+            
             return img_path
         except Exception as e:
-            print(f"⚠️ Failed to log image: {e}")
+            print(f"⚠️ Failed to log image at step {step_idx}: {e}")
             return None
         
     def log_step(self, step_idx, action, latency, chunk=None, image=None):

@@ -382,6 +382,21 @@ class MobileVLAInference:
             if fallback_path not in sys.path:
                 sys.path.append(fallback_path)
             from mobile_vla_trainer import MobileVLATrainer
+
+        # Inject model backbone mapping required by newer V3 configs
+        try:
+            from robovlms.model.backbone.robokosmos import RoboKosMos
+            import robovlms.model.backbone as backbone
+            backbone.__dict__["RoboVLM-Nav"] = RoboKosMos
+            
+            import robovlms.model.policy_head as policy_head
+            from robovlms.model.policy_head.mobile_vla_policy import MobileVLAClassificationDecoder, MobileVLALSTMDecoder
+            policy_head.__dict__["NavPolicy"] = MobileVLAClassificationDecoder
+            policy_head.__dict__["NavPolicyRegression"] = MobileVLALSTMDecoder
+            
+            logger.info("🔧 Injected RoboVLM-Nav & NavPolicy mapping")
+        except Exception as base_e:
+            logger.warning(f"⚠️ Failed to inject model mapping: {base_e}")
         
         if self.use_quant:
             from transformers import BitsAndBytesConfig

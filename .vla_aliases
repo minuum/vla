@@ -284,8 +284,8 @@ vla-help() {
 # 초기 메시지
 # ========================================
 
-echo "✓ VLA aliases loaded - $VLA_SERVER_NAME"
-echo "  Run 'vla-help' for available commands"
+# echo "✓ VLA aliases loaded - $VLA_SERVER_NAME"
+# echo "  Run 'vla-help' for available commands"
 # Basket Training Aliases
 alias vla-train-log='tail -f /home/billy/25-1kp/vla/logs/train_basket_chunk5_20260129_204053.log'
 alias vla-train-stop='pkill -f main.py'

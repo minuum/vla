@@ -117,7 +117,7 @@ Model_ws/log/
 # ─── Robo+ / External Repos (별도 관리) ──────────────────────
 Robo+/
 simpler_env_repo/
-RoboVLMs_upstream/
+
 
 # ─── Auto-generated Setup Scripts ────────────────────────────
 setup_aliases_docker.sh
