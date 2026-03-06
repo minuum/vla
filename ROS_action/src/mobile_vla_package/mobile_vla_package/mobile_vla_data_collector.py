@@ -263,24 +263,12 @@ class MobileVLADataCollector(Node):
             if ros_action_dir is None or not ros_action_dir.exists():
                 raise RuntimeError(f"❌ ROS_action 디렉토리를 찾을 수 없습니다. 환경변수 VLA_DATASET_DIR을 설정하거나, 올바른 위치에 설치하세요.")
             
-            # ROS_action 바로 아래에 저장 (절대 경로 사용, resolve()로 확실히 절대 경로 보장)
-            self.data_dir = ros_action_dir.resolve() / "mobile_vla_dataset"
-            # 한 번 더 resolve()하여 절대 경로 확실히 보장
+            # 2번 모드(V3)는 별도 디렉토리 사용 (데이터 섞임 방지)
+            dataset_name = "mobile_vla_dataset_v3" if self.mode == "2" else "mobile_vla_dataset"
+            self.data_dir = ros_action_dir.resolve() / dataset_name
+            # 한 번 더 resolve()하여 절대 경로 확실히 보장 (상대 경로 문제 방지)
             self.data_dir = self.data_dir.resolve()
             
-            # 기존 install/mobile_vla_dataset 경로 호환성: 데이터 마이그레이션 (절대 경로 사용)
-            old_data_dir = ros_action_dir.resolve() / "install" / "mobile_vla_dataset"
-            if old_data_dir.exists():
-                if not self.data_dir.exists():
-                    # 새 위치가 없으면 전체 폴더 이동
-                    self.get_logger().info(f"🔄 기존 데이터 마이그레이션: {old_data_dir} → {self.data_dir}")
-                    try:
-                        import shutil
-                        shutil.move(str(old_data_dir), str(self.data_dir))
-                        self.get_logger().info(f"✅ 데이터 마이그레이션 완료: {self.data_dir}")
-                    except Exception as e:
-                        self.get_logger().warn(f"⚠️ 데이터 마이그레이션 실패: {e}. 새 위치를 사용합니다.")
-                else:
                     # 둘 다 있으면 기존 위치의 파일들을 새 위치로 병합
                     old_h5_files = list(old_data_dir.glob("*.h5"))
                     old_json_files = list(old_data_dir.glob("*.json"))
