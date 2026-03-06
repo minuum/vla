@@ -269,6 +269,19 @@ class MobileVLADataCollector(Node):
             # 한 번 더 resolve()하여 절대 경로 확실히 보장 (상대 경로 문제 방지)
             self.data_dir = self.data_dir.resolve()
             
+            # 기존 install/mobile_vla_dataset 경로 호환성: 데이터 마이그레이션 (절대 경로 사용)
+            old_data_dir = ros_action_dir.resolve() / "install" / "mobile_vla_dataset"
+            if old_data_dir.exists():
+                if not self.data_dir.exists():
+                    # 새 위치가 없으면 전체 폴더 이동
+                    self.get_logger().info(f"🔄 기존 데이터 마이그레이션: {old_data_dir} → {self.data_dir}")
+                    try:
+                        import shutil
+                        shutil.move(str(old_data_dir), str(self.data_dir))
+                        self.get_logger().info(f"✅ 데이터 마이그레이션 완료: {self.data_dir}")
+                    except Exception as e:
+                        self.get_logger().warn(f"⚠️ 데이터 마이그레이션 실패: {e}. 새 위치를 사용합니다.")
+                else:
                     # 둘 다 있으면 기존 위치의 파일들을 새 위치로 병합
                     old_h5_files = list(old_data_dir.glob("*.h5"))
                     old_json_files = list(old_data_dir.glob("*.json"))
@@ -295,7 +308,7 @@ class MobileVLADataCollector(Node):
                                 pass
                         except Exception as e:
                             self.get_logger().warn(f"⚠️ 데이터 병합 실패: {e}. 기존 위치 파일은 그대로 유지됩니다.")
-            
+        
             # install 경로 사용 방지 확인 (절대 경로로 확인)
             if str(self.data_dir).endswith("/install/mobile_vla_dataset") or "install/mobile_vla_dataset" in str(self.data_dir):
                 self.get_logger().error(f"❌ 잘못된 경로: install 안에 저장되지 않도록 설정되었습니다!")
