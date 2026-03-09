@@ -90,7 +90,7 @@ class MobileVLADataCollector(Node):
                 "v3_center": {"target": 40, "description": "V3 정중앙 (Center)", "key": "1"},
                 "v3_left": {"target": 30, "description": "V3 좌측 (Left)", "key": "2"},
                 "v3_right": {"target": 30, "description": "V3 우측 (Right)", "key": "3"},
-                "v3_recovery": {"target": 40, "description": "V3 오류회복 (Recovery)", "key": "4"},
+                "v3_recovery": {"target": 40, "description": "V3 오류 회복 (Recovery)", "key": "4"},
                 "v3_noise": {"target": 20, "description": "V3 잡음 (Noise)", "key": "5"}
             }
             # 장애물(박스) 위치 대체 (화분 위치 대신 바구니 거리/위치로 활용)
