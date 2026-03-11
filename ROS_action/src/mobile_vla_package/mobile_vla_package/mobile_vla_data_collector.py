@@ -95,9 +95,8 @@ class MobileVLADataCollector(Node):
             }
             # 장애물(박스) 위치 대체 (화분 위치 대신 바구니 거리/위치로 활용)
             self.distance_levels = {
-                "close":   {"label": "가까움 (Close/Slight)",      "hint": "바구니가 가깝거나 약간 편향됨", "samples_per_scenario": 3},
-                "medium":  {"label": "중간 거리 (Medium)",         "hint": "표준 접근 전진 (2.5m 내외)", "samples_per_scenario": 4},
-                "far":     {"label": "멀리 / 극단적 (Far/Extreme)", "hint": "멀리서 길게 조향하거나 극단적 편향", "samples_per_scenario": 3}
+                "close":   {"label": "가까움 (Close/1m)", "hint": "바구니와 로봇 거리 1m 내외", "samples_per_scenario": 5},
+                "medium":  {"label": "중간 거리 (Medium/2m)", "hint": "바구니와 로봇 거리 2m 내외", "samples_per_scenario": 5}
             }
         else:
             # 기존 1번 모드 (장애물 회피 기반)
@@ -128,8 +127,8 @@ class MobileVLADataCollector(Node):
         if self.mode == "2":
             self.pattern_targets = {"core": 20, "variant": 20}
             self.distance_targets_per_pattern = {
-                "core": {"close": 5, "medium": 10, "far": 5},
-                "variant": {"close": 5, "medium": 10, "far": 5},
+                "core": {"close": 10, "medium": 10},
+                "variant": {"close": 10, "medium": 10},
             }
         else:
             self.pattern_targets = {"core": 150, "variant": 100}
@@ -530,6 +529,9 @@ class MobileVLADataCollector(Node):
                 self.show_distance_selection()
         elif key in ['j', 'k', 'l']:
             if self.distance_selection_mode:
+                if self.mode == "2" and key == 'l':
+                    self.get_logger().warn("⚠️ V3 모드에서는 Far(L) 거리를 지원하지 않습니다. J(1m) 또는 K(2m)를 선택하세요.")
+                    return
                 # 거리 선택 모드: j=근거리, k=중거리, l=원거리
                 distance_map = {'j': 'close', 'k': 'medium', 'l': 'far'}
                 self.selected_distance_level = distance_map[key]
@@ -2442,12 +2444,15 @@ class MobileVLADataCollector(Node):
         self.get_logger().info(f"   📍 {levels['medium']['label']}")
         self.get_logger().info(f"   💡 {levels['medium']['hint']}")
         self.get_logger().info("")
-        self.get_logger().info("L키: FAR")
-        self.get_logger().info(f"   📍 {levels['far']['label']}")
-        self.get_logger().info(f"   💡 {levels['far']['hint']}")
-        self.get_logger().info("")
+        
+        if self.mode != "2":
+            self.get_logger().info("L키: FAR")
+            self.get_logger().info(f"   📍 {levels['far']['label']}")
+            self.get_logger().info(f"   💡 {levels['far']['hint']}")
+            self.get_logger().info("")
+            
         if self.mode == "2":
-            self.get_logger().info("✨ J/K/L 중 거리를 선택하세요!")
+            self.get_logger().info("✨ J/K 중 거리를 선택하세요!")
         else:
             self.get_logger().info("✨ J/K/L 중 장애물 위치를 선택하세요!")
         self.get_logger().info("🚫 취소하려면 다른 키를 누르세요.")
