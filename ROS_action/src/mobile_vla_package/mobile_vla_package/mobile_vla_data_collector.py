@@ -1573,6 +1573,9 @@ class MobileVLADataCollector(Node):
         """모든 상태를 초기화하고 첫 화면으로 리셋"""
         self.get_logger().info("🔄 리셋 중...")
         
+        # 실제 파일 현황과 진행률 동기화 (삭제 반영 등)
+        self.resync_scenario_progress()
+        
         # 수집 중이면 에피소드 취소 (저장하지 않음)
         if self.collecting:
             self.get_logger().info("⚠️ 수집 중인 에피소드를 취소합니다 (저장하지 않음)")
@@ -2201,15 +2204,17 @@ class MobileVLADataCollector(Node):
             description = self.cup_scenarios[scenario_id]["description"]
             # 기존 통계는 vert/hori 포함 형식도 집계하도록 호환 처리
             current = self.scenario_stats.get(scenario_id, 0)
-            # 기존 형식(vert/hori 포함)도 카운트
-            for layout in ["vert", "hori"]:
-                old_id = f"{scenario_id.replace('_left', '_vert_left').replace('_right', '_vert_right')}"
-                if "_left" in scenario_id:
-                    old_id = old_id.replace("_vert_left", f"_{layout}_left")
-                elif "_right" in scenario_id:
-                    old_id = old_id.replace("_vert_right", f"_{layout}_right")
-                if old_id in self.scenario_stats:
-                    current += self.scenario_stats[old_id]
+            # 기존 형식(vert/hori 포함)도 카운트 (V3 모드가 아닌 경우만 호환성 유지)
+            if self.mode != "2":
+                for layout in ["vert", "hori"]:
+                    old_id = f"{scenario_id.replace('_left', '_vert_left').replace('_right', '_vert_right')}"
+                    if "_left" in scenario_id:
+                        old_id = old_id.replace("_vert_left", f"_{layout}_left")
+                    elif "_right" in scenario_id:
+                        old_id = old_id.replace("_vert_right", f"_{layout}_right")
+                    
+                    if old_id != scenario_id and old_id in self.scenario_stats:
+                        current += self.scenario_stats[old_id]
             
             target = self.cup_scenarios[scenario_id]["target"]
             remaining = max(0, target - current)

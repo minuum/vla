@@ -1,6 +1,12 @@
 {
-  "last_updated": "2026-03-11T16:14:35.631802",
-  "scenario_stats": {},
-  "total_completed": 0,
+  "last_updated": "2026-03-11T21:25:07.260464",
+  "scenario_stats": {
+    "v3_center": 6,
+    "v3_left": 0,
+    "v3_right": 0,
+    "v3_recovery": 0,
+    "v3_noise": 0
+  },
+  "total_completed": 6,
   "total_target": 160
 }
