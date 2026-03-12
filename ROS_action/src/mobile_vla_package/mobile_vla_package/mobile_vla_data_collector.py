@@ -248,17 +248,22 @@ class MobileVLADataCollector(Node):
             # 방법 2: 홈 디렉토리 기준으로 찾기 (절대 경로)
             if ros_action_dir is None or not ros_action_dir.exists():
                 try:
-                    candidate = Path.home().resolve() / "vla" / "ROS_action"
-                    if candidate.exists() and candidate.is_absolute():
-                        ros_action_dir = candidate
+                    # MoNaVLA 우선, 없으면 vla 확인
+                    for project_name in ["MoNaVLA", "vla"]:
+                        candidate = Path.home().resolve() / project_name / "ROS_action"
+                        if candidate.exists() and candidate.is_absolute():
+                            ros_action_dir = candidate
+                            break
                 except (OSError, ValueError) as e:
                     self.get_logger().warn(f"⚠️ 홈 디렉토리 기준으로 ROS_action 찾기 실패: {e}")
             
             # 방법 3: 절대 경로 직접 지정 (getcwd() 의존 없음)
             if ros_action_dir is None or not ros_action_dir.exists():
-                candidate = Path("/home/soda/vla/ROS_action")
-                if candidate.exists() and candidate.is_absolute():
-                    ros_action_dir = candidate
+                for project_path in ["/home/soda/MoNaVLA/ROS_action", "/home/soda/vla/ROS_action"]:
+                    candidate = Path(project_path)
+                    if candidate.exists() and candidate.is_absolute():
+                        ros_action_dir = candidate
+                        break
             
             if ros_action_dir is None or not ros_action_dir.exists():
                 raise RuntimeError(f"❌ ROS_action 디렉토리를 찾을 수 없습니다. 환경변수 VLA_DATASET_DIR을 설정하거나, 올바른 위치에 설치하세요.")
