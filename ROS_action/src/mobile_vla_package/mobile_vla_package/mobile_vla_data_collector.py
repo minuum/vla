@@ -376,8 +376,11 @@ class MobileVLADataCollector(Node):
     def keyboard_loop(self):
         """Separate thread loop for handling keyboard input"""
         while rclpy.ok():
-            key = self.get_key()
-            self.handle_key_input(key)
+            try:
+                key = self.get_key()
+                self.handle_key_input(key)
+            except Exception as e:
+                self.get_logger().error(f"❌ 키 입력 처리 오류: {e}")
             time.sleep(0.01)
 
     def handle_key_input(self, key: str):
@@ -1254,9 +1257,9 @@ class MobileVLADataCollector(Node):
             current_key = self._infer_key_from_action(action)
             
             # 불일치 감지 (Core일 때만, 로그 없이 통계만 업데이트)
-            if planned_seq and len(self.current_episode_keys) < self.fixed_episode_length:
+            if planned_seq and len(self.current_episode_keys) < len(planned_seq):
                 next_key = planned_seq[len(self.current_episode_keys)]
-                if planned_seq and next_key and pattern_for_guide == 'core':
+                if next_key and pattern_for_guide == 'core':
                     if current_key != next_key:
                         self.core_mismatch_count += 1
         
