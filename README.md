@@ -1,10 +1,9 @@
-# Mobile VLA Project - Vision-Language-Action for Mobile Robot Navigation
+# MoNaVLA (Mobile Navigation Vision-Language-Action)
+> 음료수 병을 향한 장애물 회피 주행을 위한 연구 및 구현
 
-> 모바일 로봇(Jetson AGX Orin)의 시각-언어 기반 장애물 회피 주행을 위한 VLA 모델 연구
-
-**프로젝트 기간**: 2025-11 ~ 현재  
-**최종 업데이트**: 2026-03-06
-**Status**: ✅ Phase 1 완료 (V1~V3 학습 최적화) | 🚀 Phase 2 진행중 (데이터 증강 및 추론 테스트)
+**프로젝트 이름**: MoNaVLA (Mobile Navigation VLA)  
+**최종 업데이트**: 2026-03-13  
+**Status**: ✅ Phase 1.5 완료 (데이터 수집 고도화) | 🚀 Phase 2 진행중 (실제 로봇 테스트)
 
 ---
 

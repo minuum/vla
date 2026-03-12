@@ -176,9 +176,10 @@ class MobileVLALSTMDecoder(BasePolicyHead):
             loss_velocity = loss_velocity[attention_mask].mean()
 
         return {
-            "loss_velocity": loss_velocity,  # loss_arm -> loss_velocity
-            "loss_gripper": None,  # Mobile VLA는 gripper 없음
-            "acc_gripper": None,  # Mobile VLA는 gripper 없음
+            "loss_arm": loss_velocity,
+            "loss_gripper": None,
+            "acc_arm": None,
+            "acc_gripper": None,
         }
 
 
@@ -193,18 +194,19 @@ class MobileVLAClassificationDecoder(BasePolicyHead):
     def __init__(
         self,
         in_features,
-        action_dim, # num_classes (6)
-        down_sample,
-        latent,
-        fwd_pred_next_n,
-        window_size,
+        down_sample="pooling",
+        latent=1,
+        fwd_pred_next_n=1,
+        window_size=8,
         hidden_size=1024,
         num_layers=4,
         policy_rnn_dropout_p=0.0,
         **kwargs,
     ):
-        num_classes = kwargs.get("num_classes", 6)
-        super(MobileVLAClassificationDecoder, self).__init__(in_features, num_classes, **kwargs)
+        num_classes = kwargs.pop("num_classes", 6)
+        action_dim = kwargs.pop("action_dim", num_classes)
+        action_space = kwargs.pop("action_space", "continuous")
+        super(MobileVLAClassificationDecoder, self).__init__(hidden_size, action_dim=action_dim, action_space=action_space, down_sample=down_sample, latent=latent, **kwargs)
         self.num_classes = num_classes
         self.down_sample = down_sample
         self.latent = latent
@@ -305,7 +307,8 @@ class MobileVLAClassificationDecoder(BasePolicyHead):
         acc = (preds == flat_labels).float().mean()
 
         return {
-            "loss_velocity": loss,
+            "loss_arm": loss,
             "loss_gripper": None,
-            "acc_velocity": acc.item(),
+            "acc_arm": acc.item(),
+            "acc_gripper": None,
         }
