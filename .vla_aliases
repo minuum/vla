@@ -5,7 +5,7 @@
 # - Billy (A5000): 모델 서버 - VLA 추론
 #
 # Source this file in your ~/.zshrc or ~/.bashrc:
-# echo 'source /home/soda/vla/.vla_aliases' >> ~/.zshrc
+# echo 'source /home/soda/MoNaVLA/.vla_aliases' >> ~/.zshrc
 #
 # ========================================
 # 서버 역할 감지
@@ -27,8 +27,8 @@ fi
 # 공통 환경 변수
 # ========================================
 
-export VLA_PROJECT_DIR="/home/soda/vla"
-export MONAVLA_ROOT="/home/soda/vla"
+export VLA_PROJECT_DIR="/home/soda/MoNaVLA"
+export MONAVLA_ROOT="/home/soda/MoNaVLA"
 
 # Tailscale VPN 주소
 export JETSON_TAILSCALE_IP="${JETSON_TAILSCALE_IP:-100.85.118.58}"
@@ -72,7 +72,7 @@ vla-jetson-env() {
     echo "🤖 Jetson Robot Server 환경 설정 중..."
     
     # ROS2 환경 설정
-    cd /home/soda/vla/ROS_action/install
+    cd /home/soda/MoNaVLA/ROS_action/install
     source /opt/ros/humble/setup.bash
     source local_setup.bash
     cd - > /dev/null
