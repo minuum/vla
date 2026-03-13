@@ -37,7 +37,7 @@ from robovlm_nav.models.policy_head.nav_policy_impl import (
 from robovlm_nav.models.policy_head.hybrid_action_head import HybridActionHead
 
 # Trainer
-from robovlm_nav.trainer.nav_trainer import MobileVLATrainer as NavTrainer
+from robovlm_nav.trainer.nav_trainer import NavTrainer
 
 # ── robovlms 네임스페이스에 동적 주입 ──────────────────────────
 # Datasets (configs에서 type으로 참조하는 이름들)
@@ -57,7 +57,16 @@ from robovlms.model.backbone.robokosmos import RoboKosMos
 setattr(robovlms.model.backbone, "RoboVLM-Nav", RoboKosMos)
 
 # Trainer
-setattr(robovlms.train, "MobileVLATrainer", NavTrainer)
+import robovlms.train.base_trainer as base_trainer_mod
+base_trainer_mod.BaseTrainer = NavTrainer
+setattr(robovlms.train, "NavTrainer", NavTrainer)
+setattr(robovlms.train, "BaseTrainer", NavTrainer)
+
+# main 모듈의 BaseTrainer 교체
+import main
+print(f"DEBUG: main.BaseTrainer before patch: {main.BaseTrainer}", flush=True)
+main.BaseTrainer = NavTrainer
+print(f"DEBUG: main.BaseTrainer after patch: {main.BaseTrainer}", flush=True)
 
 if __name__ == "__main__":
     # third_party/RoboVLMs/main.py의 함수들을 직접 import해서 사용.

@@ -9,7 +9,7 @@ from re import L
 from typing import Dict, Any
 import datetime
 
-from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from lightning.pytorch.trainer import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 from lightning.pytorch.strategies import DDPStrategy
@@ -135,7 +135,17 @@ def init_trainer_config(configs):
             save_last=True,
             filename="epoch={epoch:02d}-val_loss={val_loss:.4f}"
         ),
+        EarlyStopping(
+            monitor=configs["trainer"].get("monitor", "val_loss"),
+            patience=configs["trainer"].get("patience", 3),
+            mode="min",
+            verbose=True,
+        ),
     ]
+
+    # Trainer.__init__에 직접 전달되면 안 되는 키들 제거
+    for custom_key in ["early_stopping", "patience", "monitor"]:
+        trainer_config.pop(custom_key, None)
 
     return trainer_config
 
@@ -250,12 +260,12 @@ def experiment(variant):
             discrete=(
                 False
                 if variant["act_head"] is None
-                else variant["act_head"].get("action_space", "continuous") == "discrete"
+                else (variant["act_head"].get("action_space", "continuous") == "discrete" or variant["act_head"].get("discrete_action", False))
             ),
             discrete_action=(
                 False
                 if variant["act_head"] is None
-                else variant["act_head"].get("action_space", "continuous") == "discrete"
+                else (variant["act_head"].get("action_space", "continuous") == "discrete" or variant["act_head"].get("discrete_action", False))
             ),
             use_mu_law=variant.get("use_mu_law", False),
             mu_val=variant.get("mu_val", 255),

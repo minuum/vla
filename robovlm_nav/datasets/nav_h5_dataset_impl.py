@@ -94,14 +94,20 @@ class MobileVLAH5Dataset(Dataset):
         else:
             self.episode_files = episode_files[:split_idx]
         
-        # 각 에피소드의 프레임 수 계산
+        # 각 에피소드의 프레임 수 계산 (유효한 에피소드만 포함)
         self.episode_lengths = []
         self.cumulative_lengths = [0]
+        valid_episode_files = []
         for ep_file in self.episode_files:
             with h5py.File(ep_file, 'r') as f:
-                length = len(f['images'])  # 'observations/images' -> 'images'
+                if 'images' not in f or 'actions' not in f:
+                    print(f"  ⚠️ Skipping incomplete episode (missing keys): {Path(ep_file).name}")
+                    continue
+                length = len(f['images'])
+                valid_episode_files.append(ep_file)
                 self.episode_lengths.append(length)
                 self.cumulative_lengths.append(self.cumulative_lengths[-1] + length)
+        self.episode_files = valid_episode_files
         
         self.total_frames = self.cumulative_lengths[-1]
         
@@ -125,12 +131,11 @@ class MobileVLAH5Dataset(Dataset):
         self.window_size = window_size
         self.action_chunk_size = action_chunk_size  # 사용하지 않음 (호환성 유지)
         self.fwd_pred_next_n = kwargs.get("fwd_pred_next_n", action_chunk_size)  # kwargs에서 가져오기
-        # main.py 및 gr_datamodule과의 호환성 강화
-        self.discrete_action = discrete_action
-        if "discrete" in kwargs and kwargs["discrete"]:
-            self.discrete_action = True
+        # discrete_action 설정 (인자 또는 kwargs에서 확인)
+        self.discrete_action = discrete_action or kwargs.get("discrete_action", False)
         
-        print(f"DEBUG: MobileVLAH5Dataset final self.discrete_action: {self.discrete_action}")
+        # BOLD PRINT to check value at initialization
+        print(f"!!! MobileVLAH5Dataset INITIALIZED with discrete_action = {self.discrete_action} !!!")
         
         # text_fn 초기화 (tokenizer_config가 있으면)
         if self.tokenizer_config is not None and self.tokenizer is not None:
@@ -224,13 +229,19 @@ class MobileVLAH5Dataset(Dataset):
             
             # 액션 로드
             actions = []
-            for t in range(start_frame, min(start_frame + total_frames_needed, total_len)):
-                if t < len(f['actions']):
-                    action_2d = f['actions'][t][:2]  # linear_x, linear_y만 사용
-                    action = action_2d.copy()
-                else:
-                    action = np.zeros(2)
-                actions.append(action)
+            if 'actions' not in f:
+                # 안전장치: actions 키 없는 파일은 zero action으로 처리
+                print(f"⚠️ No 'actions' key in {self.episode_files[ep_idx]}, using zeros.")
+                for _ in range(total_frames_needed):
+                    actions.append(np.zeros(2))
+            else:
+                for t in range(start_frame, min(start_frame + total_frames_needed, total_len)):
+                    if t < len(f['actions']):
+                        action_2d = f['actions'][t][:2]  # linear_x, linear_y만 사용
+                        action = action_2d.copy()
+                    else:
+                        action = np.zeros(2)
+                    actions.append(action)
             
             # Padding for actions
             while len(actions) < total_frames_needed:
@@ -348,6 +359,8 @@ class MobileVLAH5Dataset(Dataset):
         images_tensor = torch.stack(images)  # (total_frames_needed, C, H, W)
         
         if self.discrete_action:
+            if idx % 100 == 0: # 너무 자주 찍히지 않게 조절
+                print(f"DEBUG: __getitem__ processing discrete actions for idx {idx}")
             # Action Classification Mapping (Omniwheel 9-classes)
             # 0: Stop, 1: F, 2: B, 3: L, 4: R, 5: FL, 6: FR, 7: BL, 8: BR
             cls_labels = []
@@ -419,7 +432,7 @@ class MobileVLAH5Dataset(Dataset):
         action_tensors = torch.from_numpy(
             np.array([s["actions"].numpy() for s in data])
         )[:, :-1]  # 마지막 프레임 제거 (DiskCalvinDataset과 동일)
-        # Shape: (B, window_size + fwd_pred_next_n - 1, 2)
+        # Shape: (B, window_size + fwd_pred_next_n - 1, 2 또는 1)
         
         # 액션 마스크 스택
         action_mask = torch.from_numpy(

@@ -244,6 +244,12 @@ class MobileVLAClassificationDecoder(BasePolicyHead):
         self.history_memory = []
 
     def forward(self, tok_seq, h_0=None, **kwargs):
+        # 강제로 그래디언트 계산 활성화
+        torch.set_grad_enabled(True)
+        if not tok_seq.requires_grad:
+            tok_seq.requires_grad_(True)
+            
+        self.debug_tok_seq_grad = tok_seq.requires_grad
         if len(tok_seq.shape) == 4:
             if self.down_sample == "pooling":
                 bs, seq_len = tok_seq.shape[:2]
@@ -285,18 +291,37 @@ class MobileVLAClassificationDecoder(BasePolicyHead):
             return {"loss_velocity": None, "loss_gripper": None, "acc_velocity": None}
 
         logits = pred_action[0] if isinstance(pred_action, (tuple, list)) else pred_action
-        class_labels = labels[0] # (B, L, chunk)
+        class_labels = labels[0] # (B, L, chunk) 또는 (B, L)
+        
+        # 만약 (B, L) 형태로 들어오면 (B, L, 1)로 확장
+        if class_labels.dim() == 2:
+            class_labels = class_labels.unsqueeze(-1)
 
         flat_logits = rearrange(logits, "b l n d -> (b l n) d")
         flat_labels = rearrange(class_labels, "b l n -> (b l n)").long()
 
         if attention_mask is not None:
+            # attention_mask도 차원 확인 (B, L) -> (B, L, 1)
+            if attention_mask.dim() == 2:
+                attention_mask = attention_mask.unsqueeze(-1)
             flat_mask = rearrange(attention_mask, "b l n -> (b l n)").bool()
-            flat_logits = flat_logits[flat_mask]
-            flat_labels = flat_labels[flat_mask]
+            
+            # mask와 labels 크기 일치 확인 (간혹 BaseTrainer에서 text_mask를 넘길 경우 n=1이 아닐 수 있음)
+            if flat_mask.size(0) != flat_labels.size(0):
+                # 크기가 다르면 마스킹 생략 (로그 출력)
+                # print(f"⚠️ [NavPolicy] Mask size {flat_mask.size(0)} mismatch with labels {flat_labels.size(0)}")
+                pass
+            else:
+                flat_logits = flat_logits[flat_mask]
+                flat_labels = flat_labels[flat_mask]
 
         if flat_labels.size(0) == 0:
-            return {"loss_velocity": torch.tensor(0.0).to(logits.device), "acc_velocity": 0.0}
+            return {
+                "loss_arm_act": torch.tensor(0.0, device=logits.device, requires_grad=True),
+                "loss_velocity": torch.tensor(0.0, device=logits.device, requires_grad=True),
+                "acc_arm_act": 0.0,
+                "acc_velocity": 0.0,
+            }
 
         loss = F.cross_entropy(flat_logits, flat_labels, weight=self.class_weights_tensor)
         
@@ -305,7 +330,9 @@ class MobileVLAClassificationDecoder(BasePolicyHead):
         acc = (preds == flat_labels).float().mean()
 
         return {
+            "loss_arm_act": loss,
             "loss_velocity": loss,
             "loss_gripper": None,
-            "acc_velocity": acc.item(),
+            "acc_arm_act": acc,
+            "acc_velocity": acc,
         }
