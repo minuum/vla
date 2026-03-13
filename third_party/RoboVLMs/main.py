@@ -130,13 +130,13 @@ def init_trainer_config(configs):
         ModelCheckpoint(
             dirpath=configs["output_dir"], 
             save_top_k=3, 
-            monitor="val_loss", 
+            monitor="val/loss", 
             mode="min",
             save_last=True,
-            filename="epoch={epoch:02d}-val_loss={val_loss:.4f}"
+            filename="epoch_epoch={epoch:02d}-val_loss={val/loss:.3f}"
         ),
         EarlyStopping(
-            monitor=configs["trainer"].get("monitor", "val_loss"),
+            monitor=configs["trainer"].get("monitor", "val/loss"),
             patience=configs["trainer"].get("patience", 3),
             mode="min",
             verbose=True,
